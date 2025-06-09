@@ -23,14 +23,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.Shared", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.AuthService", "src\Services\InventoryPro.AuthService\InventoryPro.AuthService.csproj", "{2E407BA3-2249-AD24-2FA2-05FBE6DFAB18}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DTOs", "DTOs", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
-	ProjectSection(SolutionItems) = preProject
-		AuthDTOs.cs = AuthDTOs.cs
-		CommonDTOs.cs = CommonDTOs.cs
-		ProductDTOs.cs = ProductDTOs.cs
-		SalesDTOs.cs = SalesDTOs.cs
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.ProductService", "src\Services\InventoryPro.ProductService\InventoryPro.ProductService.csproj", "{10F2A33A-F4D1-C38B-A65F-E502776969A9}"
 EndProject
 Global
@@ -114,7 +106,6 @@ Global
 		{E97073DC-9068-425E-9E95-5ABE1AA90A2D} = {6306A8FB-679E-111F-6585-8F70E0EE6013}
 		{C8E42992-5E42-0C2B-DBFE-AA848D06431C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{E17C1A06-FD07-46A1-AB36-1B7CC1991848} = {C8E42992-5E42-0C2B-DBFE-AA848D06431C}
-		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {C8E42992-5E42-0C2B-DBFE-AA848D06431C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {75EF83CF-EFB2-4986-93C7-2FC512F0F79F}

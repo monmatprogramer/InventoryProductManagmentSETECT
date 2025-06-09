@@ -23,6 +23,10 @@
 
 		<!-- Validation -->
 		<PackageReference Include="FluentValidation" Version="11.8.0" />
+		<Compile Include="DTOs\AuthDTOs.cs" />
+		<Compile Include="DTOs\CommonDTOs.cs" />
+		<Compile Include="DTOs\ProductDTOs.cs" />
+		<Compile Include="DTOs\SalesDTOs.cs" />
 	</ItemGroup>
 
 </Project>
