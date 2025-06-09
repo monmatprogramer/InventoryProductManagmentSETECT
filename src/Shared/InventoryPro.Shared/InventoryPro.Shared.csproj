@@ -1,9 +1,28 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<!-- src/Shared/InventoryPro.Shared/InventoryPro.Shared.csproj -->
+<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+
+		<!-- Library Metadata -->
+		<AssemblyTitle>InventoryPro Shared Library</AssemblyTitle>
+		<AssemblyDescription>Shared DTOs, Models, and Common Classes</AssemblyDescription>
+		<AssemblyVersion>1.0.0.0</AssemblyVersion>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<!-- NuGet Package References -->
+	<ItemGroup>
+		<!-- Data Annotations for Validation -->
+		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+
+		<!-- JSON Serialization -->
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+
+		<!-- Validation -->
+		<PackageReference Include="FluentValidation" Version="11.8.0" />
+	</ItemGroup>
 
 </Project>
