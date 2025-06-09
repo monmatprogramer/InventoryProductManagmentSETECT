@@ -1,381 +1,404 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
-using Microsoft.Extensions.DependencyInjection;
-
-using InventoryPro.Services; // Updated namespace
+﻿using Microsoft.Extensions.Logging;
+using InventoryPro.WinForms.Services;
+using InventoryPro.Shared.DTOs;
 
 namespace InventoryPro.WinForms.Forms
     {
     /// <summary>
-    /// Main form of the application - dashboard with navigation
-    /// Modern design with sidebar navigation and content area
+    /// Main dashboard form for the InventoryPro application
+    /// This is the central hub that provides navigation to all other features
     /// </summary>
     public partial class MainForm : Form
         {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly AuthService _authService;
+        private readonly ILogger<MainForm> _logger;
+        private readonly IAuthService _authService;
+        private readonly IApiService _apiService;
+        private UserDto? _currentUser;
+        private DashboardStatsDto? _dashboardStats;
 
-        // UI Controls
-        private Panel sidebarPanel;
-        private Panel contentPanel;
-        private Panel headerPanel;
-        private Label lblTitle;
-        private Label lblUser;
-        private Button btnDashboard;
-        private Button btnProducts;
-        private Button btnCustomers;
-        private Button btnSales;
-        private Button btnReports;
-        private Button btnLogout;
-        private Button currentButton;
+        // Child forms for different modules
+        private ProductForm? _productForm;
+        private CustomerForm? _customerForm;
+        private SalesForm? _salesForm;
+        private ReportForm? _reportForm;
 
-        // Dashboard controls
-        private Panel dashboardPanel;
-        private Label lblWelcome;
-        private Panel[] statsPanels;
-
-        public MainForm(IServiceProvider serviceProvider, AuthService authService)
+        public MainForm(ILogger<MainForm> logger, IAuthService authService, IApiService apiService)
             {
-            _serviceProvider = serviceProvider;
-            _authService = authService;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
+
             InitializeComponent();
-            SetupForm();
-            ShowDashboard();
-            }
-
-        private void InitializeComponent()
-            {
-            this.Text = "InventoryPro - Management System";
-            this.Size = new Size(1200, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.MinimumSize = new Size(1000, 600);
-
-            // Modern flat design
-            this.BackColor = Color.FromArgb(245, 245, 245);
-            }
-
-        private void SetupForm()
-            {
-            // Header Panel
-            headerPanel = new Panel
-                {
-                Dock = DockStyle.Top,
-                Height = 60,
-                BackColor = Color.FromArgb(52, 73, 94)
-                };
-
-            lblTitle = new Label
-                {
-                Text = "InventoryPro Management System",
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(20, 15),
-                AutoSize = true
-                };
-
-            lblUser = new Label
-                {
-                Text = $"Welcome, {_authService.CurrentUsername} ({_authService.CurrentUserRole})",
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.White,
-                Location = new Point(this.Width - 250, 20),
-                AutoSize = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-                };
-
-            headerPanel.Controls.AddRange(new Control[] { lblTitle, lblUser });
-
-            // Sidebar Panel
-            sidebarPanel = new Panel
-                {
-                Dock = DockStyle.Left,
-                Width = 250,
-                BackColor = Color.FromArgb(44, 62, 80)
-                };
-
-            // Navigation buttons
-            int buttonY = 20;
-            int buttonHeight = 50;
-            int buttonSpacing = 5;
-
-            btnDashboard = CreateNavButton("📊 Dashboard", buttonY);
-            buttonY += buttonHeight + buttonSpacing;
-
-            btnProducts = CreateNavButton("📦 Products", buttonY);
-            buttonY += buttonHeight + buttonSpacing;
-
-            btnCustomers = CreateNavButton("👥 Customers", buttonY);
-            buttonY += buttonHeight + buttonSpacing;
-
-            btnSales = CreateNavButton("💰 Sales", buttonY);
-            buttonY += buttonHeight + buttonSpacing;
-
-            btnReports = CreateNavButton("📈 Reports", buttonY);
-
-            // Logout button at bottom
-            btnLogout = CreateNavButton("🚪 Logout", 0);
-            btnLogout.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            btnLogout.Location = new Point(10, sidebarPanel.Height - 60);
-            btnLogout.BackColor = Color.FromArgb(192, 57, 43);
-
-            // Add click handlers
-            btnDashboard.Click += (s, e) => ShowDashboard();
-            btnProducts.Click += (s, e) => ShowProducts();
-            btnCustomers.Click += (s, e) => ShowCustomers();
-            btnSales.Click += (s, e) => ShowSales();
-            btnReports.Click += (s, e) => ShowReports();
-            btnLogout.Click += (s, e) => Logout();
-
-            sidebarPanel.Controls.AddRange(new Control[] {
-                btnDashboard, btnProducts, btnCustomers, btnSales, btnReports, btnLogout
-            });
-
-            // Content Panel
-            contentPanel = new Panel
-                {
-                Dock = DockStyle.Fill,
-                BackColor = Color.White,
-                Padding = new Padding(20)
-                };
-
-            // Add panels to form
-            this.Controls.Add(contentPanel);
-            this.Controls.Add(sidebarPanel);
-            this.Controls.Add(headerPanel);
-
-            // Set dashboard as active
-            SetActiveButton(btnDashboard);
+            InitializeFormAsync();
             }
 
         /// <summary>
-        /// Creates a navigation button with consistent styling
+        /// Initializes the form with user data and dashboard statistics
         /// </summary>
-        private Button CreateNavButton(string text, int y)
+        private async void InitializeFormAsync()
             {
-            var button = new Button
+            try
                 {
-                Text = text,
-                Location = new Point(10, y),
-                Size = new Size(230, 45),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 12),
-                ForeColor = Color.White,
-                BackColor = Color.FromArgb(52, 73, 94),
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(10, 0, 0, 0),
-                Cursor = Cursors.Hand
-                };
-
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(41, 128, 185);
-
-            return button;
-            }
-
-        /// <summary>
-        /// Sets the active navigation button
-        /// </summary>
-        private void SetActiveButton(Button button)
-            {
-            // Reset previous button
-            if (currentButton != null)
-                {
-                currentButton.BackColor = Color.FromArgb(52, 73, 94);
-                }
-
-            // Highlight current button
-            button.BackColor = Color.FromArgb(41, 128, 185);
-            currentButton = button;
-            }
-
-        /// <summary>
-        /// Shows dashboard view
-        /// </summary>
-        private void ShowDashboard()
-            {
-            SetActiveButton(btnDashboard);
-            contentPanel.Controls.Clear();
-
-            // Create dashboard panel
-            dashboardPanel = new Panel
-                {
-                Dock = DockStyle.Fill
-                };
-
-            // Welcome message
-            lblWelcome = new Label
-                {
-                Text = $"Welcome back, {_authService.CurrentUsername}!",
-                Font = new Font("Segoe UI", 24, FontStyle.Bold),
-                ForeColor = Color.FromArgb(44, 62, 80),
-                Location = new Point(0, 0),
-                AutoSize = true
-                };
-
-            // Statistics panels
-            statsPanels = new Panel[4];
-            string[] titles = { "Total Products", "Low Stock Items", "Today's Sales", "Active Customers" };
-            string[] values = { "156", "12", "$3,450", "89" };
-            Color[] colors = {
-                Color.FromArgb(52, 152, 219),    // Blue
-                Color.FromArgb(231, 76, 60),     // Red
-                Color.FromArgb(46, 204, 113),    // Green
-                Color.FromArgb(155, 89, 182)     // Purple
-            };
-
-            int panelX = 0;
-            int panelY = 80;
-            int panelWidth = 250;
-            int panelHeight = 120;
-            int panelSpacing = 20;
-
-            for (int i = 0; i < 4; i++)
-                {
-                statsPanels[i] = CreateStatPanel(titles[i], values[i], colors[i]);
-                statsPanels[i].Location = new Point(panelX, panelY);
-                panelX += panelWidth + panelSpacing;
-
-                if (i == 1) // Start new row after 2 panels
+                // Check if user is authenticated
+                if (!await _authService.IsAuthenticatedAsync())
                     {
-                    panelX = 0;
-                    panelY += panelHeight + panelSpacing;
+                    ShowLoginForm();
+                    return;
                     }
 
-                dashboardPanel.Controls.Add(statsPanels[i]);
+                // Load current user information
+                _currentUser = await _authService.GetCurrentUserAsync();
+                if (_currentUser == null)
+                    {
+                    ShowLoginForm();
+                    return;
+                    }
+
+                // Update UI with user information
+                UpdateUserInterface();
+
+                // Load dashboard statistics
+                await LoadDashboardStatsAsync();
+
+                _logger.LogInformation("MainForm initialized successfully for user: {Username}", _currentUser.Username);
                 }
-
-            dashboardPanel.Controls.Add(lblWelcome);
-            contentPanel.Controls.Add(dashboardPanel);
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error initializing MainForm");
+                MessageBox.Show(
+                    "Error loading application. Please try logging in again.",
+                    "Application Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                ShowLoginForm();
+                }
             }
 
         /// <summary>
-        /// Creates a statistics panel for dashboard
+        /// Updates the user interface with current user information
         /// </summary>
-        private Panel CreateStatPanel(string title, string value, Color color)
+        private void UpdateUserInterface()
             {
-            var panel = new Panel
-                {
-                Size = new Size(250, 120),
-                BackColor = color
-                };
+            if (_currentUser == null) return;
 
-            var lblTitle = new Label
-                {
-                Text = title,
-                Font = new Font("Segoe UI", 12),
-                ForeColor = Color.White,
-                Location = new Point(15, 15),
-                AutoSize = true
-                };
+            // Update status bar with user information
+            lblCurrentUser.Text = $"Welcome, {_currentUser.Username}";
+            lblUserRole.Text = _currentUser.Role;
+            lblLastLogin.Text = _currentUser.LastLoginAt?.ToString("MM/dd/yyyy HH:mm") ?? "First time";
 
-            var lblValue = new Label
-                {
-                Text = value,
-                Font = new Font("Segoe UI", 28, FontStyle.Bold),
-                ForeColor = Color.White,
-                Location = new Point(15, 45),
-                AutoSize = true
-                };
+            // Enable/disable menu items based on user role
+            UpdateMenuItemsByRole(_currentUser.Role);
 
-            panel.Controls.AddRange(new Control[] { lblTitle, lblValue });
-            return panel;
+            // Update window title
+            this.Text = $"InventoryPro - Dashboard ({_currentUser.Username})";
             }
 
         /// <summary>
-        /// Shows products management view
+        /// Updates menu items visibility based on user role
         /// </summary>
-        private void ShowProducts()
+        private void UpdateMenuItemsByRole(string userRole)
             {
-            SetActiveButton(btnProducts);
-            contentPanel.Controls.Clear();
+            // Admin users get access to all features
+            bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            bool isManager = userRole.Equals("Manager", StringComparison.OrdinalIgnoreCase) || isAdmin;
 
-            var productForm = _serviceProvider.GetRequiredService<ProductForm>();
-            productForm.TopLevel = false;
-            productForm.FormBorderStyle = FormBorderStyle.None;
-            productForm.Dock = DockStyle.Fill;
+            // Product management - available to all users
+            btnProducts.Enabled = true;
+            menuProducts.Enabled = true;
 
-            contentPanel.Controls.Add(productForm);
-            productForm.Show();
+            // Customer management - available to all users
+            btnCustomers.Enabled = true;
+            menuCustomers.Enabled = true;
+
+            // Sales - available to all users
+            btnSales.Enabled = true;
+            menuSales.Enabled = true;
+
+            // Reports - available to managers and admins
+            btnReports.Enabled = isManager;
+            menuReports.Enabled = isManager;
+
+            // User management - only for admins (if we add this feature)
+            // menuUserManagement.Enabled = isAdmin;
             }
 
         /// <summary>
-        /// Shows customers management view
+        /// Loads dashboard statistics from the API
         /// </summary>
-        private void ShowCustomers()
+        private async Task LoadDashboardStatsAsync()
             {
-            SetActiveButton(btnCustomers);
-            contentPanel.Controls.Clear();
-
-            // Show message for now
-            var label = new Label
+            try
                 {
-                Text = "Customer Management - Coming Soon",
-                Font = new Font("Segoe UI", 16),
-                AutoSize = true,
-                Location = new Point(20, 20)
-                };
-            contentPanel.Controls.Add(label);
-            }
+                lblStatus.Text = "Loading dashboard statistics...";
 
-        /// <summary>
-        /// Shows sales processing view
-        /// </summary>
-        private void ShowSales()
-            {
-            SetActiveButton(btnSales);
-            contentPanel.Controls.Clear();
-
-            // Show message for now
-            var label = new Label
+                var response = await _apiService.GetDashboardStatsAsync();
+                if (response.Success && response.Data != null)
+                    {
+                    _dashboardStats = response.Data;
+                    UpdateDashboardCards();
+                    UpdateRecentActivities();
+                    UpdateLowStockAlerts();
+                    }
+                else
+                    {
+                    _logger.LogWarning("Failed to load dashboard stats: {Message}", response.Message);
+                    lblStatus.Text = "Failed to load dashboard statistics";
+                    }
+                }
+            catch (Exception ex)
                 {
-                Text = "Sales Processing - Coming Soon",
-                Font = new Font("Segoe UI", 16),
-                AutoSize = true,
-                Location = new Point(20, 20)
-                };
-            contentPanel.Controls.Add(label);
+                _logger.LogError(ex, "Error loading dashboard statistics");
+                lblStatus.Text = "Error loading dashboard statistics";
+                }
             }
 
         /// <summary>
-        /// Shows reports view
+        /// Updates the dashboard summary cards with current statistics
         /// </summary>
-        private void ShowReports()
+        private void UpdateDashboardCards()
             {
-            SetActiveButton(btnReports);
-            contentPanel.Controls.Clear();
+            if (_dashboardStats == null) return;
 
-            // Show message for now
-            var label = new Label
+            // Product statistics
+            lblTotalProducts.Text = _dashboardStats.TotalProducts.ToString();
+            lblLowStockProducts.Text = _dashboardStats.LowStockProducts.ToString();
+            lblOutOfStockProducts.Text = _dashboardStats.OutOfStockProducts.ToString();
+            lblInventoryValue.Text = $"${_dashboardStats.TotalInventoryValue:N2}";
+
+            // Sales statistics
+            lblTodaySales.Text = $"${_dashboardStats.TodaySales:N2}";
+            lblMonthSales.Text = $"${_dashboardStats.MonthSales:N2}";
+            lblYearSales.Text = $"${_dashboardStats.YearSales:N2}";
+            lblTodayOrders.Text = _dashboardStats.TodayOrders.ToString();
+
+            // Customer statistics
+            lblTotalCustomers.Text = _dashboardStats.TotalCustomers.ToString();
+            lblNewCustomers.Text = _dashboardStats.NewCustomersThisMonth.ToString();
+
+            // Update status
+            lblStatus.Text = "Dashboard updated successfully";
+            }
+
+        /// <summary>
+        /// Updates the recent activities list
+        /// </summary>
+        private void UpdateRecentActivities()
+            {
+            if (_dashboardStats == null) return;
+
+            lstRecentActivities.Items.Clear();
+            foreach (var activity in _dashboardStats.RecentActivities.Take(10))
                 {
-                Text = "Reports - Coming Soon",
-                Font = new Font("Segoe UI", 16),
-                AutoSize = true,
-                Location = new Point(20, 20)
-                };
-            contentPanel.Controls.Add(label);
+                lstRecentActivities.Items.Add(activity);
+                }
             }
 
         /// <summary>
-        /// Logs out user and returns to login
+        /// Updates the low stock alerts list
         /// </summary>
-        private void Logout()
+        private void UpdateLowStockAlerts()
             {
+            if (_dashboardStats == null) return;
+
+            lstLowStockAlerts.Items.Clear();
+            foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                {
+                var item = new ListViewItem(product.Name);
+                item.SubItems.Add(product.SKU);
+                item.SubItems.Add(product.Stock.ToString());
+                item.SubItems.Add(product.MinStock.ToString());
+                item.Tag = product;
+                lstLowStockAlerts.Items.Add(item);
+                }
+            }
+
+        /// <summary>
+        /// Shows the login form and hides the main form
+        /// </summary>
+        private void ShowLoginForm()
+            {
+            this.Hide();
+            var loginForm = Program.GetRequiredService<LoginForm>();
+            loginForm.LoginSuccessful += OnLoginSuccessful;
+            loginForm.ShowDialog();
+            }
+
+        /// <summary>
+        /// Handles successful login event
+        /// </summary>
+        private async void OnLoginSuccessful(object? sender, EventArgs e)
+            {
+            this.Show();
+            await InitializeFormAsync();
+            }
+
+        #region Event Handlers
+
+        /// <summary>
+        /// Opens the Products management form
+        /// </summary>
+        private void BtnProducts_Click(object sender, EventArgs e)
+            {
+            try
+                {
+                if (_productForm == null || _productForm.IsDisposed)
+                    {
+                    _productForm = Program.GetRequiredService<ProductForm>();
+                    }
+                _productForm.ShowDialog();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening Products form");
+                MessageBox.Show("Error opening Products form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Opens the Customers management form
+        /// </summary>
+        private void BtnCustomers_Click(object sender, EventArgs e)
+            {
+            try
+                {
+                if (_customerForm == null || _customerForm.IsDisposed)
+                    {
+                    _customerForm = Program.GetRequiredService<CustomerForm>();
+                    }
+                _customerForm.ShowDialog();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening Customers form");
+                MessageBox.Show("Error opening Customers form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Opens the Sales management form
+        /// </summary>
+        private void BtnSales_Click(object sender, EventArgs e)
+            {
+            try
+                {
+                if (_salesForm == null || _salesForm.IsDisposed)
+                    {
+                    _salesForm = Program.GetRequiredService<SalesForm>();
+                    }
+                _salesForm.ShowDialog();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening Sales form");
+                MessageBox.Show("Error opening Sales form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Opens the Reports form
+        /// </summary>
+        private void BtnReports_Click(object sender, EventArgs e)
+            {
+            try
+                {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                    }
+                _reportForm.ShowDialog();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening Reports form");
+                MessageBox.Show("Error opening Reports form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Refreshes the dashboard data
+        /// </summary>
+        private async void BtnRefresh_Click(object sender, EventArgs e)
+            {
+            await LoadDashboardStatsAsync();
+            }
+
+        /// <summary>
+        /// Logs out the current user
+        /// </summary>
+        private async void BtnLogout_Click(object sender, EventArgs e)
+            {
+            try
+                {
+                var result = MessageBox.Show(
+                    "Are you sure you want to logout?",
+                    "Confirm Logout",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                    {
+                    await _authService.ClearTokenAsync();
+                    _logger.LogInformation("User logged out successfully");
+                    this.Close();
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error during logout");
+                MessageBox.Show("Error during logout", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles form closing event
+        /// </summary>
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+            {
+            // Confirm exit if user tries to close the form
             var result = MessageBox.Show(
-                "Are you sure you want to logout?",
-                "Confirm Logout",
+                "Are you sure you want to exit the application?",
+                "Confirm Exit",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
 
-            if (result == DialogResult.Yes)
+            if (result == DialogResult.No)
                 {
-                _authService.Logout();
-                this.Close();
-
-                // Restart application to show login
-                Application.Restart();
+                e.Cancel = true;
                 }
             }
+
+        /// <summary>
+        /// Handles double-click on low stock alerts to open product details
+        /// </summary>
+        private void LstLowStockAlerts_DoubleClick(object sender, EventArgs e)
+            {
+            if (lstLowStockAlerts.SelectedItems.Count > 0)
+                {
+                var selectedItem = lstLowStockAlerts.SelectedItems[0];
+                if (selectedItem.Tag is ProductDto product)
+                    {
+                    // Open product form with selected product
+                    BtnProducts_Click(sender, e);
+                    }
+                }
+            }
+
+        #endregion
+
+        /// <summary>
+        /// Cleanup resources when form is disposed
+        /// </summary>
+        protected override void Dispose(bool disposing)
+            {
+            if (disposing)
+                {
+                _productForm?.Dispose();
+                _customerForm?.Dispose();
+                _salesForm?.Dispose();
+                _reportForm?.Dispose();
+                components?.Dispose();
+                }
+            base.Dispose(disposing);
+            }
         }
-  
     }
