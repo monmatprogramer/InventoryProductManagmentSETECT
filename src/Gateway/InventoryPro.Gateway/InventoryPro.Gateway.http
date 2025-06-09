@@ -1,0 +1,6 @@
+@InventoryPro.Gateway_HostAddress = http://localhost:5132
+
+GET {{InventoryPro.Gateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

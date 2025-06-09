@@ -1,0 +1,6 @@
+@InventoryPro.ReportService_HostAddress = http://localhost:5179
+
+GET {{InventoryPro.ReportService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
