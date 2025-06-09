@@ -2,7 +2,8 @@
 using System.Drawing;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
-using InventoryPro.AuthService.Services;
+
+using InventoryPro.Services; // Updated namespace
 
 namespace InventoryPro.WinForms.Forms
     {
