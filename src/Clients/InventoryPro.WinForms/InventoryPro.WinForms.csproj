@@ -28,6 +28,7 @@
 	<ItemGroup>
 		<!-- HTTP Client for API Communication -->
 		<PackageReference Include="App.Metrics.Extensions.Hosting" Version="4.3.0" />
+		<PackageReference Include="HIC.System.Windows.Forms.DataVisualization" Version="1.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Http.Polly" Version="9.0.0" />
 

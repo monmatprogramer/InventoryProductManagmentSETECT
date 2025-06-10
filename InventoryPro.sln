@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.AuthService", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.ProductService", "src\Services\InventoryPro.ProductService\InventoryPro.ProductService.csproj", "{10F2A33A-F4D1-C38B-A65F-E502776969A9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InventoryPro.SalesService", "src\Services\InventoryPro.SalesService\InventoryPro.SalesService.csproj", "{BF5306E4-C851-F1B3-ACFB-45B49057789A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -95,6 +97,18 @@ Global
 		{10F2A33A-F4D1-C38B-A65F-E502776969A9}.Release|x64.Build.0 = Release|Any CPU
 		{10F2A33A-F4D1-C38B-A65F-E502776969A9}.Release|x86.ActiveCfg = Release|Any CPU
 		{10F2A33A-F4D1-C38B-A65F-E502776969A9}.Release|x86.Build.0 = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|x64.Build.0 = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Debug|x86.Build.0 = Debug|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|x64.ActiveCfg = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|x64.Build.0 = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|x86.ActiveCfg = Release|Any CPU
+		{BF5306E4-C851-F1B3-ACFB-45B49057789A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
