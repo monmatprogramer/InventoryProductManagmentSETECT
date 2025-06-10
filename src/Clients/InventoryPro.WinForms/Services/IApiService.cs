@@ -1,5 +1,5 @@
-﻿
-using InventoryPro.Shared.DTOs; // This line assumes that the 'Shared' namespace exists in the referenced assembly or project.
+﻿using InventoryPro.Shared.DTOs;
+
 namespace InventoryPro.WinForms.Services
     {
     /// <summary>

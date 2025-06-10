@@ -9,6 +9,8 @@ using Polly;
 using Polly.Extensions.Http;
 using Serilog;
 using System.Net.Http.Headers;
+using Serilog.Extensions.Hosting;
+
 
 namespace InventoryPro.WinForms;
 
@@ -32,8 +34,8 @@ static class Program
 
         // Configure Serilog
         Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(GetConfiguration())
-            .CreateLogger();
+    .ReadFrom.Configuration(GetConfiguration()) // Removed ConfigurationReaderOptions
+    .CreateLogger();
 
         try
             {

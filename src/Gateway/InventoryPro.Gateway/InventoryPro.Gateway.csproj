@@ -4,6 +4,15 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Build Optimizations -->
+    <!-- PublishTrimmed: Reduces the deployment size by removing unused assemblies/code. -->
+    <!-- Test thoroughly after enabling, especially with libraries like Ocelot that might use reflection. -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- TrimMode: 'copyused' (safer, trims unused assemblies) or 'link' (more aggressive, trims unused code within assemblies). -->
+    <TrimMode>copyused</TrimMode>
+    <!-- PublishReadyToRun: Compiles assemblies to native code format for faster startup. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,6 +20,20 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
     <PackageReference Include="Ocelot" Version="24.0.0" />
     <PackageReference Include="Ocelot.Provider.Consul" Version="24.0.0" />
+  </ItemGroup>
+
+  <!-- Configuration File Handling -->
+  <!-- Ensures Ocelot configuration files are copied to the output and publish directories. -->
+  <ItemGroup>
+    <Content Update="ocelot.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <!-- Includes environment-specific ocelot.json files like ocelot.Development.json -->
+    <Content Update="ocelot.*.json" DependentUpon="ocelot.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

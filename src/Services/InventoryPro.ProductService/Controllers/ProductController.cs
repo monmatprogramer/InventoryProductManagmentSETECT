@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using InventoryPro.Shared.DTOs;
 
 namespace InventoryPro.ProductService.Controllers
     {
