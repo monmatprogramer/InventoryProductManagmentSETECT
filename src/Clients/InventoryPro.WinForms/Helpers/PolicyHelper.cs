@@ -1,3 +1,5 @@
+using InventoryPro.WinForms.Services;
+using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Extensions.Http;
 

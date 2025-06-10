@@ -19,25 +19,25 @@ namespace InventoryPro.WinForms.Forms
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
-            InitializeComponent();
+            //InitializeComponent();
             }
 
-        private void InitializeComponent()
-            {
-            this.Text = "Customer Management";
-            this.Size = new Size(800, 600);
-            this.StartPosition = FormStartPosition.CenterScreen;
+        //private void InitializeComponent()
+        //    {
+        //    this.Text = "Customer Management";
+        //    this.Size = new Size(800, 600);
+        //    this.StartPosition = FormStartPosition.CenterScreen;
 
-            // TODO: Implement customer management UI
-            var label = new Label
-                {
-                Text = "Customer Management - Coming Soon",
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 16F)
-                };
+        //    // TODO: Implement customer management UI
+        //    var label = new Label
+        //        {
+        //        Text = "Customer Management - Coming Soon",
+        //        Dock = DockStyle.Fill,
+        //        TextAlign = ContentAlignment.MiddleCenter,
+        //        Font = new Font("Segoe UI", 16F)
+        //        };
 
-            this.Controls.Add(label);
-            }
+        //    this.Controls.Add(label);
+        //    }
         }
     }

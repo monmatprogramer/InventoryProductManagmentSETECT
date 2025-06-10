@@ -10,6 +10,7 @@ using Polly.Extensions.Http;
 using Serilog;
 using System.Net.Http.Headers;
 using Serilog.Extensions.Hosting;
+using Serilog.Settings.Configuration;
 
 
 namespace InventoryPro.WinForms;
@@ -33,16 +34,17 @@ static class Program
         _serviceProvider = host.Services;
 
         // Configure Serilog
+        // This line requires the Serilog.Settings.Configuration NuGet package to be correctly installed.
         Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(GetConfiguration()) // Removed ConfigurationReaderOptions
-    .CreateLogger();
+            .ReadFrom.Configuration(GetConfiguration()) 
+            .CreateLogger();
 
         try
             {
             Log.Information("Starting InventoryPro Windows Forms Application");
 
             // Run the application with the login form
-            Application.Run(_serviceProvider.GetRequiredService<LoginForm>());
+            Application.Run(GetRequiredService<LoginForm>());
             }
         catch (Exception ex)
             {
@@ -153,15 +155,24 @@ static class Program
     /// </summary>
     public static T GetRequiredService<T>() where T : notnull
         {
-        return _serviceProvider?.GetRequiredService<T>()
-            ?? throw new InvalidOperationException("Service provider not initialized");
+        if (_serviceProvider == null)
+            {
+            throw new InvalidOperationException("Service provider not initialized. Ensure Main has run and configured services.");
+            }
+        return _serviceProvider.GetRequiredService<T>();
         }
 
     /// <summary>
     /// Gets a service from the DI container
     /// </summary>
-    public static T? GetService<T>() where T : notnull
+    public static T? GetService<T>() where T : class // Changed to 'class' to allow T? to correctly represent a nullable reference type
         {
-        return _serviceProvider?.GetService<T>();
+        if (_serviceProvider == null)
+            {
+            // Consider if throwing an exception or logging is more appropriate
+            // if the service provider is expected to be initialized at this point.
+            return null; 
+            }
+        return _serviceProvider.GetService<T>();
         }
     }

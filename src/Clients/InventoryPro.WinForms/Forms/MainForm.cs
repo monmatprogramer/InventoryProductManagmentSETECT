@@ -3,13 +3,13 @@ using InventoryPro.WinForms.Services;
 using InventoryPro.Shared.DTOs;
 
 namespace InventoryPro.WinForms.Forms
-    {
+{
     /// <summary>
     /// Main dashboard form for the InventoryPro application
     /// This is the central hub that provides navigation to all other features
     /// </summary>
     public partial class MainForm : Form
-        {
+    {
         private readonly ILogger<MainForm> _logger;
         private readonly IAuthService _authService;
         private readonly IApiService _apiService;
@@ -23,36 +23,36 @@ namespace InventoryPro.WinForms.Forms
         private ReportForm? _reportForm;
 
         public MainForm(ILogger<MainForm> logger, IAuthService authService, IApiService apiService)
-            {
+        {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
             InitializeComponent();
-            InitializeFormAsync();
-            }
+            _ = InitializeFormAsync();
+        }
 
         /// <summary>
         /// Initializes the form with user data and dashboard statistics
         /// </summary>
-        private async void InitializeFormAsync()
-            {
+        private async Task InitializeFormAsync()
+        {
             try
-                {
+            {
                 // Check if user is authenticated
                 if (!await _authService.IsAuthenticatedAsync())
-                    {
+                {
                     ShowLoginForm();
                     return;
-                    }
+                }
 
                 // Load current user information
                 _currentUser = await _authService.GetCurrentUserAsync();
                 if (_currentUser == null)
-                    {
+                {
                     ShowLoginForm();
                     return;
-                    }
+                }
 
                 // Update UI with user information
                 UpdateUserInterface();
@@ -61,9 +61,9 @@ namespace InventoryPro.WinForms.Forms
                 await LoadDashboardStatsAsync();
 
                 _logger.LogInformation("MainForm initialized successfully for user: {Username}", _currentUser.Username);
-                }
+            }
             catch (Exception ex)
-                {
+            {
                 _logger.LogError(ex, "Error initializing MainForm");
                 MessageBox.Show(
                     "Error loading application. Please try logging in again.",
@@ -71,14 +71,14 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 ShowLoginForm();
-                }
             }
+        }
 
         /// <summary>
         /// Updates the user interface with current user information
         /// </summary>
         private void UpdateUserInterface()
-            {
+        {
             if (_currentUser == null) return;
 
             // Update status bar with user information
@@ -91,13 +91,13 @@ namespace InventoryPro.WinForms.Forms
 
             // Update window title
             this.Text = $"InventoryPro - Dashboard ({_currentUser.Username})";
-            }
+        }
 
         /// <summary>
         /// Updates menu items visibility based on user role
         /// </summary>
         private void UpdateMenuItemsByRole(string userRole)
-            {
+        {
             // Admin users get access to all features
             bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
             bool isManager = userRole.Equals("Manager", StringComparison.OrdinalIgnoreCase) || isAdmin;
@@ -120,43 +120,43 @@ namespace InventoryPro.WinForms.Forms
 
             // User management - only for admins (if we add this feature)
             // menuUserManagement.Enabled = isAdmin;
-            }
+        }
 
         /// <summary>
         /// Loads dashboard statistics from the API
         /// </summary>
         private async Task LoadDashboardStatsAsync()
-            {
+        {
             try
-                {
+            {
                 lblStatus.Text = "Loading dashboard statistics...";
 
                 var response = await _apiService.GetDashboardStatsAsync();
                 if (response.Success && response.Data != null)
-                    {
+                {
                     _dashboardStats = response.Data;
                     UpdateDashboardCards();
                     UpdateRecentActivities();
                     UpdateLowStockAlerts();
-                    }
+                }
                 else
-                    {
+                {
                     _logger.LogWarning("Failed to load dashboard stats: {Message}", response.Message);
                     lblStatus.Text = "Failed to load dashboard statistics";
-                    }
-                }
-            catch (Exception ex)
-                {
-                _logger.LogError(ex, "Error loading dashboard statistics");
-                lblStatus.Text = "Error loading dashboard statistics";
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading dashboard statistics");
+                lblStatus.Text = "Error loading dashboard statistics";
+            }
+        }
 
         /// <summary>
         /// Updates the dashboard summary cards with current statistics
         /// </summary>
         private void UpdateDashboardCards()
-            {
+        {
             if (_dashboardStats == null) return;
 
             // Product statistics
@@ -177,40 +177,40 @@ namespace InventoryPro.WinForms.Forms
 
             // Update status
             lblStatus.Text = "Dashboard updated successfully";
-            }
+        }
 
         /// <summary>
         /// Updates the recent activities list
         /// </summary>
         private void UpdateRecentActivities()
-            {
+        {
             if (_dashboardStats == null) return;
 
             lstRecentActivities.Items.Clear();
             foreach (var activity in _dashboardStats.RecentActivities.Take(10))
-                {
+            {
                 lstRecentActivities.Items.Add(activity);
-                }
             }
+        }
 
         /// <summary>
         /// Updates the low stock alerts list
         /// </summary>
         private void UpdateLowStockAlerts()
-            {
+        {
             if (_dashboardStats == null) return;
 
             lstLowStockAlerts.Items.Clear();
             foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
-                {
+            {
                 var item = new ListViewItem(product.Name);
                 item.SubItems.Add(product.SKU);
                 item.SubItems.Add(product.Stock.ToString());
                 item.SubItems.Add(product.MinStock.ToString());
                 item.Tag = product;
                 lstLowStockAlerts.Items.Add(item);
-                }
             }
+        }
 
         /// <summary>
         /// Shows the login form and hides the main form
@@ -219,18 +219,28 @@ namespace InventoryPro.WinForms.Forms
             {
             this.Hide();
             var loginForm = Program.GetRequiredService<LoginForm>();
-            loginForm.LoginSuccessful += OnLoginSuccessful;
+
+            // Subscribe to a custom event or method for login success
+            loginForm.FormClosed += async (sender, args) =>
+            {
+                if (loginForm.DialogResult == DialogResult.OK)
+                {
+                    await InitializeFormAsync();
+                    this.Show();
+                }
+            };
+
             loginForm.ShowDialog();
-            }
+        }
 
         /// <summary>
         /// Handles successful login event
         /// </summary>
         private async void OnLoginSuccessful(object? sender, EventArgs e)
-            {
+        {
             this.Show();
             await InitializeFormAsync();
-            }
+        }
 
         #region Event Handlers
 
@@ -238,97 +248,97 @@ namespace InventoryPro.WinForms.Forms
         /// Opens the Products management form
         /// </summary>
         private void BtnProducts_Click(object sender, EventArgs e)
-            {
+        {
             try
-                {
+            {
                 if (_productForm == null || _productForm.IsDisposed)
-                    {
-                    _productForm = Program.GetRequiredService<ProductForm>();
-                    }
-                _productForm.ShowDialog();
-                }
-            catch (Exception ex)
                 {
+                    _productForm = Program.GetRequiredService<ProductForm>();
+                }
+                _productForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error opening Products form");
                 MessageBox.Show("Error opening Products form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
+        }
 
         /// <summary>
         /// Opens the Customers management form
         /// </summary>
         private void BtnCustomers_Click(object sender, EventArgs e)
-            {
+        {
             try
-                {
+            {
                 if (_customerForm == null || _customerForm.IsDisposed)
-                    {
-                    _customerForm = Program.GetRequiredService<CustomerForm>();
-                    }
-                _customerForm.ShowDialog();
-                }
-            catch (Exception ex)
                 {
+                    _customerForm = Program.GetRequiredService<CustomerForm>();
+                }
+                _customerForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error opening Customers form");
                 MessageBox.Show("Error opening Customers form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
+        }
 
         /// <summary>
         /// Opens the Sales management form
         /// </summary>
         private void BtnSales_Click(object sender, EventArgs e)
-            {
+        {
             try
-                {
+            {
                 if (_salesForm == null || _salesForm.IsDisposed)
-                    {
-                    _salesForm = Program.GetRequiredService<SalesForm>();
-                    }
-                _salesForm.ShowDialog();
-                }
-            catch (Exception ex)
                 {
+                    _salesForm = Program.GetRequiredService<SalesForm>();
+                }
+                _salesForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error opening Sales form");
                 MessageBox.Show("Error opening Sales form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
+        }
 
         /// <summary>
         /// Opens the Reports form
         /// </summary>
         private void BtnReports_Click(object sender, EventArgs e)
-            {
+        {
             try
-                {
+            {
                 if (_reportForm == null || _reportForm.IsDisposed)
-                    {
-                    _reportForm = Program.GetRequiredService<ReportForm>();
-                    }
-                _reportForm.ShowDialog();
-                }
-            catch (Exception ex)
                 {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                }
+                _reportForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
                 _logger.LogError(ex, "Error opening Reports form");
                 MessageBox.Show("Error opening Reports form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
             }
+        }
 
         /// <summary>
         /// Refreshes the dashboard data
         /// </summary>
         private async void BtnRefresh_Click(object sender, EventArgs e)
-            {
+        {
             await LoadDashboardStatsAsync();
-            }
+        }
 
         /// <summary>
         /// Logs out the current user
         /// </summary>
         private async void BtnLogout_Click(object sender, EventArgs e)
-            {
+        {
             try
-                {
+            {
                 var result = MessageBox.Show(
                     "Are you sure you want to logout?",
                     "Confirm Logout",
@@ -336,24 +346,24 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxIcon.Question);
 
                 if (result == DialogResult.Yes)
-                    {
+                {
                     await _authService.ClearTokenAsync();
                     _logger.LogInformation("User logged out successfully");
                     this.Close();
-                    }
-                }
-            catch (Exception ex)
-                {
-                _logger.LogError(ex, "Error during logout");
-                MessageBox.Show("Error during logout", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout");
+                MessageBox.Show("Error during logout", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
 
         /// <summary>
         /// Handles form closing event
         /// </summary>
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
-            {
+        {
             // Confirm exit if user tries to close the form
             var result = MessageBox.Show(
                 "Are you sure you want to exit the application?",
@@ -362,26 +372,26 @@ namespace InventoryPro.WinForms.Forms
                 MessageBoxIcon.Question);
 
             if (result == DialogResult.No)
-                {
+            {
                 e.Cancel = true;
-                }
             }
+        }
 
         /// <summary>
         /// Handles double-click on low stock alerts to open product details
         /// </summary>
         private void LstLowStockAlerts_DoubleClick(object sender, EventArgs e)
-            {
+        {
             if (lstLowStockAlerts.SelectedItems.Count > 0)
-                {
+            {
                 var selectedItem = lstLowStockAlerts.SelectedItems[0];
                 if (selectedItem.Tag is ProductDto product)
-                    {
+                {
                     // Open product form with selected product
                     BtnProducts_Click(sender, e);
-                    }
                 }
             }
+        }
 
         #endregion
 
@@ -389,16 +399,16 @@ namespace InventoryPro.WinForms.Forms
         /// Cleanup resources when form is disposed
         /// </summary>
         protected override void Dispose(bool disposing)
-            {
+        {
             if (disposing)
-                {
+            {
                 _productForm?.Dispose();
                 _customerForm?.Dispose();
                 _salesForm?.Dispose();
                 _reportForm?.Dispose();
                 components?.Dispose();
-                }
-            base.Dispose(disposing);
             }
+            base.Dispose(disposing);
         }
     }
+}

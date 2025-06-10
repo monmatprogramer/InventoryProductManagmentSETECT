@@ -29,7 +29,15 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]);
+// Ensure the "Secret" value is not null or empty before using it
+var secret = jwtSettings["Secret"];
+if (string.IsNullOrEmpty(secret))
+    {
+    throw new InvalidOperationException("JWT Secret is not configured properly.");
+    }
+
+var key = Encoding.ASCII.GetBytes(secret);
+
 
 builder.Services.AddAuthentication(options =>
 {
