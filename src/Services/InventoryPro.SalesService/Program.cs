@@ -1,41 +1,120 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
+using Serilog;
+using Serilog.Settings.Configuration; // Add this using directive
+using InventoryPro.SalesService.Data;
+using InventoryPro.SalesService.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration) // Ensure the Serilog.Settings.Configuration package is installed
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/sales-service-.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// Add services to the container
+builder.Services.AddControllers();
+
+// Configure Entity Framework with SQL Server
+builder.Services.AddDbContext<SalesDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"] ?? "YourSuperSecretKeyThatShouldBeAtLeast32CharactersLong!");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+        {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidateAudience = true,
+        ValidAudience = jwtSettings["Audience"],
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+        };
+});
+
+// Register services
+builder.Services.AddScoped<ISalesService, SalesService>();
+
+// Add HttpClient for calling Product Service
+builder.Services.AddHttpClient<ISalesService, SalesService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5089/"); // Product Service URL
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+// Configure Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "InventoryPro Sales Service", Version = "v1" });
+
+    // Add JWT Authentication
+    c.AddSecurityDefinition("Bearer", new()
+        {
+        Description = "JWT Authorization header using the Bearer scheme",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+        });
+
+    c.AddSecurityRequirement(new()
+    {
+        {
+            new()
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+    {
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    }
 
-app.UseHttpsRedirection();
+// Ensure database is created and migrations are applied
+using (var scope = app.Services.CreateScope())
+    {
+    var context = scope.ServiceProvider.GetRequiredService<SalesDbContext>();
+    context.Database.Migrate();
+    }
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapControllers();
+
+Log.Information("Sales Service started on port 5282");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
