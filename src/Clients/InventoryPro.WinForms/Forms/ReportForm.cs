@@ -52,7 +52,12 @@ namespace InventoryPro.WinForms.Forms
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
-            // Initialize non-nullable fields
+            // Initialize non-nullable fields to avoid CS8618 warnings
+            tabControl = new TabControl();
+            tabSales = new TabPage();
+            tabInventory = new TabPage();
+            tabFinancial = new TabPage();
+            tabCustom = new TabPage();
             dtpSalesStart = new DateTimePicker();
             dtpSalesEnd = new DateTimePicker();
             btnGenerateSales = new Button();
@@ -65,21 +70,15 @@ namespace InventoryPro.WinForms.Forms
             btnGenerateInventory = new Button();
             cboInventoryFormat = new ComboBox();
             chartInventory = new Chart();
-            dgvInventoryData = new DataGridView();
+            dgvInventoryData = new DataGridView(); // Fixed initialization
             lblTotalProducts = new Label();
             lblLowStockCount = new Label();
             lblInventoryValue = new Label();
             dtpFinancialYear = new DateTimePicker();
             btnGenerateFinancial = new Button();
-            cboFinancialFormat = new ComboBox();
+            cboFinancialFormat = new ComboBox(); // Fixed initialization
             chartFinancial = new Chart();
             dgvFinancialData = new DataGridView();
-
-            tabControl = new TabControl();
-            tabSales = new TabPage();
-            tabInventory = new TabPage();
-            tabFinancial = new TabPage();
-            tabCustom = new TabPage();
 
             InitializeComponent();
         }
@@ -527,37 +526,34 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                // Simulate an asynchronous operation (e.g., API call)
+                // Simulate an asynchronous operation for generating the report
                 await Task.Run(() =>
                 {
                     // Mock data generation logic
-                    Thread.Sleep(1000); // Simulate delay
+                    var random = new Random();
+                    var salesData = new List<(DateTime Date, decimal Sales)>();
+                    for (var date = dtpSalesStart.Value; date <= dtpSalesEnd.Value; date = date.AddDays(1))
+                    {
+                        var value = random.Next(2000, 8000);
+                        salesData.Add((date, value));
+                    }
+
+                    // Update UI controls (must be done on the UI thread)
+                    Invoke(new Action(() =>
+                    {
+                        lblSalesTotalValue.Text = "Total Sales: $125,450.75";
+                        lblSalesOrderCount.Text = "Orders: 342";
+                        lblSalesAvgOrder.Text = "Avg Order: $366.52";
+
+                        chartSales.Series[0].Points.Clear();
+                        foreach (var data in salesData)
+                        {
+                            chartSales.Series[0].Points.AddXY(data.Date, data.Sales);
+                        }
+
+                        dgvSalesData.DataSource = salesData.Select(d => new { d.Date, d.Sales }).ToList();
+                    }));
                 });
-
-                // Update summary labels
-                lblSalesTotalValue.Text = "Total Sales: $125,450.75";
-                lblSalesOrderCount.Text = "Orders: 342";
-                lblSalesAvgOrder.Text = "Avg Order: $366.52";
-
-                // Update chart with mock data
-                chartSales.Series[0].Points.Clear();
-                var random = new Random();
-                for (var date = dtpSalesStart.Value; date <= dtpSalesEnd.Value; date = date.AddDays(1))
-                {
-                    var value = random.Next(2000, 8000);
-                    chartSales.Series[0].Points.AddXY(date.ToShortDateString(), value);
-                }
-
-                // Update grid with mock data
-                var salesData = new[]
-                {
-                    new { Date = DateTime.Now.AddDays(-5), OrderCount = 15, TotalSales = 5234.50m, AvgOrder = 348.97m },
-                    new { Date = DateTime.Now.AddDays(-4), OrderCount = 22, TotalSales = 7890.25m, AvgOrder = 358.65m },
-                    new { Date = DateTime.Now.AddDays(-3), OrderCount = 18, TotalSales = 6543.75m, AvgOrder = 363.54m },
-                    new { Date = DateTime.Now.AddDays(-2), OrderCount = 25, TotalSales = 9876.00m, AvgOrder = 395.04m },
-                    new { Date = DateTime.Now.AddDays(-1), OrderCount = 20, TotalSales = 7234.80m, AvgOrder = 361.74m }
-                };
-                dgvSalesData.DataSource = salesData;
 
                 if (cboSalesFormat.Text != "View")
                 {
@@ -577,34 +573,35 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                // Simulate an asynchronous operation (e.g., API call)
                 await Task.Run(() =>
                 {
-                    // Mock data generation logic
-                    Thread.Sleep(1000); // Simulate delay
+                    // Simulate data generation logic
+                    var inventoryData = new[]
+                    {
+                        new { Category = "Electronics", Products = 45, TotalStock = 1234, Value = 123450.00m, LowStock = 3 },
+                        new { Category = "Clothing", Products = 30, TotalStock = 2345, Value = 45670.00m, LowStock = 2 },
+                        new { Category = "Food & Beverages", Products = 40, TotalStock = 3456, Value = 34567.89m, LowStock = 5 },
+                        new { Category = "Home & Garden", Products = 35, TotalStock = 890, Value = 30880.00m, LowStock = 2 }
+                    };
+
+                    Invoke(new Action(() =>
+                    {
+                        // Update summary labels
+                        lblTotalProducts.Text = "Total Products: 150";
+                        lblLowStockCount.Text = "Low Stock: 12";
+                        lblInventoryValue.Text = "Total Value: $234,567.89";
+
+                        // Update chart with mock data
+                        chartInventory.Series[0].Points.Clear();
+                        chartInventory.Series[0].Points.AddXY("Electronics", 45);
+                        chartInventory.Series[0].Points.AddXY("Clothing", 30);
+                        chartInventory.Series[0].Points.AddXY("Food & Beverages", 40);
+                        chartInventory.Series[0].Points.AddXY("Home & Garden", 35);
+
+                        // Update grid with mock data
+                        dgvInventoryData.DataSource = inventoryData;
+                    }));
                 });
-
-                // Update summary labels
-                lblTotalProducts.Text = "Total Products: 150";
-                lblLowStockCount.Text = "Low Stock: 12";
-                lblInventoryValue.Text = "Total Value: $234,567.89";
-
-                // Update chart with mock data
-                chartInventory.Series[0].Points.Clear();
-                chartInventory.Series[0].Points.AddXY("Electronics", 45);
-                chartInventory.Series[0].Points.AddXY("Clothing", 30);
-                chartInventory.Series[0].Points.AddXY("Food & Beverages", 40);
-                chartInventory.Series[0].Points.AddXY("Home & Garden", 35);
-
-                // Update grid with mock data
-                var inventoryData = new[]
-                {
-                    new { Category = "Electronics", Products = 45, TotalStock = 1234, Value = 123450.00m, LowStock = 3 },
-                    new { Category = "Clothing", Products = 30, TotalStock = 2345, Value = 45670.00m, LowStock = 2 },
-                    new { Category = "Food & Beverages", Products = 40, TotalStock = 3456, Value = 34567.89m, LowStock = 5 },
-                    new { Category = "Home & Garden", Products = 35, TotalStock = 890, Value = 30880.00m, LowStock = 2 }
-                };
-                dgvInventoryData.DataSource = inventoryData;
 
                 if (cboInventoryFormat.Text != "View")
                 {
@@ -624,33 +621,42 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                // Simulate an asynchronous operation (e.g., API call)
                 await Task.Run(() =>
                 {
-                    // Mock data generation logic
-                    Thread.Sleep(1000); // Simulate delay
+                    // Simulate data generation logic
+                    var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+                    var random = new Random();
+                    var financialData = new List<(string Month, decimal Revenue, decimal Expenses, decimal Profit, string Margin)>();
+
+                    for (int i = 0; i < 12; i++)
+                    {
+                        var revenue = random.Next(40000, 80000);
+                        var expenses = random.Next(20000, 40000);
+                        var profit = revenue - expenses;
+                        var margin = $"{(profit / revenue * 100):F1}%";
+                        financialData.Add((months[i], revenue, expenses, profit, margin));
+                    }
+
+                    Invoke(new Action(() =>
+                    {
+                        // Update chart
+                        chartFinancial.Series[0].Points.Clear();
+                        foreach (var data in financialData)
+                        {
+                            chartFinancial.Series[0].Points.AddXY(data.Month, data.Revenue);
+                        }
+
+                        // Update grid
+                        dgvFinancialData.DataSource = financialData.Select(d => new
+                        {
+                            d.Month,
+                            d.Revenue,
+                            d.Expenses,
+                            d.Profit,
+                            d.Margin
+                        }).ToList();
+                    }));
                 });
-
-                // Update chart with mock data
-                chartFinancial.Series[0].Points.Clear();
-                var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-                var random = new Random();
-
-                for (int i = 0; i < 12; i++)
-                {
-                    var value = random.Next(40000, 80000);
-                    chartFinancial.Series[0].Points.AddXY(months[i], value);
-                }
-
-                // Update grid with mock data
-                var financialData = new[]
-                {
-                    new { Month = "January", Revenue = 45230.50m, Expenses = 32450.25m, Profit = 12780.25m, Margin = "28.2%" },
-                    new { Month = "February", Revenue = 52340.75m, Expenses = 35670.00m, Profit = 16670.75m, Margin = "31.9%" },
-                    new { Month = "March", Revenue = 61450.00m, Expenses = 41230.50m, Profit = 20219.50m, Margin = "32.9%" },
-                    new { Month = "April", Revenue = 58670.25m, Expenses = 39450.00m, Profit = 19220.25m, Margin = "32.8%" }
-                };
-                dgvFinancialData.DataSource = financialData;
 
                 if (cboFinancialFormat.Text != "View")
                 {
