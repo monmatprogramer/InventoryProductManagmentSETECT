@@ -6,6 +6,7 @@ using Serilog;
 using Serilog.Settings.Configuration; // Add this using directive
 using InventoryPro.SalesService.Data;
 using InventoryPro.SalesService.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 

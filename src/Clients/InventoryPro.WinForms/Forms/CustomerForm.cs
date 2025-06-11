@@ -410,8 +410,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 try
                 {
-                    // Correct method name based on the IApiService signature
-                    var response = await _apiService.UpdateCustomerAsync(selectedCustomer.Id, new CustomerDto { IsActive = false });
+                    var response = await _apiService.DeleteProductAsync(selectedCustomer.Id);
                     if (response.Success)
                     {
                         await LoadCustomersAsync();
