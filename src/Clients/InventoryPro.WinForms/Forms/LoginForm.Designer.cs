@@ -82,7 +82,7 @@ namespace InventoryPro.WinForms.Forms
             pnlBackground.Dock = DockStyle.Fill;
             pnlBackground.Location = new Point(0, 0);
             pnlBackground.Name = "pnlBackground";
-            pnlBackground.Size = new Size(1291, 691);
+            pnlBackground.Size = new Size(1395, 752);
             pnlBackground.TabIndex = 0;
             // 
             // pnlLeftPanel
@@ -93,7 +93,7 @@ namespace InventoryPro.WinForms.Forms
             pnlLeftPanel.Location = new Point(0, 0);
             pnlLeftPanel.Name = "pnlLeftPanel";
             pnlLeftPanel.Padding = new Padding(60, 80, 60, 80);
-            pnlLeftPanel.Size = new Size(500, 691);
+            pnlLeftPanel.Size = new Size(500, 752);
             pnlLeftPanel.TabIndex = 0;
             pnlLeftPanel.Paint += PnlLeftPanel_Paint;
             // 
@@ -106,14 +106,14 @@ namespace InventoryPro.WinForms.Forms
             pnlHeader.Dock = DockStyle.Fill;
             pnlHeader.Location = new Point(60, 80);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Size = new Size(380, 531);
+            pnlHeader.Size = new Size(380, 592);
             pnlHeader.TabIndex = 0;
             // 
             // picLogo
             // 
             picLogo.Anchor = AnchorStyles.None;
             picLogo.BackColor = Color.White;
-            picLogo.Location = new Point(250, 365);
+            picLogo.Location = new Point(118, 75);
             picLogo.Name = "picLogo";
             picLogo.Size = new Size(80, 80);
             picLogo.SizeMode = PictureBoxSizeMode.CenterImage;
@@ -128,7 +128,7 @@ namespace InventoryPro.WinForms.Forms
             lblAppTitle.BackColor = Color.Transparent;
             lblAppTitle.Font = new Font("Segoe UI", 28F, FontStyle.Bold);
             lblAppTitle.ForeColor = Color.White;
-            lblAppTitle.Location = new Point(210, 465);
+            lblAppTitle.Location = new Point(62, 199);
             lblAppTitle.Name = "lblAppTitle";
             lblAppTitle.Size = new Size(318, 62);
             lblAppTitle.TabIndex = 1;
@@ -142,7 +142,7 @@ namespace InventoryPro.WinForms.Forms
             lblAppSubtitle.BackColor = Color.Transparent;
             lblAppSubtitle.Font = new Font("Segoe UI", 12F);
             lblAppSubtitle.ForeColor = Color.FromArgb(220, 230, 240);
-            lblAppSubtitle.Location = new Point(220, 535);
+            lblAppSubtitle.Location = new Point(51, 282);
             lblAppSubtitle.Name = "lblAppSubtitle";
             lblAppSubtitle.Size = new Size(326, 28);
             lblAppSubtitle.TabIndex = 2;
@@ -158,7 +158,7 @@ namespace InventoryPro.WinForms.Forms
             pnlRightPanel.Location = new Point(0, 0);
             pnlRightPanel.Name = "pnlRightPanel";
             pnlRightPanel.Padding = new Padding(60, 40, 60, 40);
-            pnlRightPanel.Size = new Size(1291, 691);
+            pnlRightPanel.Size = new Size(1395, 752);
             pnlRightPanel.TabIndex = 1;
             // 
             // pnlLoginContainer
@@ -166,10 +166,10 @@ namespace InventoryPro.WinForms.Forms
             pnlLoginContainer.Anchor = AnchorStyles.None;
             pnlLoginContainer.BackColor = Color.White;
             pnlLoginContainer.Controls.Add(pnlLoginForm);
-            pnlLoginContainer.Location = new Point(625, 395);
+            pnlLoginContainer.Location = new Point(671, 80);
             pnlLoginContainer.Name = "pnlLoginContainer";
             pnlLoginContainer.Padding = new Padding(30);
-            pnlLoginContainer.Size = new Size(340, 450);
+            pnlLoginContainer.Size = new Size(602, 492);
             pnlLoginContainer.TabIndex = 0;
             pnlLoginContainer.Paint += PnlLoginContainer_Paint;
             // 
@@ -188,7 +188,7 @@ namespace InventoryPro.WinForms.Forms
             pnlLoginForm.Location = new Point(30, 30);
             pnlLoginForm.Name = "pnlLoginForm";
             pnlLoginForm.Padding = new Padding(0, 20, 0, 0);
-            pnlLoginForm.Size = new Size(280, 390);
+            pnlLoginForm.Size = new Size(542, 432);
             pnlLoginForm.TabIndex = 0;
             // 
             // pnlUsernameContainer
@@ -199,7 +199,7 @@ namespace InventoryPro.WinForms.Forms
             pnlUsernameContainer.Controls.Add(txtUsername);
             pnlUsernameContainer.Location = new Point(0, 80);
             pnlUsernameContainer.Name = "pnlUsernameContainer";
-            pnlUsernameContainer.Size = new Size(360, 50);
+            pnlUsernameContainer.Size = new Size(542, 50);
             pnlUsernameContainer.TabIndex = 0;
             pnlUsernameContainer.Paint += InputContainer_Paint;
             // 
@@ -224,7 +224,7 @@ namespace InventoryPro.WinForms.Forms
             txtUsername.Location = new Point(50, 12);
             txtUsername.Name = "txtUsername";
             txtUsername.PlaceholderText = "Enter your username";
-            txtUsername.Size = new Size(215, 25);
+            txtUsername.Size = new Size(489, 25);
             txtUsername.TabIndex = 1;
             txtUsername.Enter += TextBox_Enter;
             txtUsername.Leave += TextBox_Leave;
@@ -238,7 +238,7 @@ namespace InventoryPro.WinForms.Forms
             pnlPasswordContainer.Controls.Add(btnTogglePassword);
             pnlPasswordContainer.Location = new Point(0, 180);
             pnlPasswordContainer.Name = "pnlPasswordContainer";
-            pnlPasswordContainer.Size = new Size(360, 50);
+            pnlPasswordContainer.Size = new Size(539, 50);
             pnlPasswordContainer.TabIndex = 1;
             pnlPasswordContainer.Paint += InputContainer_Paint;
             // 
@@ -263,7 +263,7 @@ namespace InventoryPro.WinForms.Forms
             txtPassword.Location = new Point(50, 12);
             txtPassword.Name = "txtPassword";
             txtPassword.PlaceholderText = "Enter your password";
-            txtPassword.Size = new Size(180, 25);
+            txtPassword.Size = new Size(443, 25);
             txtPassword.TabIndex = 1;
             txtPassword.UseSystemPasswordChar = true;
             txtPassword.Enter += TextBox_Enter;
@@ -277,7 +277,7 @@ namespace InventoryPro.WinForms.Forms
             btnTogglePassword.FlatStyle = FlatStyle.Flat;
             btnTogglePassword.Font = new Font("Segoe UI", 10F);
             btnTogglePassword.ForeColor = Color.FromArgb(107, 114, 128);
-            btnTogglePassword.Location = new Point(240, 10);
+            btnTogglePassword.Location = new Point(499, 11);
             btnTogglePassword.Name = "btnTogglePassword";
             btnTogglePassword.Size = new Size(30, 30);
             btnTogglePassword.TabIndex = 2;
@@ -304,7 +304,7 @@ namespace InventoryPro.WinForms.Forms
             lblForgotPassword.Cursor = Cursors.Hand;
             lblForgotPassword.Font = new Font("Segoe UI", 9F, FontStyle.Underline);
             lblForgotPassword.ForeColor = Color.FromArgb(59, 130, 246);
-            lblForgotPassword.Location = new Point(230, 252);
+            lblForgotPassword.Location = new Point(415, 250);
             lblForgotPassword.Name = "lblForgotPassword";
             lblForgotPassword.Size = new Size(127, 20);
             lblForgotPassword.TabIndex = 4;
@@ -322,9 +322,9 @@ namespace InventoryPro.WinForms.Forms
             btnLogin.FlatStyle = FlatStyle.Flat;
             btnLogin.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             btnLogin.ForeColor = Color.White;
-            btnLogin.Location = new Point(0, 300);
+            btnLogin.Location = new Point(0, 325);
             btnLogin.Name = "btnLogin";
-            btnLogin.Size = new Size(360, 45);
+            btnLogin.Size = new Size(542, 45);
             btnLogin.TabIndex = 5;
             btnLogin.Text = "Sign In";
             btnLogin.UseVisualStyleBackColor = false;
@@ -342,9 +342,9 @@ namespace InventoryPro.WinForms.Forms
             btnCancel.FlatStyle = FlatStyle.Flat;
             btnCancel.Font = new Font("Segoe UI", 11F);
             btnCancel.ForeColor = Color.FromArgb(75, 85, 99);
-            btnCancel.Location = new Point(0, 355);
+            btnCancel.Location = new Point(0, 380);
             btnCancel.Name = "btnCancel";
-            btnCancel.Size = new Size(360, 45);
+            btnCancel.Size = new Size(542, 45);
             btnCancel.TabIndex = 6;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = false;
@@ -359,7 +359,7 @@ namespace InventoryPro.WinForms.Forms
             lblError.ForeColor = Color.FromArgb(239, 68, 68);
             lblError.Location = new Point(0, 280);
             lblError.Name = "lblError";
-            lblError.Size = new Size(360, 40);
+            lblError.Size = new Size(542, 40);
             lblError.TabIndex = 7;
             lblError.TextAlign = ContentAlignment.MiddleLeft;
             lblError.Visible = false;
@@ -367,9 +367,9 @@ namespace InventoryPro.WinForms.Forms
             // progressBar
             // 
             progressBar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            progressBar.Location = new Point(0, 705);
+            progressBar.Location = new Point(0, 747);
             progressBar.Name = "progressBar";
-            progressBar.Size = new Size(360, 3);
+            progressBar.Size = new Size(622, 3);
             progressBar.Style = ProgressBarStyle.Marquee;
             progressBar.TabIndex = 8;
             progressBar.Visible = false;
@@ -380,9 +380,9 @@ namespace InventoryPro.WinForms.Forms
             pnlFooter.Controls.Add(lblVersion);
             pnlFooter.Controls.Add(lblCopyright);
             pnlFooter.Dock = DockStyle.Bottom;
-            pnlFooter.Location = new Point(60, 591);
+            pnlFooter.Location = new Point(60, 652);
             pnlFooter.Name = "pnlFooter";
-            pnlFooter.Size = new Size(1171, 60);
+            pnlFooter.Size = new Size(1275, 60);
             pnlFooter.TabIndex = 1;
             // 
             // lblVersion
@@ -392,7 +392,7 @@ namespace InventoryPro.WinForms.Forms
             lblVersion.ForeColor = Color.FromArgb(156, 163, 175);
             lblVersion.Location = new Point(0, 20);
             lblVersion.Name = "lblVersion";
-            lblVersion.Size = new Size(1171, 20);
+            lblVersion.Size = new Size(1275, 20);
             lblVersion.TabIndex = 0;
             lblVersion.Text = "Version 1.0.0";
             lblVersion.TextAlign = ContentAlignment.MiddleCenter;
@@ -404,7 +404,7 @@ namespace InventoryPro.WinForms.Forms
             lblCopyright.ForeColor = Color.FromArgb(156, 163, 175);
             lblCopyright.Location = new Point(0, 0);
             lblCopyright.Name = "lblCopyright";
-            lblCopyright.Size = new Size(1171, 20);
+            lblCopyright.Size = new Size(1275, 20);
             lblCopyright.TabIndex = 1;
             lblCopyright.Text = "© 2025 InventoryPro. All rights reserved.";
             lblCopyright.TextAlign = ContentAlignment.MiddleCenter;
@@ -441,7 +441,7 @@ namespace InventoryPro.WinForms.Forms
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(1291, 691);
+            ClientSize = new Size(1395, 752);
             Controls.Add(pnlBackground);
             Font = new Font("Segoe UI", 9F);
             FormBorderStyle = FormBorderStyle.FixedSingle;

@@ -106,10 +106,38 @@ if (app.Environment.IsDevelopment())
     }
 
 // Ensure database is created and migrations are applied
+//using (var scope = app.Services.CreateScope())
+//    {
+//    var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+//    context.Database.Migrate();
+//    }
 using (var scope = app.Services.CreateScope())
     {
     var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
     context.Database.Migrate();
+
+    // Ensure admin user exists
+    if (!context.Users.Any(u => u.Username == "admin"))
+        {
+        var adminUser = new User
+            {
+            Username = "admin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+            Email = "admin@inventorypro.com",
+            FirstName = "System",
+            LastName = "Administrator",
+            Role = "Admin",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+            };
+
+        context.Users.Add(adminUser);
+        context.SaveChanges();
+
+        Console.WriteLine("Admin user created successfully!");
+        Console.WriteLine("Username: admin");
+        Console.WriteLine("Password: admin123");
+        }
     }
 
 app.UseAuthentication();
