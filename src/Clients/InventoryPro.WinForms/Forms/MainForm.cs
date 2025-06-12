@@ -29,8 +29,10 @@ namespace InventoryPro.WinForms.Forms
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
             InitializeComponent();
-            _ = InitializeFormAsync();
-        }
+            //_ = InitializeFormAsync();
+            // Initialize the form asynchronously when it loads
+            this.Load += async (sender, e) => await InitializeFormAsync();
+            }
 
         /// <summary>
         /// Initializes the form with user data and dashboard statistics
