@@ -489,11 +489,11 @@ namespace InventoryPro.WinForms.Forms
 
                     // Show success message briefly
                     ShowSuccess("Login successful!");
-                    await Task.Delay(500); // Brief pause to show success
+                    await Task.Delay(1000); // Brief pause to show success
 
                     // Close form with success result
                     this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    this.Hide();
                     }
                 else
                     {
