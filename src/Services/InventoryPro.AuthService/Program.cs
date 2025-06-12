@@ -29,7 +29,6 @@ builder.Services.AddDbContext<AuthDbContext>(options =>
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-// Ensure the "Secret" value is not null or empty before using it
 var secret = jwtSettings["Secret"];
 if (string.IsNullOrEmpty(secret))
     {
@@ -38,7 +37,6 @@ if (string.IsNullOrEmpty(secret))
 
 var key = Encoding.ASCII.GetBytes(secret);
 
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -46,7 +44,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false; // Set to true in production
+    options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -69,8 +67,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "InventoryPro Auth Service", Version = "v1" });
-
-    // Add JWT Authentication
     c.AddSecurityDefinition("Bearer", new()
         {
         Description = "JWT Authorization header using the Bearer scheme",
@@ -106,23 +102,23 @@ if (app.Environment.IsDevelopment())
     }
 
 // Ensure database is created and migrations are applied
-//using (var scope = app.Services.CreateScope())
-//    {
-//    var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-//    context.Database.Migrate();
-//    }
 using (var scope = app.Services.CreateScope())
     {
     var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+
+    // Apply migrations
     context.Database.Migrate();
 
-    // Ensure admin user exists
-    if (!context.Users.Any(u => u.Username == "admin"))
+    // Check if admin user exists and create/update if necessary
+    var existingAdmin = context.Users.FirstOrDefault(u => u.Username == "admin");
+
+    if (existingAdmin == null)
         {
+        // Create new admin user
         var adminUser = new User
             {
             Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123", 12), // Use workFactor 12
             Email = "admin@inventorypro.com",
             FirstName = "System",
             LastName = "Administrator",
@@ -134,10 +130,43 @@ using (var scope = app.Services.CreateScope())
         context.Users.Add(adminUser);
         context.SaveChanges();
 
-        Console.WriteLine("Admin user created successfully!");
-        Console.WriteLine("Username: admin");
-        Console.WriteLine("Password: admin123");
+        Log.Information("Admin user created successfully!");
         }
+    else
+        {
+        // Update existing admin user password to ensure it works
+        existingAdmin.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123", 12);
+        existingAdmin.IsActive = true;
+        context.SaveChanges();
+
+        Log.Information("Admin user password updated successfully!");
+        }
+
+    // Create additional test users
+    if (!context.Users.Any(u => u.Username == "user"))
+        {
+        var testUser = new User
+            {
+            Username = "user",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("user123", 12),
+            Email = "user@inventorypro.com",
+            FirstName = "Test",
+            LastName = "User",
+            Role = "User",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+            };
+
+        context.Users.Add(testUser);
+        context.SaveChanges();
+
+        Log.Information("Test user created successfully!");
+        }
+
+    Log.Information("=== LOGIN CREDENTIALS ===");
+    Log.Information("Username: admin | Password: admin123");
+    Log.Information("Username: user  | Password: user123");
+    Log.Information("========================");
     }
 
 app.UseAuthentication();
@@ -145,6 +174,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-Log.Information("Auth Service started on port 5001");
+Log.Information("Auth Service started on port 5041");
 
 app.Run();
