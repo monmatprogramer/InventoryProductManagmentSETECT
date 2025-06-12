@@ -54,11 +54,13 @@ static class Program
                 var config = GetConfiguration();
                 services.AddSingleton<IConfiguration>(config);
 
-                // HTTP Client for API communication with correct BaseAddress
+                // HTTP Client for API communication with explicit BaseAddress
+                var baseUrl = config["ApiSettings:BaseUrl"] ?? "http://localhost:5000";
+
                 services.AddHttpClient<IApiService, ApiService>(client =>
                 {
-                    var baseUrl = config["ApiSettings:BaseUrl"] ?? "http://localhost:5000";
                     client.BaseAddress = new Uri(baseUrl);
+                    client.DefaultRequestHeaders.Accept.Clear();
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                     client.Timeout = TimeSpan.FromSeconds(config.GetValue<int>("ApiSettings:Timeout", 30));
                 })

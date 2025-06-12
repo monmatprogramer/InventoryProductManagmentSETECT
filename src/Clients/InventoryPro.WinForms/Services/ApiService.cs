@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using InventoryPro.Shared.DTOs;
+using Microsoft.Extensions.Configuration;
 
 namespace InventoryPro.WinForms.Services
     {
@@ -15,17 +16,29 @@ namespace InventoryPro.WinForms.Services
         private readonly IAuthService _authService;
         private readonly ILogger<ApiService> _logger;
         private readonly JsonSerializerOptions _jsonOptions;
+        private readonly string _baseUrl;
 
-        public ApiService(HttpClient httpClient, IAuthService authService, ILogger<ApiService> logger)
+        public ApiService(HttpClient httpClient, IAuthService authService, ILogger<ApiService> logger, IConfiguration configuration)
             {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
+            // Get base URL from configuration
+            _baseUrl = configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5000";
+
+            // Ensure BaseAddress is set
+            if (_httpClient.BaseAddress == null)
+                {
+                _httpClient.BaseAddress = new Uri(_baseUrl);
+                }
+
             _jsonOptions = new JsonSerializerOptions
                 {
                 PropertyNameCaseInsensitive = true
                 };
+
+            _logger.LogInformation("ApiService initialized with BaseUrl: {BaseUrl}", _baseUrl);
             }
 
         #region Authentication
@@ -34,11 +47,13 @@ namespace InventoryPro.WinForms.Services
             {
             try
                 {
-                var response = await _httpClient.PostAsJsonAsync("auth/login", loginRequest);
+                var uri = _httpClient.BaseAddress != null ? "auth/login" : $"{_baseUrl}/auth/login";
+                var response = await _httpClient.PostAsJsonAsync(uri, loginRequest);
                 var content = await response.Content.ReadAsStringAsync();
 
                 if (response.IsSuccessStatusCode)
                     {
+
                     var loginResponse = JsonSerializer.Deserialize<LoginResponseDto>(content, _jsonOptions);
                     if (loginResponse != null)
                         {
