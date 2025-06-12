@@ -454,6 +454,9 @@ namespace InventoryPro.WinForms.Forms
         /// <summary>
         /// Performs the login operation with comprehensive error handling
         /// </summary>
+        /// <summary>
+        /// Performs the login operation with comprehensive error handling
+        /// </summary>
         private async Task PerformLoginAsync()
             {
             // Prevent multiple login attempts
@@ -493,7 +496,7 @@ namespace InventoryPro.WinForms.Forms
 
                     // Close form with success result
                     this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    this.Close(); // Changed from Hide() to Close()
                     }
                 else
                     {

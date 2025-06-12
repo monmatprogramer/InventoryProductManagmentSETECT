@@ -36,9 +36,9 @@ namespace InventoryPro.WinForms.Forms
         /// Initializes the form with user data and dashboard statistics
         /// </summary>
         private async Task InitializeFormAsync()
-        {
-            try
             {
+            try
+                {
                 // Load current user information
                 _currentUser = await _authService.GetCurrentUserAsync();
                 if (_currentUser == null)
@@ -58,16 +58,16 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogInformation("MainForm initialized successfully for user: {Username}", _currentUser.Username);
                 }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error initializing MainForm");
                 MessageBox.Show(
-                    "Error loading application. Please try logging in again.",
+                    "Error loading application. Please restart the application.",
                     "Application Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
-                ShowLoginForm();
+                this.Close();
+                }
             }
-        }
 
         /// <summary>
         /// Updates the user interface with current user information
@@ -330,10 +330,10 @@ namespace InventoryPro.WinForms.Forms
         /// <summary>
         /// Logs out the current user
         /// </summary>
-        private async void BtnLogout_Click(object sender, EventArgs e)
-        {
-            try
+        private async void BtnLogout_Click(object? sender, EventArgs e)
             {
+            try
+                {
                 var result = MessageBox.Show(
                     "Are you sure you want to logout?",
                     "Confirm Logout",
@@ -341,18 +341,18 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxIcon.Question);
 
                 if (result == DialogResult.Yes)
-                {
+                    {
                     await _authService.ClearTokenAsync();
                     _logger.LogInformation("User logged out successfully");
-                    this.Close();
+                    this.Close(); // This will return to the login form via Program.cs
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error during logout");
                 MessageBox.Show("Error during logout", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles form closing event

@@ -32,8 +32,9 @@ static class Program
         try
             {
             Log.Information("Starting InventoryPro Windows Forms Application");
-            RunApplication(); 
-            //Application.Run(GetRequiredService<LoginForm>());
+
+            // Start with the main application flow
+            RunApplication();
             }
         catch (Exception ex)
             {
@@ -46,6 +47,7 @@ static class Program
             Log.CloseAndFlush();
             }
         }
+
     /// <summary>
     /// Main application flow - handles login and main form
     /// </summary>
@@ -75,7 +77,7 @@ static class Program
             }
         }
 
-        static IHostBuilder CreateHostBuilder()
+    static IHostBuilder CreateHostBuilder()
         {
         return Host.CreateDefaultBuilder()
             .ConfigureServices((context, services) =>
@@ -100,7 +102,7 @@ static class Program
                 services.AddSingleton<IAuthService, AuthService>();
                 services.AddScoped<IApiService, ApiService>();
 
-                // Forms
+                // Forms - Register as Transient so we get new instances each time
                 services.AddTransient<LoginForm>();
                 services.AddTransient<MainForm>();
                 services.AddTransient<ProductForm>();
