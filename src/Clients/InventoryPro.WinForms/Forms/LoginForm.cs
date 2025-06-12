@@ -493,7 +493,7 @@ namespace InventoryPro.WinForms.Forms
 
                     // Close form with success result
                     this.DialogResult = DialogResult.OK;
-                    this.Hide();
+                    this.Close();
                     }
                 else
                     {

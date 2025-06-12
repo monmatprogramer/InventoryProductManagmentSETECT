@@ -39,20 +39,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                // Check if user is authenticated
-                if (!await _authService.IsAuthenticatedAsync())
-                {
-                    ShowLoginForm();
-                    return;
-                }
-
                 // Load current user information
                 _currentUser = await _authService.GetCurrentUserAsync();
                 if (_currentUser == null)
-                {
-                    ShowLoginForm();
+                    {
+                    MessageBox.Show("User information not found. Please restart the application.",
+                        "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    this.Close();
                     return;
-                }
+                    }
 
                 // Update UI with user information
                 UpdateUserInterface();
@@ -61,7 +56,7 @@ namespace InventoryPro.WinForms.Forms
                 await LoadDashboardStatsAsync();
 
                 _logger.LogInformation("MainForm initialized successfully for user: {Username}", _currentUser.Username);
-            }
+                }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error initializing MainForm");
