@@ -28,12 +28,61 @@ namespace InventoryPro.WinForms.Forms
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
-            InitializeComponent();
-            //_ = InitializeFormAsync();
-            // Initialize the form asynchronously when it loads
-            this.Load += async (sender, e) => await InitializeFormAsync();
+            try
+                {
+                InitializeComponent();
+
+                // Initialize the form asynchronously when it loads
+                this.Load += MainForm_Load;
+                this.Shown += MainForm_Shown;
+
+                _logger.LogInformation("MainForm initialized successfully");
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error initializing MainForm");
+                throw;
+                }
+            }
+        /// <summary>
+        /// Handles the form Shown event
+        /// </summary>
+        private void MainForm_Shown(object? sender, EventArgs e)
+            {
+            try
+                {
+               
+                this.Activate();
+                this.BringToFront();
+                this.Focus();
+                _logger.LogInformation("MainForm shown and activated");
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error during MainForm Shown");
+                }
             }
 
+        /// <summary>
+        /// Handles the form Load event
+        /// </summary>
+        private async void MainForm_Load(object? sender, EventArgs e)
+            {
+            try
+                {
+                // Show a loading message or progress indicator
+                lblStatus.Text = "Loading...";
+
+                // Initialize the form data
+                await InitializeFormAsync();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error during MainForm Load");
+                MessageBox.Show($"Error loading application: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
         /// <summary>
         /// Initializes the form with user data and dashboard statistics
         /// </summary>
@@ -45,6 +94,7 @@ namespace InventoryPro.WinForms.Forms
                 _currentUser = await _authService.GetCurrentUserAsync();
                 if (_currentUser == null)
                     {
+                    _logger.LogWarning("User information not found during MainForm initialization");
                     MessageBox.Show("User information not found. Please restart the application.",
                         "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     this.Close();

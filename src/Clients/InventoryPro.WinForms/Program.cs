@@ -3,19 +3,19 @@ using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Http;
-using Microsoft.Extensions.Logging;
+
 using Polly;
 using Polly.Extensions.Http;
 using Serilog;
 using System.Net.Http.Headers;
-using Serilog.Extensions.Hosting;
+
 
 namespace InventoryPro.WinForms;
 
 static class Program
     {
     private static IServiceProvider? _serviceProvider;
+    private static MainForm? _mainForm;
 
     [STAThread]
     static void Main()
@@ -56,24 +56,78 @@ static class Program
         while (true)
             {
             // Show login form
-            using var loginForm = GetRequiredService<LoginForm>();
-            var loginResult = loginForm.ShowDialog();
+            var loginForm = GetRequiredService<LoginForm>();
 
-            if (loginResult == DialogResult.OK)
+            // Subscribe to login success event
+            bool loginSuccessful = false;
+            loginForm.FormClosed += (sender, e) =>
+            {
+                if (loginForm.DialogResult == DialogResult.OK)
+                    {
+                    loginSuccessful = true;
+                    }
+            };
+
+            var loginResult = loginForm.ShowDialog();
+            loginForm.Dispose();
+
+            if (loginResult == DialogResult.OK && loginSuccessful)
                 {
                 // Login successful, show main form
-                using var mainForm = GetRequiredService<MainForm>();
-                var mainResult = mainForm.ShowDialog();
-
-                // If main form is closed, we can either exit or show login again
-                // For now, we'll exit the application
-                break;
+                ShowMainForm();
+                break; // Exit after main form is closed
                 }
             else
                 {
                 // Login cancelled or failed, exit application
                 break;
                 }
+            }
+        }
+
+    /// <summary>
+    /// Shows the main form and handles its lifecycle
+    /// </summary>
+    private static void ShowMainForm()
+        {
+        try
+            {
+            _mainForm = GetRequiredService<MainForm>();
+
+            // Handle main form closing to potentially show login again
+            _mainForm.FormClosed += MainForm_FormClosed;
+
+            // Show the main form
+            Application.Run(_mainForm);
+            }
+        catch (Exception ex)
+            {
+            Log.Error(ex, "Error showing main form");
+            MessageBox.Show($"Error loading main application: {ex.Message}",
+                "Application Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+    /// <summary>
+    /// Handles main form closed event
+    /// </summary>
+    private static void MainForm_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+        try
+            {
+            // Clean up
+            if (_mainForm != null)
+                {
+                _mainForm.FormClosed -= MainForm_FormClosed;
+                _mainForm.Dispose();
+                _mainForm = null;
+                }
+
+            Log.Information("Main form closed, application shutting down");
+            }
+        catch (Exception ex)
+            {
+            Log.Error(ex, "Error during main form cleanup");
             }
         }
 
