@@ -71,6 +71,7 @@
 
 	<!-- Resources -->
 	<ItemGroup>
+		<Folder Include="logs\" />
 		<Folder Include="Resources\" />
 		<Folder Include="Images\" />
 		<Folder Include="Icons\" />

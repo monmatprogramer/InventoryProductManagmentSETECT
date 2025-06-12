@@ -51,36 +51,73 @@ static class Program
     /// <summary>
     /// Main application flow - handles login and main form
     /// </summary>
-    private static void RunApplication()
+    private static async void RunApplication()
         {
         while (true)
             {
-            // Show login form
-            var loginForm = GetRequiredService<LoginForm>();
+            try
+                {
+                Log.Information("=== STARTING LOGIN PROCESS ===");
 
-            // Subscribe to login success event
-            bool loginSuccessful = false;
-            loginForm.FormClosed += (sender, e) =>
-            {
-                if (loginForm.DialogResult == DialogResult.OK)
+                // Show login form
+                using var loginForm = GetRequiredService<LoginForm>();
+                Log.Information("About to show login dialog");
+                var loginResult = loginForm.ShowDialog();
+
+                Log.Information("Login form closed with result: {Result}", loginResult);
+                //message box
+                MessageBox.Show("LoginResult", "Login Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (loginResult == DialogResult.OK)
                     {
-                    loginSuccessful = true;
+                    Log.Information("=== LOGIN SUCCESSFUL - ATTEMPTING TO SHOW MAIN FORM ===");
+
+                    // Login successful, show main form
+                    //ShowMainForm();
+                    var authService = GetRequiredService<IAuthService>();
+                    var currentUser = await authService.GetCurrentUserAsync();
+                    var token = await authService.GetTokenAsync();
+
+                    Log.Information("Auth verification - User: {HasUser}, Token: {HasToken}",
+                        currentUser != null, !string.IsNullOrEmpty(token));
+
+                    if (currentUser != null && !string.IsNullOrEmpty(token))
+                        {
+                        Log.Information("Authentication verified, showing main form");
+                        ShowMainForm();
+                        }
+                    else
+                        {
+                        Log.Error("Authentication verification failed after successful login");
+                        MessageBox.Show("Authentication error. Please try logging in again.",
+                            "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        continue; // Go back to login
+                        }
+
+                    // After main form closes, we can either exit or show login again
+                    // For now, we'll exit the application
+                    break;
                     }
-            };
-
-            var loginResult = loginForm.ShowDialog();
-            loginForm.Dispose();
-
-            if (loginResult == DialogResult.OK && loginSuccessful)
-                {
-                // Login successful, show main form
-                ShowMainForm();
-                break; // Exit after main form is closed
+                else
+                    {
+                    Log.Information("Login cancelled or failed, exiting application");
+                    // Login cancelled or failed, exit application
+                    break;
+                    }
                 }
-            else
+            catch (Exception ex)
                 {
-                // Login cancelled or failed, exit application
-                break;
+                Log.Error(ex, "Error in application flow");
+
+                var result = MessageBox.Show(
+                    $"An error occurred: {ex.Message}\n\nWould you like to try again?",
+                    "Application Error",
+                    MessageBoxButtons.RetryCancel,
+                    MessageBoxIcon.Error);
+
+                if (result != DialogResult.Retry)
+                    {
+                    break;
+                    }
                 }
             }
         }
@@ -92,13 +129,62 @@ static class Program
         {
         try
             {
+            /*
+            Log.Information("=== CREATING AND SHOWING MAIN FORM ===");
+            // First, let's create a simple test form to verify basic functionality
+            var testMainForm = new Form();
+            testMainForm.Text = "InventoryPro - Test Main Form";
+            testMainForm.Size = new Size(800, 600);
+            testMainForm.StartPosition = FormStartPosition.CenterScreen;
+            testMainForm.WindowState = FormWindowState.Maximized;
+
+            var label = new Label();
+            label.Text = "Main form loaded successfully!\nThis is a test version.";
+            label.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
+            label.AutoSize = true;
+            label.Location = new Point(50, 50);
+            testMainForm.Controls.Add(label);
+
+            var closeButton = new Button();
+            closeButton.Text = "Close Application";
+            closeButton.Size = new Size(150, 40);
+            closeButton.Location = new Point(50, 150);
+            closeButton.Click += (s, e) => testMainForm.Close();
+            testMainForm.Controls.Add(closeButton);
+
+            Log.Information("Test main form created, about to show with Application.Run");
+
+            // Show the test form first to verify routing works
+            Application.Run(testMainForm);
+
+            Log.Information("Test main form closed");
+            */
+            
+            Log.Information("=== CREATING MAIN FORM ===");
             _mainForm = GetRequiredService<MainForm>();
 
-            // Handle main form closing to potentially show login again
-            _mainForm.FormClosed += MainForm_FormClosed;
+            Log.Information("Main form created successfully");
 
-            // Show the main form
+            // Handle main form closing to potentially show login again
+            //_mainForm.FormClosed += MainForm_FormClosed;
+            _mainForm.FormClosed += (sender, e) => {
+                Log.Information("Main form closed event fired");
+                MainForm_FormClosed(sender, e);
+            };
+            // Handle main form load event for debugging
+            _mainForm.Load += (sender, e) => {
+                Log.Information("Main form Load event fired");
+            };
+            // Handle main form shown event for debugging  
+            _mainForm.Shown += (sender, e) => {
+                Log.Information("Main form Shown event fired");
+            };
+
+            Log.Information("About to run main form with Application.Run");
+            // Show the main form as the main application window
             Application.Run(_mainForm);
+            Log.Information("Application.Run completed");
+            
             }
         catch (Exception ex)
             {
@@ -115,6 +201,8 @@ static class Program
         {
         try
             {
+            Log.Information("Main form closed, cleaning up");
+
             // Clean up
             if (_mainForm != null)
                 {
@@ -123,7 +211,7 @@ static class Program
                 _mainForm = null;
                 }
 
-            Log.Information("Main form closed, application shutting down");
+            Log.Information("Main form cleanup completed");
             }
         catch (Exception ex)
             {
