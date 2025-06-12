@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InventoryPro.AuthService.Migrations
 {
     [DbContext(typeof(AuthDbContext))]
-    [Migration("20250610014506_InitialCreate")]
+    [Migration("20250612011406_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

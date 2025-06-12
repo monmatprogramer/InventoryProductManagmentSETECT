@@ -18,7 +18,7 @@ namespace InventoryPro.WinForms.Forms
         // Form sections
         private Panel pnlLeft = null!;
         private Panel pnlRight = null!;
-        //private Panel pnlBottom = null!;
+        
 
         // Customer selection
         private Label lblCustomer = null!;
