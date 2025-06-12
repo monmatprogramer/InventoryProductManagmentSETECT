@@ -1,389 +1,469 @@
-﻿namespace InventoryPro.WinForms.Forms
-{
-    partial class LoginForm
+﻿using System.Drawing;
+using System.Windows.Forms;
+using Timer = System.Windows.Forms.Timer;
+
+namespace InventoryPro.WinForms.Forms
     {
+    partial class LoginForm
+        {
         /// <summary>
-        /// Required designer variable.
+        /// Required designer variable for managing form components
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
         /// <summary>
-        /// Clean up any resources being used.
+        /// Clean up any resources being used when form is disposed
         /// </summary>
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
-        {
-            if (disposing && (components != null))
             {
+            if (disposing && (components != null))
+                {
                 components.Dispose();
-            }
+                }
             base.Dispose(disposing);
-        }
+            }
 
         #region Windows Form Designer generated code
 
         /// <summary>
         /// Required method for Designer support - do not modify
         /// the contents of this method with the code editor.
+        /// This method initializes all the UI components and sets their properties
         /// </summary>
         private void InitializeComponent()
             {
-            pnlMain = new Panel();
-            pnlLogin = new Panel();
+            components = new System.ComponentModel.Container();
+            pnlBackground = new Panel();
+            pnlLeftPanel = new Panel();
             pnlHeader = new Panel();
             picLogo = new PictureBox();
-            lblTitle = new Label();
-            lblSubtitle = new Label();
-            lblVersion = new Label();
+            lblAppTitle = new Label();
+            lblAppSubtitle = new Label();
+            pnlRightPanel = new Panel();
+            pnlLoginContainer = new Panel();
+            pnlLoginForm = new Panel();
+            pnlUsernameContainer = new Panel();
+            lblUsernameIcon = new Label();
+            txtUsername = new TextBox();
+            pnlPasswordContainer = new Panel();
+            lblPasswordIcon = new Label();
+            txtPassword = new TextBox();
+            btnTogglePassword = new Button();
+            chkRememberMe = new CheckBox();
             lblForgotPassword = new Label();
-            pnlButtons = new Panel();
-            tlpButtons = new TableLayoutPanel();
             btnLogin = new Button();
             btnCancel = new Button();
-            pnlForm = new Panel();
-            lblUsername = new Label();
-            txtUsername = new TextBox();
-            lblPassword = new Label();
-            pnlPasswordContainer = new Panel();
-            txtPassword = new TextBox();
-            btnShowPassword = new Button();
-            chkRememberMe = new CheckBox();
             lblError = new Label();
             progressBar = new ProgressBar();
-            pnlMain.SuspendLayout();
-            pnlLogin.SuspendLayout();
+            pnlFooter = new Panel();
+            lblVersion = new Label();
+            lblCopyright = new Label();
+            lblUsername = new Label();
+            lblPassword = new Label();
+            animationTimer = new Timer(components);
+            pnlBackground.SuspendLayout();
+            pnlLeftPanel.SuspendLayout();
             pnlHeader.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)picLogo).BeginInit();
-            pnlButtons.SuspendLayout();
-            tlpButtons.SuspendLayout();
-            pnlForm.SuspendLayout();
+            pnlRightPanel.SuspendLayout();
+            pnlLoginContainer.SuspendLayout();
+            pnlLoginForm.SuspendLayout();
+            pnlUsernameContainer.SuspendLayout();
             pnlPasswordContainer.SuspendLayout();
+            pnlFooter.SuspendLayout();
             SuspendLayout();
             // 
-            // pnlMain
+            // pnlBackground
             // 
-            pnlMain.BackColor = Color.FromArgb(240, 240, 240);
-            pnlMain.Controls.Add(pnlLogin);
-            pnlMain.Dock = DockStyle.Fill;
-            pnlMain.Location = new Point(0, 0);
-            pnlMain.Margin = new Padding(3, 4, 3, 4);
-            pnlMain.Name = "pnlMain";
-            pnlMain.Padding = new Padding(46, 53, 46, 53);
-            pnlMain.Size = new Size(437, 604);
-            pnlMain.TabIndex = 0;
+            pnlBackground.BackColor = Color.FromArgb(240, 244, 248);
+            pnlBackground.Controls.Add(pnlLeftPanel);
+            pnlBackground.Controls.Add(pnlRightPanel);
+            pnlBackground.Dock = DockStyle.Fill;
+            pnlBackground.Location = new Point(0, 0);
+            pnlBackground.Name = "pnlBackground";
+            pnlBackground.Size = new Size(1291, 691);
+            pnlBackground.TabIndex = 0;
             // 
-            // pnlLogin
+            // pnlLeftPanel
             // 
-            pnlLogin.BackColor = Color.White;
-            pnlLogin.Controls.Add(pnlHeader);
-            pnlLogin.Controls.Add(lblVersion);
-            pnlLogin.Controls.Add(lblForgotPassword);
-            pnlLogin.Controls.Add(pnlButtons);
-            pnlLogin.Controls.Add(pnlForm);
-            pnlLogin.Dock = DockStyle.Fill;
-            pnlLogin.Location = new Point(46, 53);
-            pnlLogin.Margin = new Padding(3, 4, 3, 4);
-            pnlLogin.Name = "pnlLogin";
-            pnlLogin.Size = new Size(345, 498);
-            pnlLogin.TabIndex = 0;
+            pnlLeftPanel.BackColor = Color.FromArgb(45, 108, 175);
+            pnlLeftPanel.Controls.Add(pnlHeader);
+            pnlLeftPanel.Dock = DockStyle.Left;
+            pnlLeftPanel.Location = new Point(0, 0);
+            pnlLeftPanel.Name = "pnlLeftPanel";
+            pnlLeftPanel.Padding = new Padding(60, 80, 60, 80);
+            pnlLeftPanel.Size = new Size(500, 691);
+            pnlLeftPanel.TabIndex = 0;
+            pnlLeftPanel.Paint += PnlLeftPanel_Paint;
             // 
             // pnlHeader
             // 
-            pnlHeader.BackColor = Color.White;
+            pnlHeader.BackColor = Color.Transparent;
             pnlHeader.Controls.Add(picLogo);
-            pnlHeader.Controls.Add(lblTitle);
-            pnlHeader.Controls.Add(lblSubtitle);
-            pnlHeader.Dock = DockStyle.Top;
-            pnlHeader.Location = new Point(0, 0);
-            pnlHeader.Margin = new Padding(3, 4, 3, 4);
+            pnlHeader.Controls.Add(lblAppTitle);
+            pnlHeader.Controls.Add(lblAppSubtitle);
+            pnlHeader.Dock = DockStyle.Fill;
+            pnlHeader.Location = new Point(60, 80);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Size = new Size(345, 160);
+            pnlHeader.Size = new Size(380, 531);
             pnlHeader.TabIndex = 0;
             // 
             // picLogo
             // 
             picLogo.Anchor = AnchorStyles.None;
-            picLogo.BackColor = Color.FromArgb(41, 128, 185);
-            picLogo.Location = new Point(145, 27);
-            picLogo.Margin = new Padding(3, 4, 3, 4);
+            picLogo.BackColor = Color.White;
+            picLogo.Location = new Point(250, 365);
             picLogo.Name = "picLogo";
-            picLogo.Size = new Size(55, 64);
+            picLogo.Size = new Size(80, 80);
             picLogo.SizeMode = PictureBoxSizeMode.CenterImage;
             picLogo.TabIndex = 0;
             picLogo.TabStop = false;
+            picLogo.Paint += PicLogo_Paint;
             // 
-            // lblTitle
+            // lblAppTitle
             // 
-            lblTitle.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblTitle.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
-            lblTitle.ForeColor = Color.FromArgb(51, 51, 51);
-            lblTitle.Location = new Point(0, 100);
-            lblTitle.Name = "lblTitle";
-            lblTitle.Size = new Size(345, 40);
-            lblTitle.TabIndex = 1;
-            lblTitle.Text = "InventoryPro";
-            lblTitle.TextAlign = ContentAlignment.MiddleCenter;
+            lblAppTitle.Anchor = AnchorStyles.None;
+            lblAppTitle.AutoSize = true;
+            lblAppTitle.BackColor = Color.Transparent;
+            lblAppTitle.Font = new Font("Segoe UI", 28F, FontStyle.Bold);
+            lblAppTitle.ForeColor = Color.White;
+            lblAppTitle.Location = new Point(210, 465);
+            lblAppTitle.Name = "lblAppTitle";
+            lblAppTitle.Size = new Size(318, 62);
+            lblAppTitle.TabIndex = 1;
+            lblAppTitle.Text = "InventoryPro";
+            lblAppTitle.TextAlign = ContentAlignment.MiddleCenter;
             // 
-            // lblSubtitle
+            // lblAppSubtitle
             // 
-            lblSubtitle.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblSubtitle.Font = new Font("Segoe UI", 10F);
-            lblSubtitle.ForeColor = Color.FromArgb(128, 128, 128);
-            lblSubtitle.Location = new Point(0, 133);
-            lblSubtitle.Name = "lblSubtitle";
-            lblSubtitle.Size = new Size(345, 27);
-            lblSubtitle.TabIndex = 2;
-            lblSubtitle.Text = "Sign in to your account";
-            lblSubtitle.TextAlign = ContentAlignment.MiddleCenter;
+            lblAppSubtitle.Anchor = AnchorStyles.None;
+            lblAppSubtitle.AutoSize = true;
+            lblAppSubtitle.BackColor = Color.Transparent;
+            lblAppSubtitle.Font = new Font("Segoe UI", 12F);
+            lblAppSubtitle.ForeColor = Color.FromArgb(220, 230, 240);
+            lblAppSubtitle.Location = new Point(220, 535);
+            lblAppSubtitle.Name = "lblAppSubtitle";
+            lblAppSubtitle.Size = new Size(326, 28);
+            lblAppSubtitle.TabIndex = 2;
+            lblAppSubtitle.Text = "Professional Inventory Management";
+            lblAppSubtitle.TextAlign = ContentAlignment.MiddleCenter;
             // 
-            // lblVersion
+            // pnlRightPanel
             // 
-            lblVersion.Dock = DockStyle.Bottom;
-            lblVersion.Font = new Font("Segoe UI", 8F);
-            lblVersion.ForeColor = Color.FromArgb(180, 180, 180);
-            lblVersion.Location = new Point(0, 377);
-            lblVersion.Name = "lblVersion";
-            lblVersion.Size = new Size(345, 27);
-            lblVersion.TabIndex = 4;
-            lblVersion.Text = "Version 1.0.0";
-            lblVersion.TextAlign = ContentAlignment.MiddleCenter;
+            pnlRightPanel.BackColor = Color.White;
+            pnlRightPanel.Controls.Add(pnlLoginContainer);
+            pnlRightPanel.Controls.Add(pnlFooter);
+            pnlRightPanel.Dock = DockStyle.Fill;
+            pnlRightPanel.Location = new Point(0, 0);
+            pnlRightPanel.Name = "pnlRightPanel";
+            pnlRightPanel.Padding = new Padding(60, 40, 60, 40);
+            pnlRightPanel.Size = new Size(1291, 691);
+            pnlRightPanel.TabIndex = 1;
+            // 
+            // pnlLoginContainer
+            // 
+            pnlLoginContainer.Anchor = AnchorStyles.None;
+            pnlLoginContainer.BackColor = Color.White;
+            pnlLoginContainer.Controls.Add(pnlLoginForm);
+            pnlLoginContainer.Location = new Point(625, 395);
+            pnlLoginContainer.Name = "pnlLoginContainer";
+            pnlLoginContainer.Padding = new Padding(30);
+            pnlLoginContainer.Size = new Size(340, 450);
+            pnlLoginContainer.TabIndex = 0;
+            pnlLoginContainer.Paint += PnlLoginContainer_Paint;
+            // 
+            // pnlLoginForm
+            // 
+            pnlLoginForm.BackColor = Color.Transparent;
+            pnlLoginForm.Controls.Add(pnlUsernameContainer);
+            pnlLoginForm.Controls.Add(pnlPasswordContainer);
+            pnlLoginForm.Controls.Add(chkRememberMe);
+            pnlLoginForm.Controls.Add(lblForgotPassword);
+            pnlLoginForm.Controls.Add(btnLogin);
+            pnlLoginForm.Controls.Add(btnCancel);
+            pnlLoginForm.Controls.Add(lblError);
+            pnlLoginForm.Controls.Add(progressBar);
+            pnlLoginForm.Dock = DockStyle.Fill;
+            pnlLoginForm.Location = new Point(30, 30);
+            pnlLoginForm.Name = "pnlLoginForm";
+            pnlLoginForm.Padding = new Padding(0, 20, 0, 0);
+            pnlLoginForm.Size = new Size(280, 390);
+            pnlLoginForm.TabIndex = 0;
+            // 
+            // pnlUsernameContainer
+            // 
+            pnlUsernameContainer.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pnlUsernameContainer.BackColor = Color.FromArgb(248, 249, 250);
+            pnlUsernameContainer.Controls.Add(lblUsernameIcon);
+            pnlUsernameContainer.Controls.Add(txtUsername);
+            pnlUsernameContainer.Location = new Point(0, 80);
+            pnlUsernameContainer.Name = "pnlUsernameContainer";
+            pnlUsernameContainer.Size = new Size(360, 50);
+            pnlUsernameContainer.TabIndex = 0;
+            pnlUsernameContainer.Paint += InputContainer_Paint;
+            // 
+            // lblUsernameIcon
+            // 
+            lblUsernameIcon.BackColor = Color.Transparent;
+            lblUsernameIcon.Font = new Font("Segoe UI", 12F);
+            lblUsernameIcon.ForeColor = Color.FromArgb(107, 114, 128);
+            lblUsernameIcon.Location = new Point(15, 12);
+            lblUsernameIcon.Name = "lblUsernameIcon";
+            lblUsernameIcon.Size = new Size(25, 25);
+            lblUsernameIcon.TabIndex = 0;
+            lblUsernameIcon.Text = "👤";
+            lblUsernameIcon.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // txtUsername
+            // 
+            txtUsername.BackColor = Color.FromArgb(248, 249, 250);
+            txtUsername.BorderStyle = BorderStyle.None;
+            txtUsername.Font = new Font("Segoe UI", 11F);
+            txtUsername.ForeColor = Color.FromArgb(17, 24, 39);
+            txtUsername.Location = new Point(50, 12);
+            txtUsername.Name = "txtUsername";
+            txtUsername.PlaceholderText = "Enter your username";
+            txtUsername.Size = new Size(215, 25);
+            txtUsername.TabIndex = 1;
+            txtUsername.Enter += TextBox_Enter;
+            txtUsername.Leave += TextBox_Leave;
+            // 
+            // pnlPasswordContainer
+            // 
+            pnlPasswordContainer.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            pnlPasswordContainer.BackColor = Color.FromArgb(248, 249, 250);
+            pnlPasswordContainer.Controls.Add(lblPasswordIcon);
+            pnlPasswordContainer.Controls.Add(txtPassword);
+            pnlPasswordContainer.Controls.Add(btnTogglePassword);
+            pnlPasswordContainer.Location = new Point(0, 180);
+            pnlPasswordContainer.Name = "pnlPasswordContainer";
+            pnlPasswordContainer.Size = new Size(360, 50);
+            pnlPasswordContainer.TabIndex = 1;
+            pnlPasswordContainer.Paint += InputContainer_Paint;
+            // 
+            // lblPasswordIcon
+            // 
+            lblPasswordIcon.BackColor = Color.Transparent;
+            lblPasswordIcon.Font = new Font("Segoe UI", 12F);
+            lblPasswordIcon.ForeColor = Color.FromArgb(107, 114, 128);
+            lblPasswordIcon.Location = new Point(15, 12);
+            lblPasswordIcon.Name = "lblPasswordIcon";
+            lblPasswordIcon.Size = new Size(25, 25);
+            lblPasswordIcon.TabIndex = 0;
+            lblPasswordIcon.Text = "🔒";
+            lblPasswordIcon.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // txtPassword
+            // 
+            txtPassword.BackColor = Color.FromArgb(248, 249, 250);
+            txtPassword.BorderStyle = BorderStyle.None;
+            txtPassword.Font = new Font("Segoe UI", 11F);
+            txtPassword.ForeColor = Color.FromArgb(17, 24, 39);
+            txtPassword.Location = new Point(50, 12);
+            txtPassword.Name = "txtPassword";
+            txtPassword.PlaceholderText = "Enter your password";
+            txtPassword.Size = new Size(180, 25);
+            txtPassword.TabIndex = 1;
+            txtPassword.UseSystemPasswordChar = true;
+            txtPassword.Enter += TextBox_Enter;
+            txtPassword.Leave += TextBox_Leave;
+            // 
+            // btnTogglePassword
+            // 
+            btnTogglePassword.BackColor = Color.Transparent;
+            btnTogglePassword.Cursor = Cursors.Hand;
+            btnTogglePassword.FlatAppearance.BorderSize = 0;
+            btnTogglePassword.FlatStyle = FlatStyle.Flat;
+            btnTogglePassword.Font = new Font("Segoe UI", 10F);
+            btnTogglePassword.ForeColor = Color.FromArgb(107, 114, 128);
+            btnTogglePassword.Location = new Point(240, 10);
+            btnTogglePassword.Name = "btnTogglePassword";
+            btnTogglePassword.Size = new Size(30, 30);
+            btnTogglePassword.TabIndex = 2;
+            btnTogglePassword.Text = "👁";
+            btnTogglePassword.UseVisualStyleBackColor = false;
+            btnTogglePassword.Click += BtnTogglePassword_Click;
+            // 
+            // chkRememberMe
+            // 
+            chkRememberMe.AutoSize = true;
+            chkRememberMe.Font = new Font("Segoe UI", 9F);
+            chkRememberMe.ForeColor = Color.FromArgb(75, 85, 99);
+            chkRememberMe.Location = new Point(0, 250);
+            chkRememberMe.Name = "chkRememberMe";
+            chkRememberMe.Size = new Size(129, 24);
+            chkRememberMe.TabIndex = 3;
+            chkRememberMe.Text = "Remember me";
+            chkRememberMe.UseVisualStyleBackColor = true;
             // 
             // lblForgotPassword
             // 
+            lblForgotPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            lblForgotPassword.AutoSize = true;
             lblForgotPassword.Cursor = Cursors.Hand;
-            lblForgotPassword.Dock = DockStyle.Bottom;
             lblForgotPassword.Font = new Font("Segoe UI", 9F, FontStyle.Underline);
-            lblForgotPassword.ForeColor = Color.FromArgb(41, 128, 185);
-            lblForgotPassword.Location = new Point(0, 404);
+            lblForgotPassword.ForeColor = Color.FromArgb(59, 130, 246);
+            lblForgotPassword.Location = new Point(230, 252);
             lblForgotPassword.Name = "lblForgotPassword";
-            lblForgotPassword.Size = new Size(345, 27);
-            lblForgotPassword.TabIndex = 3;
-            lblForgotPassword.Text = "Forgot your password?";
-            lblForgotPassword.TextAlign = ContentAlignment.MiddleCenter;
+            lblForgotPassword.Size = new Size(127, 20);
+            lblForgotPassword.TabIndex = 4;
+            lblForgotPassword.Text = "Forgot password?";
             lblForgotPassword.Click += LblForgotPassword_Click;
-            // 
-            // pnlButtons
-            // 
-            pnlButtons.BackColor = Color.White;
-            pnlButtons.Controls.Add(tlpButtons);
-            pnlButtons.Dock = DockStyle.Bottom;
-            pnlButtons.Location = new Point(0, 431);
-            pnlButtons.Margin = new Padding(3, 4, 3, 4);
-            pnlButtons.Name = "pnlButtons";
-            pnlButtons.Padding = new Padding(46, 7, 46, 7);
-            pnlButtons.Size = new Size(345, 67);
-            pnlButtons.TabIndex = 2;
-            // 
-            // tlpButtons
-            // 
-            tlpButtons.ColumnCount = 2;
-            tlpButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            tlpButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            tlpButtons.Controls.Add(btnLogin, 0, 0);
-            tlpButtons.Controls.Add(btnCancel, 1, 0);
-            tlpButtons.Dock = DockStyle.Fill;
-            tlpButtons.Location = new Point(46, 7);
-            tlpButtons.Margin = new Padding(3, 4, 3, 4);
-            tlpButtons.Name = "tlpButtons";
-            tlpButtons.RowCount = 1;
-            tlpButtons.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tlpButtons.Size = new Size(253, 53);
-            tlpButtons.TabIndex = 0;
+            lblForgotPassword.MouseEnter += LinkLabel_MouseEnter;
+            lblForgotPassword.MouseLeave += LinkLabel_MouseLeave;
             // 
             // btnLogin
             // 
             btnLogin.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            btnLogin.BackColor = Color.FromArgb(41, 128, 185);
+            btnLogin.BackColor = Color.FromArgb(59, 130, 246);
             btnLogin.Cursor = Cursors.Hand;
             btnLogin.FlatAppearance.BorderSize = 0;
             btnLogin.FlatStyle = FlatStyle.Flat;
             btnLogin.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
             btnLogin.ForeColor = Color.White;
-            btnLogin.Location = new Point(0, 0);
-            btnLogin.Margin = new Padding(0, 0, 6, 0);
+            btnLogin.Location = new Point(0, 300);
             btnLogin.Name = "btnLogin";
-            btnLogin.Size = new Size(120, 31);
-            btnLogin.TabIndex = 0;
+            btnLogin.Size = new Size(360, 45);
+            btnLogin.TabIndex = 5;
             btnLogin.Text = "Sign In";
             btnLogin.UseVisualStyleBackColor = false;
             btnLogin.Click += BtnLogin_Click;
+            btnLogin.Paint += BtnLogin_Paint;
+            btnLogin.MouseEnter += Button_MouseEnter;
+            btnLogin.MouseLeave += Button_MouseLeave;
             // 
             // btnCancel
             // 
             btnCancel.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            btnCancel.BackColor = Color.FromArgb(248, 248, 248);
+            btnCancel.BackColor = Color.FromArgb(249, 250, 251);
             btnCancel.Cursor = Cursors.Hand;
-            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(220, 220, 220);
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219);
             btnCancel.FlatStyle = FlatStyle.Flat;
             btnCancel.Font = new Font("Segoe UI", 11F);
-            btnCancel.ForeColor = Color.FromArgb(51, 51, 51);
-            btnCancel.Location = new Point(132, 0);
-            btnCancel.Margin = new Padding(6, 0, 0, 0);
+            btnCancel.ForeColor = Color.FromArgb(75, 85, 99);
+            btnCancel.Location = new Point(0, 355);
             btnCancel.Name = "btnCancel";
-            btnCancel.Size = new Size(121, 31);
-            btnCancel.TabIndex = 1;
+            btnCancel.Size = new Size(360, 45);
+            btnCancel.TabIndex = 6;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = false;
             btnCancel.Click += BtnCancel_Click;
-            // 
-            // pnlForm
-            // 
-            pnlForm.BackColor = Color.White;
-            pnlForm.Controls.Add(lblUsername);
-            pnlForm.Controls.Add(txtUsername);
-            pnlForm.Controls.Add(lblPassword);
-            pnlForm.Controls.Add(pnlPasswordContainer);
-            pnlForm.Controls.Add(chkRememberMe);
-            pnlForm.Controls.Add(lblError);
-            pnlForm.Controls.Add(progressBar);
-            pnlForm.Dock = DockStyle.Fill;
-            pnlForm.Location = new Point(0, 0);
-            pnlForm.Margin = new Padding(3, 4, 3, 4);
-            pnlForm.Name = "pnlForm";
-            pnlForm.Padding = new Padding(46, 27, 46, 27);
-            pnlForm.Size = new Size(345, 498);
-            pnlForm.TabIndex = 1;
-            // 
-            // lblUsername
-            // 
-            lblUsername.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblUsername.Font = new Font("Segoe UI", 10F);
-            lblUsername.ForeColor = Color.FromArgb(51, 51, 51);
-            lblUsername.Location = new Point(0, 0);
-            lblUsername.Name = "lblUsername";
-            lblUsername.Size = new Size(254, 27);
-            lblUsername.TabIndex = 0;
-            lblUsername.Text = "Username";
-            // 
-            // txtUsername
-            // 
-            txtUsername.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            txtUsername.BackColor = Color.White;
-            txtUsername.BorderStyle = BorderStyle.FixedSingle;
-            txtUsername.Font = new Font("Segoe UI", 11F);
-            txtUsername.ForeColor = Color.FromArgb(51, 51, 51);
-            txtUsername.Location = new Point(0, 33);
-            txtUsername.Margin = new Padding(3, 4, 3, 4);
-            txtUsername.Name = "txtUsername";
-            txtUsername.Size = new Size(253, 32);
-            txtUsername.TabIndex = 1;
-            // 
-            // lblPassword
-            // 
-            lblPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            lblPassword.Font = new Font("Segoe UI", 10F);
-            lblPassword.ForeColor = Color.FromArgb(51, 51, 51);
-            lblPassword.Location = new Point(0, 80);
-            lblPassword.Name = "lblPassword";
-            lblPassword.Size = new Size(254, 27);
-            lblPassword.TabIndex = 2;
-            lblPassword.Text = "Password";
-            // 
-            // pnlPasswordContainer
-            // 
-            pnlPasswordContainer.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            pnlPasswordContainer.BackColor = Color.White;
-            pnlPasswordContainer.BorderStyle = BorderStyle.FixedSingle;
-            pnlPasswordContainer.Controls.Add(txtPassword);
-            pnlPasswordContainer.Controls.Add(btnShowPassword);
-            pnlPasswordContainer.Location = new Point(0, 113);
-            pnlPasswordContainer.Margin = new Padding(3, 4, 3, 4);
-            pnlPasswordContainer.Name = "pnlPasswordContainer";
-            pnlPasswordContainer.Padding = new Padding(2, 3, 2, 3);
-            pnlPasswordContainer.Size = new Size(253, 35);
-            pnlPasswordContainer.TabIndex = 3;
-            // 
-            // txtPassword
-            // 
-            txtPassword.BackColor = Color.White;
-            txtPassword.BorderStyle = BorderStyle.None;
-            txtPassword.Dock = DockStyle.Fill;
-            txtPassword.Font = new Font("Segoe UI", 11F);
-            txtPassword.ForeColor = Color.FromArgb(51, 51, 51);
-            txtPassword.Location = new Point(2, 3);
-            txtPassword.Margin = new Padding(3, 4, 3, 4);
-            txtPassword.Name = "txtPassword";
-            txtPassword.Size = new Size(215, 25);
-            txtPassword.TabIndex = 0;
-            txtPassword.UseSystemPasswordChar = true;
-            // 
-            // btnShowPassword
-            // 
-            btnShowPassword.AccessibleDescription = "Show password";
-            btnShowPassword.BackColor = Color.White;
-            btnShowPassword.Cursor = Cursors.Hand;
-            btnShowPassword.Dock = DockStyle.Right;
-            btnShowPassword.FlatAppearance.BorderSize = 0;
-            btnShowPassword.FlatStyle = FlatStyle.Flat;
-            btnShowPassword.Font = new Font("Segoe UI", 9F);
-            btnShowPassword.ForeColor = Color.FromArgb(128, 128, 128);
-            btnShowPassword.Location = new Point(217, 3);
-            btnShowPassword.Margin = new Padding(3, 4, 3, 4);
-            btnShowPassword.Name = "btnShowPassword";
-            btnShowPassword.Size = new Size(32, 27);
-            btnShowPassword.TabIndex = 1;
-            btnShowPassword.Text = "👁";
-            btnShowPassword.UseVisualStyleBackColor = false;
-            btnShowPassword.Click += BtnShowPassword_Click;
-            // 
-            // chkRememberMe
-            // 
-            chkRememberMe.Font = new Font("Segoe UI", 9F);
-            chkRememberMe.ForeColor = Color.FromArgb(51, 51, 51);
-            chkRememberMe.Location = new Point(0, 160);
-            chkRememberMe.Margin = new Padding(3, 4, 3, 4);
-            chkRememberMe.Name = "chkRememberMe";
-            chkRememberMe.Size = new Size(171, 33);
-            chkRememberMe.TabIndex = 4;
-            chkRememberMe.Text = "Remember me";
-            chkRememberMe.UseVisualStyleBackColor = true;
+            btnCancel.MouseEnter += Button_MouseEnter;
+            btnCancel.MouseLeave += Button_MouseLeave;
             // 
             // lblError
             // 
             lblError.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             lblError.Font = new Font("Segoe UI", 9F);
-            lblError.ForeColor = Color.FromArgb(231, 76, 60);
-            lblError.Location = new Point(0, 207);
+            lblError.ForeColor = Color.FromArgb(239, 68, 68);
+            lblError.Location = new Point(0, 280);
             lblError.Name = "lblError";
-            lblError.Size = new Size(254, 53);
-            lblError.TabIndex = 5;
+            lblError.Size = new Size(360, 40);
+            lblError.TabIndex = 7;
+            lblError.TextAlign = ContentAlignment.MiddleLeft;
             lblError.Visible = false;
             // 
             // progressBar
             // 
             progressBar.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            progressBar.Location = new Point(0, 466);
-            progressBar.Margin = new Padding(3, 4, 3, 4);
-            progressBar.MarqueeAnimationSpeed = 30;
+            progressBar.Location = new Point(0, 705);
             progressBar.Name = "progressBar";
-            progressBar.Size = new Size(254, 5);
+            progressBar.Size = new Size(360, 3);
             progressBar.Style = ProgressBarStyle.Marquee;
-            progressBar.TabIndex = 6;
+            progressBar.TabIndex = 8;
             progressBar.Visible = false;
+            // 
+            // pnlFooter
+            // 
+            pnlFooter.BackColor = Color.Transparent;
+            pnlFooter.Controls.Add(lblVersion);
+            pnlFooter.Controls.Add(lblCopyright);
+            pnlFooter.Dock = DockStyle.Bottom;
+            pnlFooter.Location = new Point(60, 591);
+            pnlFooter.Name = "pnlFooter";
+            pnlFooter.Size = new Size(1171, 60);
+            pnlFooter.TabIndex = 1;
+            // 
+            // lblVersion
+            // 
+            lblVersion.Dock = DockStyle.Top;
+            lblVersion.Font = new Font("Segoe UI", 8F);
+            lblVersion.ForeColor = Color.FromArgb(156, 163, 175);
+            lblVersion.Location = new Point(0, 20);
+            lblVersion.Name = "lblVersion";
+            lblVersion.Size = new Size(1171, 20);
+            lblVersion.TabIndex = 0;
+            lblVersion.Text = "Version 1.0.0";
+            lblVersion.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblCopyright
+            // 
+            lblCopyright.Dock = DockStyle.Top;
+            lblCopyright.Font = new Font("Segoe UI", 8F);
+            lblCopyright.ForeColor = Color.FromArgb(156, 163, 175);
+            lblCopyright.Location = new Point(0, 0);
+            lblCopyright.Name = "lblCopyright";
+            lblCopyright.Size = new Size(1171, 20);
+            lblCopyright.TabIndex = 1;
+            lblCopyright.Text = "© 2025 InventoryPro. All rights reserved.";
+            lblCopyright.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblUsername
+            // 
+            lblUsername.AutoSize = true;
+            lblUsername.Font = new Font("Segoe UI", 10F);
+            lblUsername.ForeColor = Color.FromArgb(55, 65, 81);
+            lblUsername.Location = new Point(0, 50);
+            lblUsername.Name = "lblUsername";
+            lblUsername.Size = new Size(87, 23);
+            lblUsername.TabIndex = 0;
+            lblUsername.Text = "Username";
+            // 
+            // lblPassword
+            // 
+            lblPassword.AutoSize = true;
+            lblPassword.Font = new Font("Segoe UI", 10F);
+            lblPassword.ForeColor = Color.FromArgb(55, 65, 81);
+            lblPassword.Location = new Point(0, 150);
+            lblPassword.Name = "lblPassword";
+            lblPassword.Size = new Size(80, 23);
+            lblPassword.TabIndex = 2;
+            lblPassword.Text = "Password";
+            // 
+            // animationTimer
+            // 
+            animationTimer.Interval = 16;
+            animationTimer.Tick += AnimationTimer_Tick;
             // 
             // LoginForm
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(240, 240, 240);
-            ClientSize = new Size(437, 604);
-            Controls.Add(pnlMain);
+            BackColor = Color.White;
+            ClientSize = new Size(1291, 691);
+            Controls.Add(pnlBackground);
             Font = new Font("Segoe UI", 9F);
-            Margin = new Padding(3, 4, 3, 4);
-            MinimumSize = new Size(455, 651);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            MinimizeBox = false;
             Name = "LoginForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "InventoryPro - Sign In";
-            pnlMain.ResumeLayout(false);
-            pnlLogin.ResumeLayout(false);
+            pnlBackground.ResumeLayout(false);
+            pnlLeftPanel.ResumeLayout(false);
             pnlHeader.ResumeLayout(false);
+            pnlHeader.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)picLogo).EndInit();
-            pnlButtons.ResumeLayout(false);
-            tlpButtons.ResumeLayout(false);
-            pnlForm.ResumeLayout(false);
-            pnlForm.PerformLayout();
+            pnlRightPanel.ResumeLayout(false);
+            pnlLoginContainer.ResumeLayout(false);
+            pnlLoginForm.ResumeLayout(false);
+            pnlLoginForm.PerformLayout();
+            pnlUsernameContainer.ResumeLayout(false);
+            pnlUsernameContainer.PerformLayout();
             pnlPasswordContainer.ResumeLayout(false);
             pnlPasswordContainer.PerformLayout();
+            pnlFooter.ResumeLayout(false);
             ResumeLayout(false);
             }
 
@@ -391,39 +471,48 @@
 
         #region Control Declarations
 
-        // Main containers
-        private System.Windows.Forms.Panel pnlMain;
-        private System.Windows.Forms.Panel pnlLogin;
-        private System.Windows.Forms.Panel pnlHeader;
-        private System.Windows.Forms.Panel pnlForm;
-        private System.Windows.Forms.Panel pnlButtons;
-        private System.Windows.Forms.Panel pnlPasswordContainer;
+        // Main layout containers
+        private Panel pnlBackground;
+        private Panel pnlLeftPanel;
+        private Panel pnlRightPanel;
+        private Panel pnlLoginContainer;
+        private Panel pnlHeader;
+        private Panel pnlLoginForm;
+        private Panel pnlFooter;
+
+        // Input containers for modern styling
+        private Panel pnlUsernameContainer;
+        private Panel pnlPasswordContainer;
 
         // Header elements
-        private System.Windows.Forms.Label lblTitle;
-        private System.Windows.Forms.Label lblSubtitle;
-        private System.Windows.Forms.PictureBox picLogo;
+        private PictureBox picLogo;
+        private Label lblAppTitle;
+        private Label lblAppSubtitle;
 
-        // Form elements
-        private System.Windows.Forms.Label lblUsername;
-        private System.Windows.Forms.TextBox txtUsername;
-        private System.Windows.Forms.Label lblPassword;
-        private System.Windows.Forms.TextBox txtPassword;
-        private System.Windows.Forms.Button btnShowPassword;
-        private System.Windows.Forms.CheckBox chkRememberMe;
-        private System.Windows.Forms.Label lblError;
-        private System.Windows.Forms.ProgressBar progressBar;
+        // Form input elements
+        private Label lblUsername;
+        private Label lblUsernameIcon;
+        private TextBox txtUsername;
+        private Label lblPassword;
+        private Label lblPasswordIcon;
+        private TextBox txtPassword;
+        private Button btnTogglePassword;
 
-        // Buttons
-        private System.Windows.Forms.Button btnLogin;
-        private System.Windows.Forms.Button btnCancel;
+        // Form controls
+        private CheckBox chkRememberMe;
+        private Label lblForgotPassword;
+        private Button btnLogin;
+        private Button btnCancel;
+        private Label lblError;
+        private ProgressBar progressBar;
 
         // Footer elements
-        private System.Windows.Forms.Label lblForgotPassword;
-        private System.Windows.Forms.Label lblVersion;
+        private Label lblVersion;
+        private Label lblCopyright;
+
+        // Animation timer for smooth UI transitions
+        private Timer animationTimer;
 
         #endregion
-
-        private TableLayoutPanel tlpButtons;
         }
-}
+    }
