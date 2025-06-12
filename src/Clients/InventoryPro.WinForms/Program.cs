@@ -32,7 +32,8 @@ static class Program
         try
             {
             Log.Information("Starting InventoryPro Windows Forms Application");
-            Application.Run(GetRequiredService<LoginForm>());
+            RunApplication(); 
+            //Application.Run(GetRequiredService<LoginForm>());
             }
         catch (Exception ex)
             {
@@ -45,8 +46,36 @@ static class Program
             Log.CloseAndFlush();
             }
         }
+    /// <summary>
+    /// Main application flow - handles login and main form
+    /// </summary>
+    private static void RunApplication()
+        {
+        while (true)
+            {
+            // Show login form
+            using var loginForm = GetRequiredService<LoginForm>();
+            var loginResult = loginForm.ShowDialog();
 
-    static IHostBuilder CreateHostBuilder()
+            if (loginResult == DialogResult.OK)
+                {
+                // Login successful, show main form
+                using var mainForm = GetRequiredService<MainForm>();
+                var mainResult = mainForm.ShowDialog();
+
+                // If main form is closed, we can either exit or show login again
+                // For now, we'll exit the application
+                break;
+                }
+            else
+                {
+                // Login cancelled or failed, exit application
+                break;
+                }
+            }
+        }
+
+        static IHostBuilder CreateHostBuilder()
         {
         return Host.CreateDefaultBuilder()
             .ConfigureServices((context, services) =>
