@@ -483,29 +483,48 @@ namespace InventoryPro.WinForms.Forms
                 // Perform login with timeout
                 var response = await _apiService.LoginAsync(loginRequest);
 
-                if (response.Success && response.Data != null)
+                _logger.LogInformation("Login response received: Success={Success}", response?.Success);
+
+                if (response?.Success == true && response.Data != null)
                     {
-                    // Save credentials if remember me is checked
-                    SaveCredentials();
+                    // Verify that authentication data was stored properly
+                    await Task.Delay(100); // Give a moment for the auth service to store data
 
-                    _logger.LogInformation("Login successful for user: {Username}", loginRequest.Username);
+                    var storedUser = await _authService.GetCurrentUserAsync();
+                    var storedToken = await _authService.GetTokenAsync();
 
-                    // Show success message briefly
-                    ShowSuccess("Login successful!");
+                    _logger.LogInformation("Stored user after login: {HasUser}, Token: {HasToken}",
+                        storedUser != null, !string.IsNullOrEmpty(storedToken));
 
-                    // Set dialog result first
-                    this.DialogResult = DialogResult.OK;
+                    if (storedUser != null && !string.IsNullOrEmpty(storedToken))
+                        {
+                        // Save credentials if remember me is checked
+                        SaveCredentials();
 
-                    // Brief pause to show success message
-                    await Task.Delay(500);
+                        _logger.LogInformation("Login successful for user: {Username}", loginRequest.Username);
 
-                    // Close form - this will trigger the FormClosed event
-                    this.Close();
+                        // Show success message briefly
+                        ShowSuccess("Login successful!");
+
+                        // Brief pause to show success message
+                        await Task.Delay(800);
+
+                        // Set dialog result and close
+                        _logger.LogInformation("Setting DialogResult.OK and closing login form");
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                        }
+                    else
+                        {
+                        _logger.LogError("Authentication data not properly stored");
+                        ShowError("Authentication error. Please try again.");
+                        ClearPasswordField();
+                        }
                     }
                 else
                     {
                     // Handle login failure
-                    var errorMessage = !string.IsNullOrEmpty(response.Message)
+                    var errorMessage = !string.IsNullOrEmpty(response?.Message)
                         ? response.Message
                         : "Invalid username or password. Please try again.";
 
@@ -1022,7 +1041,7 @@ namespace InventoryPro.WinForms.Forms
             base.OnFormClosing(e);
             }
 
-       
+
         //protected override void Dispose(bool disposing)
         //    {
         //    if (disposing)
