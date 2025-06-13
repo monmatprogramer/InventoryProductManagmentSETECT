@@ -934,7 +934,7 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 // Open products form in add mode
-                BtnProducts_Click(sender, e);
+                BtnProducts_Click(sender ?? this, e);
             }
             catch (Exception ex)
             {
@@ -954,7 +954,7 @@ namespace InventoryPro.WinForms.Forms
                     lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
                 {
                     // Open products form and navigate to selected product
-                    BtnProducts_Click(sender, e);
+                    BtnProducts_Click(sender ?? this, e);
                 }
                 else
                 {
@@ -1022,7 +1022,7 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 // Open sales form
-                BtnSales_Click(sender, e);
+                BtnSales_Click(sender ?? this, e);
             }
             catch (Exception ex)
             {
@@ -1041,7 +1041,7 @@ namespace InventoryPro.WinForms.Forms
             // Update menu items based on selection
             foreach (ToolStripMenuItem item in alertsContextMenu.Items.OfType<ToolStripMenuItem>())
             {
-                if (item.Text.Contains("View Product") || item.Text.Contains("Update Stock"))
+                if (item.Text?.Contains("View Product") == true || item.Text?.Contains("Update Stock") == true)
                 {
                     item.Enabled = hasSelection;
                 }
@@ -1056,7 +1056,7 @@ namespace InventoryPro.WinForms.Forms
             // Update role-based items
             foreach (ToolStripMenuItem item in statsContextMenu.Items.OfType<ToolStripMenuItem>())
             {
-                if (item.Text.Contains("Add New") || item.Text.Contains("Reports"))
+                if (item.Text?.Contains("Add New") == true || item.Text?.Contains("Reports") == true)
                 {
                     item.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) ||
                         _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
@@ -1072,7 +1072,7 @@ namespace InventoryPro.WinForms.Forms
             // Update data-dependent items
             foreach (ToolStripMenuItem item in activitiesContextMenu.Items.OfType<ToolStripMenuItem>())
             {
-                if (item.Text.Contains("Export Activities"))
+                if (item.Text?.Contains("Export Activities") == true)
                 {
                     item.Enabled = _dashboardStats?.RecentActivities?.Any() == true;
                 }

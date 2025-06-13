@@ -9,7 +9,7 @@ namespace InventoryPro.ProductService.Controllers
     /// Handles all product-related operations
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/products")]
     [Authorize]
     public class ProductController : ControllerBase
         {
@@ -142,7 +142,24 @@ namespace InventoryPro.ProductService.Controllers
 
                 var created = await _productService.CreateProductAsync(product);
 
-                return CreatedAtAction(nameof(GetProduct), new { id = created.Id }, created);
+                // Return DTO to avoid circular reference issues
+                var productDto = new ProductDto
+                {
+                    Id = created.Id,
+                    Name = created.Name,
+                    SKU = created.SKU,
+                    Description = created.Description,
+                    Price = created.Price,
+                    Stock = created.StockQuantity,
+                    MinStock = created.MinimumStock,
+                    CategoryId = created.CategoryId,
+                    CategoryName = created.Category?.Name ?? "",
+                    IsActive = created.IsActive,
+                    CreatedAt = created.CreatedAt,
+                    UpdatedAt = created.UpdatedAt ?? created.CreatedAt
+                };
+
+                return CreatedAtAction(nameof(GetProduct), new { id = created.Id }, productDto);
                 }
             catch (InvalidOperationException ex)
                 {

@@ -65,7 +65,10 @@ namespace InventoryPro.ProductService.Services
                 product.CreatedAt = DateTime.UtcNow;
                 _context.Products.Add(product);
 
-                // Create initial stock movement
+                // Save product first to get the ID
+                await _context.SaveChangesAsync();
+
+                // Create initial stock movement with the generated product ID
                 var stockMovement = new StockMovement
                     {
                     ProductId = product.Id,

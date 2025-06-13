@@ -94,9 +94,9 @@ static class Program
                         continue; // Go back to login
                         }
 
-                    // After main form closes, we can either exit or show login again
-                    // For now, we'll exit the application
-                    break;
+                    // After main form closes, check if user wants to login again
+                    Log.Information("Main form closed, returning to login screen");
+                    continue; // Go back to login screen
                     }
                 else
                     {
