@@ -52,6 +52,7 @@ static class Program
     /// Main application flow - handles login and main form
     /// </summary>
     private static async void RunApplication()
+
         {
         while (true)
             {

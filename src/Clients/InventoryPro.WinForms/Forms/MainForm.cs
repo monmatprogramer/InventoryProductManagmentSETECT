@@ -614,19 +614,44 @@ namespace InventoryPro.WinForms.Forms
 
         #region Context Menu Implementation
 
+        // Context menu deduplication strategy
+        private readonly Dictionary<string, ContextMenuPriority> _menuActionPriorities = new()
+            {
+            {"refresh", ContextMenuPriority.Context}, // Context menus get priority for refresh
+            {"products", ContextMenuPriority.Navigation}, // Navigation bar gets priority for main actions
+            {"customers", ContextMenuPriority.Navigation},
+            {"sales", ContextMenuPriority.Navigation},
+            {"reports", ContextMenuPriority.Navigation},
+            {"logout", ContextMenuPriority.Navigation}, // Navigation gets priority for security actions
+            {"export", ContextMenuPriority.Context}, // Context-specific actions
+            {"add", ContextMenuPriority.Context},
+            {"update", ContextMenuPriority.Context},
+            {"view", ContextMenuPriority.Context}
+            };
+
+        private enum ContextMenuPriority
+            {
+            Navigation = 1, // Main navigation (menu/toolbar) takes precedence
+            Context = 2,    // Context menus for specific actions
+            Hidden = 3      // Actions that should be hidden to avoid duplication
+            }
+
         /// <summary>
-        /// Initializes context menus for different sections of the dashboard
+        /// Initializes context menus for different sections of the dashboard with deduplication
         /// </summary>
         private void InitializeContextMenus()
             {
             try
                 {
+                // Clear existing menus to prevent duplication
+                ClearExistingContextMenus();
+                
                 InitializeDashboardContextMenu();
                 InitializeStatsContextMenu();
                 InitializeAlertsContextMenu();
                 InitializeActivitiesContextMenu();
                 AssignContextMenus();
-                _logger.LogInformation("Context menus initialized successfully");
+                _logger.LogInformation("Context menus initialized successfully with deduplication");
                 }
             catch (Exception ex)
                 {
@@ -635,98 +660,189 @@ namespace InventoryPro.WinForms.Forms
             }
 
         /// <summary>
-        /// Initializes the main dashboard context menu
+        /// Clears existing context menus to prevent duplication
+        /// </summary>
+        private void ClearExistingContextMenus()
+            {
+            dashboardContextMenu?.Items?.Clear();
+            statsContextMenu?.Items?.Clear();
+            alertsContextMenu?.Items?.Clear();
+            activitiesContextMenu?.Items?.Clear();
+            }
+
+        /// <summary>
+        /// Initializes the main dashboard context menu with smart deduplication
         /// </summary>
         private void InitializeDashboardContextMenu()
             {
-            dashboardContextMenu.Items.Clear();
+            // Only add items that aren't better served by navigation
+            if (ShouldIncludeAction("refresh", ContextMenuPriority.Context))
+                {
+                var refreshItem = new ToolStripMenuItem("🔄 Refresh Dashboard", null, OnRefreshDashboard);
+                refreshItem.ShortcutKeys = Keys.F5;
+                refreshItem.ShowShortcutKeys = true;
+                refreshItem.ToolTipText = "Refresh dashboard data (F5)";
+                dashboardContextMenu.Items.Add(refreshItem);
+                }
 
-            // Refresh Dashboard
-            var refreshItem = new ToolStripMenuItem("🔄 Refresh Dashboard", null, OnRefreshDashboard);
-            refreshItem.ShortcutKeys = Keys.F5;
-            refreshItem.ShowShortcutKeys = true;
-            dashboardContextMenu.Items.Add(refreshItem);
+            if (ShouldIncludeAction("export", ContextMenuPriority.Context))
+                {
+                if (dashboardContextMenu.Items.Count > 0)
+                    dashboardContextMenu.Items.Add(new ToolStripSeparator());
+                    
+                var exportItem = new ToolStripMenuItem("📊 Export Dashboard", null, OnExportDashboard);
+                exportItem.Enabled = _dashboardStats != null;
+                exportItem.ToolTipText = "Export dashboard data to clipboard";
+                dashboardContextMenu.Items.Add(exportItem);
+                }
 
-            dashboardContextMenu.Items.Add(new ToolStripSeparator());
-
-            // Export Dashboard
-            var exportItem = new ToolStripMenuItem("📊 Export Dashboard", null, OnExportDashboard);
-            exportItem.Enabled = _dashboardStats != null;
-            dashboardContextMenu.Items.Add(exportItem);
+            // Add context-specific help
+            if (dashboardContextMenu.Items.Count > 0)
+                {
+                dashboardContextMenu.Items.Add(new ToolStripSeparator());
+                var helpItem = new ToolStripMenuItem("❓ Dashboard Help", null, OnDashboardHelp);
+                helpItem.ToolTipText = "Show dashboard help information";
+                dashboardContextMenu.Items.Add(helpItem);
+                }
             }
 
         /// <summary>
-        /// Initializes the statistics panel context menu
+        /// Initializes the statistics panel context menu with deduplication
         /// </summary>
         private void InitializeStatsContextMenu()
             {
-            statsContextMenu.Items.Clear();
-
-            // View Products
-            var viewProductsItem = new ToolStripMenuItem("📦 View Products", null, (s, e) => BtnProducts_Click(s, e));
-            statsContextMenu.Items.Add(viewProductsItem);
-
-            // Add Product (for managers/admins)
-            if (_currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
-                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+            // Don't duplicate main navigation items - focus on context-specific actions
+            
+            // Quick Add Product (context-specific action)
+            if (ShouldIncludeAction("add", ContextMenuPriority.Context) &&
+                _currentUser != null && IsManagerOrAdmin(_currentUser.Role))
                 {
-                var addProductItem = new ToolStripMenuItem("➕ Add New Product", null, OnAddProduct);
+                var addProductItem = new ToolStripMenuItem("➕ Quick Add Product", null, OnAddProduct);
+                addProductItem.ToolTipText = "Quickly add a new product";
                 statsContextMenu.Items.Add(addProductItem);
                 }
 
-            statsContextMenu.Items.Add(new ToolStripSeparator());
+            // Export Product Statistics
+            if (ShouldIncludeAction("export", ContextMenuPriority.Context))
+                {
+                if (statsContextMenu.Items.Count > 0)
+                    statsContextMenu.Items.Add(new ToolStripSeparator());
+                    
+                var exportStatsItem = new ToolStripMenuItem("📊 Export Product Stats", null, OnExportProductStats);
+                exportStatsItem.ToolTipText = "Export product statistics";
+                exportStatsItem.Enabled = _dashboardStats != null;
+                statsContextMenu.Items.Add(exportStatsItem);
+                }
 
-            // Product Reports
-            var reportsItem = new ToolStripMenuItem("📋 Product Reports", null, (s, e) => BtnReports_Click(s, e));
-            reportsItem.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
-                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
-            statsContextMenu.Items.Add(reportsItem);
+            // Product Statistics Settings
+            if (statsContextMenu.Items.Count > 0)
+                {
+                statsContextMenu.Items.Add(new ToolStripSeparator());
+                var settingsItem = new ToolStripMenuItem("⚙️ Stats Settings", null, OnStatsSettings);
+                settingsItem.ToolTipText = "Configure product statistics display";
+                statsContextMenu.Items.Add(settingsItem);
+                }
+
+            // Note: Removed "View Products" and "Product Reports" as they duplicate main navigation
             }
 
         /// <summary>
-        /// Initializes the low stock alerts context menu
+        /// Determines if an action should be included based on priority and current context
+        /// </summary>
+        private bool ShouldIncludeAction(string action, ContextMenuPriority requestedPriority)
+            {
+            if (!_menuActionPriorities.TryGetValue(action, out var assignedPriority))
+                return true; // Unknown actions are allowed
+                
+            return assignedPriority == requestedPriority;
+            }
+
+        /// <summary>
+        /// Checks if user is manager or admin
+        /// </summary>
+        private bool IsManagerOrAdmin(string role)
+            {
+            return role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                   role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+            }
+
+        /// <summary>
+        /// Initializes the low stock alerts context menu with smart selection awareness
         /// </summary>
         private void InitializeAlertsContextMenu()
             {
-            alertsContextMenu.Items.Clear();
+            // These are all context-specific actions that don't duplicate navigation
+            
+            // View Selected Product Details
+            if (ShouldIncludeAction("view", ContextMenuPriority.Context))
+                {
+                var viewProductItem = new ToolStripMenuItem("👁️ View Product Details", null, OnViewSelectedProduct);
+                viewProductItem.ToolTipText = "View details for selected product";
+                alertsContextMenu.Items.Add(viewProductItem);
+                }
 
-            // View Selected Product
-            var viewProductItem = new ToolStripMenuItem("👁️ View Product Details", null, OnViewSelectedProduct);
-            alertsContextMenu.Items.Add(viewProductItem);
+            // Quick Stock Update
+            if (ShouldIncludeAction("update", ContextMenuPriority.Context))
+                {
+                var updateStockItem = new ToolStripMenuItem("📝 Quick Stock Update", null, OnUpdateSelectedStock);
+                updateStockItem.ToolTipText = "Quickly update stock for selected product";
+                alertsContextMenu.Items.Add(updateStockItem);
+                }
 
-            // Update Stock
-            var updateStockItem = new ToolStripMenuItem("📝 Update Stock", null, OnUpdateSelectedStock);
-            alertsContextMenu.Items.Add(updateStockItem);
+            // Reorder Product
+            var reorderItem = new ToolStripMenuItem("🔄 Reorder Product", null, OnReorderProduct);
+            reorderItem.ToolTipText = "Create reorder request for selected product";
+            alertsContextMenu.Items.Add(reorderItem);
 
-            alertsContextMenu.Items.Add(new ToolStripSeparator());
+            if (alertsContextMenu.Items.Count > 0)
+                alertsContextMenu.Items.Add(new ToolStripSeparator());
 
-            // Alert Settings
-            var alertSettingsItem = new ToolStripMenuItem("🔔 Alert Settings", null, OnAlertSettings);
+            // Alert Threshold Settings
+            var alertSettingsItem = new ToolStripMenuItem("🔔 Alert Thresholds", null, OnAlertSettings);
+            alertSettingsItem.ToolTipText = "Configure low stock alert thresholds";
             alertsContextMenu.Items.Add(alertSettingsItem);
             }
 
         /// <summary>
-        /// Initializes the activities panel context menu
+        /// Initializes the activities panel context menu with focus on quick actions
         /// </summary>
         private void InitializeActivitiesContextMenu()
             {
-            activitiesContextMenu.Items.Clear();
+            // Focus on quick actions that enhance productivity
+            
+            // Quick New Sale (enhanced over navigation)
+            if (ShouldIncludeAction("add", ContextMenuPriority.Context))
+                {
+                var newSaleItem = new ToolStripMenuItem("💰 Quick Sale", null, OnNewSale);
+                newSaleItem.ToolTipText = "Start a new sale transaction";
+                activitiesContextMenu.Items.Add(newSaleItem);
+                }
 
-            // View Sales
-            var viewSalesItem = new ToolStripMenuItem("💰 View Sales", null, (s, e) => BtnSales_Click(s, e));
-            activitiesContextMenu.Items.Add(viewSalesItem);
+            // Export Recent Activities
+            if (ShouldIncludeAction("export", ContextMenuPriority.Context))
+                {
+                if (activitiesContextMenu.Items.Count > 0)
+                    activitiesContextMenu.Items.Add(new ToolStripSeparator());
+                    
+                var exportActivitiesItem = new ToolStripMenuItem("📊 Export Activities", null, OnExportActivities);
+                exportActivitiesItem.ToolTipText = "Export recent activities list";
+                exportActivitiesItem.Enabled = _dashboardStats?.RecentActivities?.Any() == true;
+                activitiesContextMenu.Items.Add(exportActivitiesItem);
+                }
 
-            // New Sale
-            var newSaleItem = new ToolStripMenuItem("➕ New Sale", null, OnNewSale);
-            activitiesContextMenu.Items.Add(newSaleItem);
+            // Filter Activities
+            var filterItem = new ToolStripMenuItem("🔍 Filter Activities", null, OnFilterActivities);
+            filterItem.ToolTipText = "Filter activities by type or date";
+            if (activitiesContextMenu.Items.Count > 0)
+                activitiesContextMenu.Items.Add(new ToolStripSeparator());
+            activitiesContextMenu.Items.Add(filterItem);
 
-            activitiesContextMenu.Items.Add(new ToolStripSeparator());
+            // Activity Settings
+            var settingsItem = new ToolStripMenuItem("⚙️ Activity Settings", null, OnActivitySettings);
+            settingsItem.ToolTipText = "Configure activity display preferences";
+            activitiesContextMenu.Items.Add(settingsItem);
 
-            // Sales Reports
-            var salesReportsItem = new ToolStripMenuItem("📈 Sales Reports", null, (s, e) => BtnReports_Click(s, e));
-            salesReportsItem.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
-                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
-            activitiesContextMenu.Items.Add(salesReportsItem);
+            // Note: Removed "View Sales" and "Sales Reports" to avoid duplication with navigation
             }
 
         /// <summary>
@@ -946,19 +1062,151 @@ namespace InventoryPro.WinForms.Forms
             }
 
         /// <summary>
-        /// Updates activities context menu based on user role
+        /// Updates activities context menu based on user role and data availability
         /// </summary>
         private void ActivitiesContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
             {
-            // Update role-based items
+            // Update data-dependent items
             foreach (ToolStripMenuItem item in activitiesContextMenu.Items.OfType<ToolStripMenuItem>())
                 {
-                if (item.Text.Contains("Reports"))
+                if (item.Text.Contains("Export Activities"))
                     {
-                    item.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
-                        _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                    item.Enabled = _dashboardStats?.RecentActivities?.Any() == true;
                     }
                 }
+            }
+
+        /// <summary>
+        /// Handles dashboard help context menu click
+        /// </summary>
+        private void OnDashboardHelp(object? sender, EventArgs e)
+            {
+            var helpMessage = "Dashboard Help:\n\n" +
+                "• Product statistics show current inventory status\n" +
+                "• Low stock alerts help manage reordering\n" +
+                "• Recent activities track system usage\n" +
+                "• Right-click panels for quick actions\n" +
+                "• Press F5 to refresh data";
+            
+            MessageBox.Show(helpMessage, "Dashboard Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+        /// <summary>
+        /// Handles export product stats context menu click
+        /// </summary>
+        private void OnExportProductStats(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (_dashboardStats == null)
+                    {
+                    MessageBox.Show("No product statistics available", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                    }
+
+                var statsData = $"Product Statistics Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
+                    $"Total Products: {_dashboardStats.TotalProducts:N0}\n" +
+                    $"Low Stock Products: {_dashboardStats.LowStockProducts:N0}\n" +
+                    $"Out of Stock: {_dashboardStats.OutOfStockProducts:N0}\n" +
+                    $"Total Inventory Value: ${_dashboardStats.TotalInventoryValue:N2}";
+
+                Clipboard.SetText(statsData);
+                MessageBox.Show("Product statistics copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error exporting product statistics");
+                MessageBox.Show("Error exporting product statistics", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles stats settings context menu click
+        /// </summary>
+        private void OnStatsSettings(object? sender, EventArgs e)
+            {
+            MessageBox.Show("Product statistics display settings will be available in a future update", 
+                "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+        /// <summary>
+        /// Handles reorder product context menu click
+        /// </summary>
+        private void OnReorderProduct(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (lstLowStockAlerts.SelectedItems.Count > 0 && 
+                    lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
+                    {
+                    var result = MessageBox.Show(
+                        $"Create reorder request for {product.Name}?\n\nCurrent Stock: {product.Stock}\nMinimum Stock: {product.MinStock}",
+                        "Reorder Product",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                        {
+                        // TODO: Implement reorder functionality
+                        MessageBox.Show($"Reorder request created for {product.Name}", 
+                            "Reorder Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                else
+                    {
+                    MessageBox.Show("Please select a product from the alerts list", 
+                        "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error creating reorder request");
+                MessageBox.Show("Error creating reorder request", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles export activities context menu click
+        /// </summary>
+        private void OnExportActivities(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (_dashboardStats?.RecentActivities?.Any() != true)
+                    {
+                    MessageBox.Show("No activities available to export", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                    }
+
+                var activitiesData = $"Recent Activities Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
+                    string.Join("\n", _dashboardStats.RecentActivities.Take(20));
+
+                Clipboard.SetText(activitiesData);
+                MessageBox.Show("Activities copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error exporting activities");
+                MessageBox.Show("Error exporting activities", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles filter activities context menu click
+        /// </summary>
+        private void OnFilterActivities(object? sender, EventArgs e)
+            {
+            MessageBox.Show("Activity filtering will be available in a future update", 
+                "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+        /// <summary>
+        /// Handles activity settings context menu click
+        /// </summary>
+        private void OnActivitySettings(object? sender, EventArgs e)
+            {
+            MessageBox.Show("Activity display settings will be available in a future update", 
+                "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
         /// <summary>

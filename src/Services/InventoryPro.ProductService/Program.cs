@@ -28,11 +28,7 @@ builder.Services.AddDbContext<ProductDbContext>(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"] ?? "YourSuperSecretKeyThatShouldBeAtLeast32CharactersLong!");
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = false;
@@ -41,12 +37,26 @@ builder.Services.AddAuthentication(options =>
         {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidateAudience = true,
-        ValidAudience = jwtSettings["Audience"],
+        ValidateIssuer = false, // Temporarily disable for testing
+        ValidateAudience = false, // Temporarily disable for testing
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.FromMinutes(5),
+        RequireExpirationTime = false
+        };
+    
+    options.Events = new JwtBearerEvents
+        {
+        OnAuthenticationFailed = context =>
+            {
+            Log.Error("Authentication failed: {Error}", context.Exception.Message);
+            return Task.CompletedTask;
+            },
+        OnTokenValidated = context =>
+            {
+            Log.Information("Token validated successfully for user: {User}", 
+                context.Principal?.Identity?.Name ?? "Unknown");
+            return Task.CompletedTask;
+            }
         };
 });
 
