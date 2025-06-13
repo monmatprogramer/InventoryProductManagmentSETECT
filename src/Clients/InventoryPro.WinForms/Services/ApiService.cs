@@ -375,7 +375,9 @@ namespace InventoryPro.WinForms.Services
             try
                 {
                 await AddAuthorizationHeader();
+                _logger.LogInformation("Making request to dashboard/stats endpoint");
                 var response = await _httpClient.GetAsync("dashboard/stats");
+                _logger.LogInformation("Dashboard stats response: {StatusCode}", response.StatusCode);
                 return await HandleResponse<DashboardStatsDto>(response);
                 }
             catch (Exception ex)
@@ -402,6 +404,8 @@ namespace InventoryPro.WinForms.Services
         private async Task<ApiResponse<T>> HandleResponse<T>(HttpResponseMessage response)
             {
             var content = await response.Content.ReadAsStringAsync();
+            _logger.LogDebug("Response content (first 500 chars): {Content}", 
+                content.Length > 500 ? content.Substring(0, 500) + "..." : content);
 
             if (response.IsSuccessStatusCode)
                 {
@@ -417,7 +421,7 @@ namespace InventoryPro.WinForms.Services
                     }
                 catch (JsonException ex)
                     {
-                    _logger.LogError(ex, "Error deserializing response");
+                    _logger.LogError(ex, "Error deserializing response. Content: {Content}", content);
                     return new ApiResponse<T>
                         {
                         Success = false,
@@ -427,14 +431,17 @@ namespace InventoryPro.WinForms.Services
                     }
                 }
 
-            // Handle error response
+            // Handle error response - improved logging
+            _logger.LogWarning("API request failed. Status: {StatusCode}, Content: {Content}", 
+                response.StatusCode, content);
+
             try
                 {
                 var errorResponse = JsonSerializer.Deserialize<ApiResponse<T>>(content, _jsonOptions);
                 return errorResponse ?? new ApiResponse<T>
                     {
                     Success = false,
-                    Message = $"Request failed with status {response.StatusCode}",
+                    Message = $"Request failed with status {response.StatusCode}: {response.ReasonPhrase}",
                     StatusCode = (int)response.StatusCode
                     };
                 }
@@ -443,7 +450,7 @@ namespace InventoryPro.WinForms.Services
                 return new ApiResponse<T>
                     {
                     Success = false,
-                    Message = content ?? $"Request failed with status {response.StatusCode}",
+                    Message = $"Request failed with status {response.StatusCode}: {response.ReasonPhrase}. Response: {content}",
                     StatusCode = (int)response.StatusCode
                     };
                 }

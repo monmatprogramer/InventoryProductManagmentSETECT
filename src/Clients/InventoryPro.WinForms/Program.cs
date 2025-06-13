@@ -66,7 +66,7 @@ static class Program
 
                 Log.Information("Login form closed with result: {Result}", loginResult);
                 //message box
-                MessageBox.Show("LoginResult", "Login Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+               
                 if (loginResult == DialogResult.OK)
                     {
                     Log.Information("=== LOGIN SUCCESSFUL - ATTEMPTING TO SHOW MAIN FORM ===");

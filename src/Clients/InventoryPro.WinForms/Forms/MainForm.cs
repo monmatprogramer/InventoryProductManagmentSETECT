@@ -16,6 +16,8 @@ namespace InventoryPro.WinForms.Forms
         private UserDto? _currentUser;
         private DashboardStatsDto? _dashboardStats;
         private bool _isInitialized = false;
+        private DateTime _lastDataRefresh = DateTime.MinValue;
+        private readonly TimeSpan _cacheTimeout = TimeSpan.FromMinutes(5);
 
         // Child forms for different modules
         private ProductForm? _productForm;
@@ -274,30 +276,61 @@ namespace InventoryPro.WinForms.Forms
             }
 
         /// <summary>
-        /// Loads dashboard statistics from the API
+        /// Loads dashboard statistics from the API with caching
         /// </summary>
-        private async Task LoadDashboardStatsAsync()
+        private async Task LoadDashboardStatsAsync(bool forceRefresh = false)
             {
             try
                 {
+                // Check if we need to refresh based on cache timeout
+                var shouldRefresh = forceRefresh || 
+                    _dashboardStats == null || 
+                    (DateTime.Now - _lastDataRefresh) > _cacheTimeout;
+
+                if (!shouldRefresh)
+                    {
+                    _logger.LogDebug("Using cached dashboard data");
+                    lblStatus.Text = "Dashboard loaded from cache";
+                    return;
+                    }
+
                 lblStatus.Text = "Loading dashboard statistics...";
 
+                // Use timeout for the request
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                
                 var response = await _apiService.GetDashboardStatsAsync();
                 if (response.Success && response.Data != null)
                     {
                     _dashboardStats = response.Data;
+                    _lastDataRefresh = DateTime.Now;
+                    
                     UpdateDashboardCards();
                     UpdateRecentActivities();
                     UpdateLowStockAlerts();
 
                     lblStatus.Text = "Dashboard loaded successfully";
+                    _logger.LogInformation("Dashboard stats loaded successfully");
                     }
                 else
                     {
-                    _logger.LogWarning("Failed to load dashboard stats: {Message}", response.Message);
+                    var errorMsg = $"Failed to load dashboard stats. Status: {response.StatusCode}, Message: {response.Message}";
+                    _logger.LogWarning(errorMsg);
                     lblStatus.Text = "Dashboard data unavailable";
 
-                    // Set default values
+                    // Set default values only if we don't have cached data
+                    if (_dashboardStats == null)
+                        {
+                        SetDefaultDashboardValues();
+                        }
+                    }
+                }
+            catch (TaskCanceledException)
+                {
+                _logger.LogWarning("Dashboard stats request timed out");
+                lblStatus.Text = "Request timed out";
+                if (_dashboardStats == null)
+                    {
                     SetDefaultDashboardValues();
                     }
                 }
@@ -306,8 +339,11 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogError(ex, "Error loading dashboard statistics");
                 lblStatus.Text = "Error loading dashboard statistics";
 
-                // Set default values
-                SetDefaultDashboardValues();
+                // Set default values only if we don't have cached data
+                if (_dashboardStats == null)
+                    {
+                    SetDefaultDashboardValues();
+                    }
                 }
             }
 
@@ -330,21 +366,31 @@ namespace InventoryPro.WinForms.Forms
             {
             if (_dashboardStats == null) return;
 
-            // Product statistics
-            lblTotalProducts.Text = _dashboardStats.TotalProducts.ToString();
-            lblLowStockProducts.Text = _dashboardStats.LowStockProducts.ToString();
-            lblOutOfStockProducts.Text = _dashboardStats.OutOfStockProducts.ToString();
-            lblInventoryValue.Text = $"${_dashboardStats.TotalInventoryValue:N2}";
+            // Suspend layout updates for better performance
+            this.SuspendLayout();
+            
+            try
+                {
+                // Product statistics
+                lblTotalProducts.Text = _dashboardStats.TotalProducts.ToString("N0");
+                lblLowStockProducts.Text = _dashboardStats.LowStockProducts.ToString("N0");
+                lblOutOfStockProducts.Text = _dashboardStats.OutOfStockProducts.ToString("N0");
+                lblInventoryValue.Text = $"${_dashboardStats.TotalInventoryValue:N2}";
 
-            // Sales statistics
-            lblTodaySales.Text = $"${_dashboardStats.TodaySales:N2}";
-            lblMonthSales.Text = $"${_dashboardStats.MonthSales:N2}";
-            lblYearSales.Text = $"${_dashboardStats.YearSales:N2}";
-            lblTodayOrders.Text = _dashboardStats.TodayOrders.ToString();
+                // Sales statistics
+                lblTodaySales.Text = $"${_dashboardStats.TodaySales:N2}";
+                lblMonthSales.Text = $"${_dashboardStats.MonthSales:N2}";
+                lblYearSales.Text = $"${_dashboardStats.YearSales:N2}";
+                lblTodayOrders.Text = _dashboardStats.TodayOrders.ToString("N0");
 
-            // Customer statistics
-            lblTotalCustomers.Text = _dashboardStats.TotalCustomers.ToString();
-            lblNewCustomers.Text = _dashboardStats.NewCustomersThisMonth.ToString();
+                // Customer statistics
+                lblTotalCustomers.Text = _dashboardStats.TotalCustomers.ToString("N0");
+                lblNewCustomers.Text = _dashboardStats.NewCustomersThisMonth.ToString("N0");
+                }
+            finally
+                {
+                this.ResumeLayout(true);
+                }
             }
 
         /// <summary>
@@ -354,10 +400,18 @@ namespace InventoryPro.WinForms.Forms
             {
             if (_dashboardStats == null) return;
 
-            lstRecentActivities.Items.Clear();
-            foreach (var activity in _dashboardStats.RecentActivities.Take(10))
+            lstRecentActivities.BeginUpdate();
+            try
                 {
-                lstRecentActivities.Items.Add(activity);
+                lstRecentActivities.Items.Clear();
+                foreach (var activity in _dashboardStats.RecentActivities.Take(10))
+                    {
+                    lstRecentActivities.Items.Add(activity);
+                    }
+                }
+            finally
+                {
+                lstRecentActivities.EndUpdate();
                 }
             }
 
@@ -368,15 +422,23 @@ namespace InventoryPro.WinForms.Forms
             {
             if (_dashboardStats == null) return;
 
-            lstLowStockAlerts.Items.Clear();
-            foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+            lstLowStockAlerts.BeginUpdate();
+            try
                 {
-                var item = new ListViewItem(product.Name);
-                item.SubItems.Add(product.SKU);
-                item.SubItems.Add(product.Stock.ToString());
-                item.SubItems.Add(product.MinStock.ToString());
-                item.Tag = product;
-                lstLowStockAlerts.Items.Add(item);
+                lstLowStockAlerts.Items.Clear();
+                foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                    {
+                    var item = new ListViewItem(product.Name);
+                    item.SubItems.Add(product.SKU);
+                    item.SubItems.Add(product.Stock.ToString("N0"));
+                    item.SubItems.Add(product.MinStock.ToString("N0"));
+                    item.Tag = product;
+                    lstLowStockAlerts.Items.Add(item);
+                    }
+                }
+            finally
+                {
+                lstLowStockAlerts.EndUpdate();
                 }
             }
 
@@ -469,7 +531,7 @@ namespace InventoryPro.WinForms.Forms
             {
             try
                 {
-                await LoadDashboardStatsAsync();
+                await LoadDashboardStatsAsync(forceRefresh: true);
                 }
             catch (Exception ex)
                 {
