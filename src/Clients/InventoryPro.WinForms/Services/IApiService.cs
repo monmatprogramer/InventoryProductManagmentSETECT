@@ -38,5 +38,13 @@ namespace InventoryPro.WinForms.Services
 
         // Dashboard endpoints
         Task<ApiResponse<DashboardStatsDto>> GetDashboardStatsAsync();
+
+        // Report endpoints
+        Task<ApiResponse<byte[]>> GenerateSalesReportAsync(DateTime startDate, DateTime endDate, string format);
+        Task<ApiResponse<byte[]>> GenerateInventoryReportAsync(string format);
+        Task<ApiResponse<byte[]>> GenerateFinancialReportAsync(DateTime startDate, DateTime endDate, string format);
+        Task<ApiResponse<List<object>>> GetDailySalesAsync(DateTime startDate, DateTime endDate);
+        Task<ApiResponse<List<object>>> GetTopSellingProductsAsync(DateTime startDate, DateTime endDate, int count = 10);
+        Task<ApiResponse<List<object>>> GetTopCustomersAsync(DateTime startDate, DateTime endDate, int count = 10);
         }
     }

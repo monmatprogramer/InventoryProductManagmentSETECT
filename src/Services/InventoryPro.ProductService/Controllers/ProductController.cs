@@ -272,30 +272,13 @@ namespace InventoryPro.ProductService.Controllers
                 var products = await _productService.GetAllProductsAsync();
                 var lowStockProducts = await _productService.GetLowStockProductsAsync();
 
+                // Initialize with product data
                 var stats = new DashboardStatsDto
                     {
                     TotalProducts = products.Count(),
                     LowStockProducts = lowStockProducts.Count(),
                     OutOfStockProducts = products.Count(p => p.StockQuantity == 0),
                     TotalInventoryValue = products.Sum(p => p.Price * p.StockQuantity),
-
-                    // Mock data for now - should come from SalesService
-                    TodaySales = 1234.56m,
-                    MonthSales = 45678.90m,
-                    YearSales = 567890.12m,
-                    TodayOrders = 15,
-                    MonthOrders = 342,
-                    TotalCustomers = 1250,
-                    NewCustomersThisMonth = 45,
-
-                    RecentActivities = new List<string>
-                    {
-                        "New product added: Laptop Pro 15",
-                        "Stock updated for Wireless Mouse",
-                        "Low stock alert: USB Cable",
-                        "New customer registered",
-                        "Order #1234 completed"
-                    },
 
                     TopSellingProducts = products.Take(5).Select(p => new ProductDto
                         {
@@ -315,6 +298,90 @@ namespace InventoryPro.ProductService.Controllers
                         MinStock = p.MinimumStock
                         }).ToList()
                     };
+
+                // Try to fetch real sales data from SalesService
+                try
+                    {
+                    using var httpClient = new HttpClient();
+                    httpClient.BaseAddress = new Uri("http://localhost:5282");
+                    
+                    // Copy authorization header from current request
+                    if (Request.Headers.ContainsKey("Authorization"))
+                        {
+                        httpClient.DefaultRequestHeaders.Add("Authorization", 
+                            Request.Headers["Authorization"].ToString());
+                        }
+
+                    var response = await httpClient.GetAsync("/api/sales/dashboard-stats");
+                    if (response.IsSuccessStatusCode)
+                        {
+                        var jsonContent = await response.Content.ReadAsStringAsync();
+                        using var doc = System.Text.Json.JsonDocument.Parse(jsonContent);
+                        var root = doc.RootElement;
+                        
+                        if (root.ValueKind == System.Text.Json.JsonValueKind.Object)
+                            {
+                            // Update stats with real sales data
+                            if (root.TryGetProperty("todaySales", out var todaySales))
+                                stats.TodaySales = todaySales.GetDecimal();
+                            if (root.TryGetProperty("monthSales", out var monthSales))
+                                stats.MonthSales = monthSales.GetDecimal();
+                            if (root.TryGetProperty("yearSales", out var yearSales))
+                                stats.YearSales = yearSales.GetDecimal();
+                            if (root.TryGetProperty("todayOrders", out var todayOrders))
+                                stats.TodayOrders = todayOrders.GetInt32();
+                            if (root.TryGetProperty("monthOrders", out var monthOrders))
+                                stats.MonthOrders = monthOrders.GetInt32();
+                            if (root.TryGetProperty("totalCustomers", out var totalCustomers))
+                                stats.TotalCustomers = totalCustomers.GetInt32();
+                            if (root.TryGetProperty("newCustomersThisMonth", out var newCustomers))
+                                stats.NewCustomersThisMonth = newCustomers.GetInt32();
+                            
+                            // Update recent activities with real data
+                            if (root.TryGetProperty("recentActivities", out var activities))
+                                {
+                                stats.RecentActivities = activities.EnumerateArray()
+                                    .Select(a => a.GetString())
+                                    .Where(a => !string.IsNullOrEmpty(a))
+                                    .Cast<string>()
+                                    .ToList();
+                                }
+                            }
+                        }
+                    else
+                        {
+                        _logger.LogWarning("Failed to fetch sales data from SalesService. Using fallback data.");
+                        }
+                    }
+                catch (Exception ex)
+                    {
+                    _logger.LogWarning(ex, "Could not connect to SalesService. Using fallback data.");
+                    }
+
+                // Fallback data if SalesService is not available
+                if (stats.RecentActivities.Count == 0)
+                    {
+                    stats.RecentActivities = new List<string>
+                        {
+                        "New product added: " + (products.LastOrDefault()?.Name ?? "Product"),
+                        "Stock updated for: " + (products.FirstOrDefault()?.Name ?? "Product"),
+                        "Low stock alert: " + (lowStockProducts.FirstOrDefault()?.Name ?? "Product"),
+                        "System: Dashboard loaded successfully",
+                        "Inventory: " + products.Count() + " products in system"
+                        };
+                    }
+
+                // Set fallback values if SalesService data wasn't loaded
+                if (stats.TodaySales == 0 && stats.MonthSales == 0)
+                    {
+                    stats.TodaySales = 0; // Real zero is better than fake data
+                    stats.MonthSales = 0;
+                    stats.YearSales = 0;
+                    stats.TodayOrders = 0;
+                    stats.MonthOrders = 0;
+                    stats.TotalCustomers = 0;
+                    stats.NewCustomersThisMonth = 0;
+                    }
 
                 return Ok(stats);
                 }

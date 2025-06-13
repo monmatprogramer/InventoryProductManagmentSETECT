@@ -478,6 +478,196 @@ namespace InventoryPro.WinForms.Services
             return string.Join("&", queryParams);
             }
 
+        #region Report Methods
+
+        /// <summary>
+        /// Generate sales report
+        /// </summary>
+        public async Task<ApiResponse<byte[]>> GenerateSalesReportAsync(DateTime startDate, DateTime endDate, string format)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = format
+                    };
+
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/sales", content);
+                
+                if (response.IsSuccessStatusCode)
+                    {
+                    var fileContent = await response.Content.ReadAsByteArrayAsync();
+                    return new ApiResponse<byte[]>
+                        {
+                        Success = true,
+                        Data = fileContent,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<byte[]>
+                    {
+                    Success = false,
+                    Message = $"Failed to generate sales report: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating sales report");
+                return CreateErrorResponse<byte[]>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Generate inventory report
+        /// </summary>
+        public async Task<ApiResponse<byte[]>> GenerateInventoryReportAsync(string format)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new { Format = format };
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/inventory", content);
+                
+                if (response.IsSuccessStatusCode)
+                    {
+                    var fileContent = await response.Content.ReadAsByteArrayAsync();
+                    return new ApiResponse<byte[]>
+                        {
+                        Success = true,
+                        Data = fileContent,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<byte[]>
+                    {
+                    Success = false,
+                    Message = $"Failed to generate inventory report: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating inventory report");
+                return CreateErrorResponse<byte[]>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Generate financial report
+        /// </summary>
+        public async Task<ApiResponse<byte[]>> GenerateFinancialReportAsync(DateTime startDate, DateTime endDate, string format)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = format
+                    };
+
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/financial", content);
+                
+                if (response.IsSuccessStatusCode)
+                    {
+                    var fileContent = await response.Content.ReadAsByteArrayAsync();
+                    return new ApiResponse<byte[]>
+                        {
+                        Success = true,
+                        Data = fileContent,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<byte[]>
+                    {
+                    Success = false,
+                    Message = $"Failed to generate financial report: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating financial report");
+                return CreateErrorResponse<byte[]>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get daily sales data
+        /// </summary>
+        public async Task<ApiResponse<List<object>>> GetDailySalesAsync(DateTime startDate, DateTime endDate)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+                var response = await _httpClient.GetAsync($"reports/sales/daily?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}");
+                return await HandleResponse<List<object>>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting daily sales");
+                return CreateErrorResponse<List<object>>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get top selling products
+        /// </summary>
+        public async Task<ApiResponse<List<object>>> GetTopSellingProductsAsync(DateTime startDate, DateTime endDate, int count = 10)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+                var response = await _httpClient.GetAsync($"reports/products/top-selling?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}&topCount={count}");
+                return await HandleResponse<List<object>>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting top selling products");
+                return CreateErrorResponse<List<object>>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get top customers
+        /// </summary>
+        public async Task<ApiResponse<List<object>>> GetTopCustomersAsync(DateTime startDate, DateTime endDate, int count = 10)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+                var response = await _httpClient.GetAsync($"reports/customers/top?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}&topCount={count}");
+                return await HandleResponse<List<object>>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting top customers");
+                return CreateErrorResponse<List<object>>(ex);
+                }
+            }
+
+        #endregion
+
         private ApiResponse<T> CreateErrorResponse<T>(Exception ex)
             {
             return new ApiResponse<T>

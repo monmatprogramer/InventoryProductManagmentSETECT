@@ -26,6 +26,11 @@
             this.menuView = new ToolStripMenuItem();
             this.menuDashboard = new ToolStripMenuItem();
             this.menuFullScreen = new ToolStripMenuItem();
+            this.menuReports = new ToolStripMenuItem();
+            this.menuSalesReports = new ToolStripMenuItem();
+            this.menuInventoryReports = new ToolStripMenuItem();
+            this.menuFinancialReports = new ToolStripMenuItem();
+            this.menuCustomReports = new ToolStripMenuItem();
             this.menuTools = new ToolStripMenuItem();
             this.menuSettings = new ToolStripMenuItem();
             this.menuBackup = new ToolStripMenuItem();
@@ -89,6 +94,7 @@
             this.menuStrip1.Items.AddRange(new ToolStripItem[] {
                 this.menuFile,
                 this.menuView,
+                this.menuReports,
                 this.menuTools,
                 this.menuWindow,
                 this.menuHelp});
@@ -131,6 +137,26 @@
             this.menuFullScreen.Text = "&Full Screen";
             this.menuFullScreen.ShortcutKeys = Keys.F11;
             this.menuFullScreen.Click += this.MenuFullScreen_Click;
+
+            // Reports Menu
+            this.menuReports.Text = "&Reports";
+            this.menuReports.DropDownItems.AddRange(new ToolStripItem[] {
+                this.menuSalesReports,
+                this.menuInventoryReports,
+                this.menuFinancialReports,
+                this.menuCustomReports});
+
+            this.menuSalesReports.Text = "&Sales Reports";
+            this.menuSalesReports.Click += this.MenuSalesReports_Click;
+
+            this.menuInventoryReports.Text = "&Inventory Reports";
+            this.menuInventoryReports.Click += this.MenuInventoryReports_Click;
+
+            this.menuFinancialReports.Text = "&Financial Reports";
+            this.menuFinancialReports.Click += this.MenuFinancialReports_Click;
+
+            this.menuCustomReports.Text = "&Custom Reports";
+            this.menuCustomReports.Click += this.MenuCustomReports_Click;
 
             // Tools Menu
             this.menuTools.Text = "&Tools";
@@ -331,6 +357,11 @@
         private ToolStripMenuItem menuView;
         private ToolStripMenuItem menuDashboard;
         private ToolStripMenuItem menuFullScreen;
+        private ToolStripMenuItem menuReports;
+        private ToolStripMenuItem menuSalesReports;
+        private ToolStripMenuItem menuInventoryReports;
+        private ToolStripMenuItem menuFinancialReports;
+        private ToolStripMenuItem menuCustomReports;
         private ToolStripMenuItem menuTools;
         private ToolStripMenuItem menuSettings;
         private ToolStripMenuItem menuBackup;

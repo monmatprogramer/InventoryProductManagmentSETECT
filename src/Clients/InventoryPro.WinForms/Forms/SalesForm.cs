@@ -324,55 +324,69 @@ namespace InventoryPro.WinForms.Forms
 
         private void SetupCartGrid()
             {
-            dgvCart.DataSource = _cartItems;
-            dgvCart.Columns.Clear();
-
-            // Add columns
-            dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+            try
                 {
-                Name = "ProductId",
-                HeaderText = "ID",
-                DataPropertyName = "ProductId",
-                Width = 50,
-                ReadOnly = true
-                });
+                // Clear data source and columns first to avoid binding conflicts
+                dgvCart.DataSource = null;
+                dgvCart.Columns.Clear();
 
-            dgvCart.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                Name = "ProductName",
-                HeaderText = "Product",
-                DataPropertyName = "ProductName",
-                Width = 200,
-                ReadOnly = true
-                });
+                // Add columns first
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                    Name = "ProductId",
+                    HeaderText = "ID",
+                    DataPropertyName = "ProductId",
+                    Width = 50,
+                    ReadOnly = true
+                    });
 
-            dgvCart.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                Name = "UnitPrice",
-                HeaderText = "Price",
-                DataPropertyName = "UnitPrice",
-                Width = 80,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
-                ReadOnly = true
-                });
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                    Name = "ProductName",
+                    HeaderText = "Product",
+                    DataPropertyName = "ProductName",
+                    Width = 200,
+                    ReadOnly = true
+                    });
 
-            dgvCart.Columns.Add(new DataGridViewTextBoxColumn
-                {
-                Name = "Quantity",
-                HeaderText = "Qty",
-                DataPropertyName = "Quantity",
-                Width = 60
-                });
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                    Name = "UnitPrice",
+                    HeaderText = "Price",
+                    DataPropertyName = "UnitPrice",
+                    Width = 80,
+                    DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
+                    ReadOnly = true
+                    });
 
-            dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                    Name = "Quantity",
+                    HeaderText = "Qty",
+                    DataPropertyName = "Quantity",
+                    Width = 60
+                    });
+
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                    {
+                    Name = "Total",
+                    HeaderText = "Total",
+                    DataPropertyName = "Total",
+                    Width = 100,
+                    DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
+                    ReadOnly = true
+                    });
+
+                // Set data source after columns are configured
+                dgvCart.DataSource = _cartItems;
+
+                // Add data error handler to gracefully handle any binding issues
+                dgvCart.DataError += DgvCart_DataError;
+                }
+            catch (Exception ex)
                 {
-                Name = "Total",
-                HeaderText = "Total",
-                DataPropertyName = "Total",
-                Width = 100,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
-                ReadOnly = true
-                });
+                _logger.LogError(ex, "Error setting up cart grid");
+                }
             }
 
         private async Task LoadCustomersAsync()
@@ -614,7 +628,70 @@ namespace InventoryPro.WinForms.Forms
             lblChange.ForeColor = change >= 0 ? Color.FromArgb(46, 204, 113) : Color.Red;
             }
 
+        private void RefreshCartDisplay()
+            {
+            try
+                {
+                // Temporarily remove event handlers to prevent recursive calls
+                dgvCart.CellValueChanged -= DgvCart_CellValueChanged;
+                dgvCart.UserDeletingRow -= DgvCart_UserDeletingRow;
+                dgvCart.DataError -= DgvCart_DataError;
+                
+                // Clear everything and start fresh
+                dgvCart.DataSource = null;
+                dgvCart.Columns.Clear();
+                
+                // Re-setup the entire grid
+                SetupCartGrid();
+                
+                // Re-attach event handlers
+                dgvCart.CellValueChanged += DgvCart_CellValueChanged;
+                dgvCart.UserDeletingRow += DgvCart_UserDeletingRow;
+                dgvCart.DataError += DgvCart_DataError;
+                
+                UpdateTotals();
+                
+                _logger.LogInformation("Cart display refreshed successfully with {Count} items", _cartItems.Count);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error refreshing cart display");
+                // If refresh fails, at least try to update totals
+                try { UpdateTotals(); } catch { }
+                }
+            }
+
         #region Event Handlers
+
+        private void DgvCart_DataError(object? sender, DataGridViewDataErrorEventArgs e)
+            {
+            try
+                {
+                _logger.LogWarning("DataGridView data error at Row: {Row}, Column: {Column}, Error: {Error}", 
+                    e.RowIndex, e.ColumnIndex, e.Exception?.Message);
+                
+                // Handle the error gracefully
+                e.ThrowException = false;
+                
+                // Try to refresh the cart display to fix any sync issues
+                if (e.RowIndex >= 0 && e.RowIndex < _cartItems.Count)
+                    {
+                    // The row exists in data, refresh the display
+                    RefreshCartDisplay();
+                    }
+                else
+                    {
+                    // Row doesn't exist in data, this is a binding issue
+                    _logger.LogError("Cart data binding issue - row index {RowIndex} exceeds cart items count {Count}", 
+                        e.RowIndex, _cartItems.Count);
+                    RefreshCartDisplay();
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error handling DataGridView data error");
+                }
+            }
 
         private void TxtProductSearch_TextChanged(object? sender, EventArgs e)
             {
@@ -640,30 +717,64 @@ namespace InventoryPro.WinForms.Forms
 
         private void DgvCart_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
             {
-            if (e.RowIndex >= 0 && e.ColumnIndex >= 0)
+            try
                 {
-                var columnName = dgvCart.Columns[e.ColumnIndex].Name;
-                if (columnName == "Quantity")
+                if (e.RowIndex >= 0 && e.ColumnIndex >= 0 && 
+                    e.RowIndex < _cartItems.Count && e.ColumnIndex < dgvCart.Columns.Count)
                     {
-                    var item = _cartItems[e.RowIndex];
-                    if (item.Quantity > item.MaxStock)
+                    var columnName = dgvCart.Columns[e.ColumnIndex].Name;
+                    if (columnName == "Quantity")
                         {
-                        item.Quantity = item.MaxStock;
-                        MessageBox.Show($"Only {item.MaxStock} items in stock.",
-                            "Stock Limit", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        var item = _cartItems[e.RowIndex];
+                        if (item.Quantity > item.MaxStock)
+                            {
+                            item.Quantity = item.MaxStock;
+                            MessageBox.Show($"Only {item.MaxStock} items in stock.",
+                                "Stock Limit", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            }
+                        else if (item.Quantity < 1)
+                            {
+                            item.Quantity = 1;
+                            }
+                        UpdateTotals();
                         }
-                    else if (item.Quantity < 1)
-                        {
-                        item.Quantity = 1;
-                        }
-                    UpdateTotals();
                     }
+                }
+            catch (IndexOutOfRangeException ex)
+                {
+                _logger.LogError(ex, "Index out of range in cart cell value changed. RowIndex: {RowIndex}, ColumnIndex: {ColumnIndex}, CartItems Count: {Count}", 
+                    e.RowIndex, e.ColumnIndex, _cartItems.Count);
+                // Refresh the cart display to sync with data
+                RefreshCartDisplay();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error in cart cell value changed");
                 }
             }
 
         private void DgvCart_UserDeletingRow(object? sender, DataGridViewRowCancelEventArgs e)
             {
-            UpdateTotals();
+            try
+                {
+                // Validate the row index before proceeding
+                if (e.Row != null && e.Row.Index >= 0 && e.Row.Index < _cartItems.Count)
+                    {
+                    // The row will be automatically removed from the BindingList
+                    // We just need to update totals after the deletion
+                    this.BeginInvoke(new Action(() => UpdateTotals()));
+                    }
+                else
+                    {
+                    // Cancel invalid deletion
+                    e.Cancel = true;
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error in user deleting row from cart");
+                e.Cancel = true; // Cancel the deletion on error
+                }
             }
 
         private void NudPaidAmount_ValueChanged(object? sender, EventArgs e)
@@ -685,27 +796,49 @@ namespace InventoryPro.WinForms.Forms
 
         private async void BtnCompleteSale_Click(object? sender, EventArgs e)
             {
-            if (_cartItems.Count == 0)
-                {
-                MessageBox.Show("Cart is empty. Please add products to complete a sale.",
-                    "Empty Cart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-                }
-
-            decimal total = 0;
-            for (int i = 0; i < _cartItems.Count; i++)
-                total += _cartItems[i].Total;
-            total *= (1 + _taxRate);
-
-            if (nudPaidAmount.Value < total)
-                {
-                MessageBox.Show("Paid amount is less than total amount.",
-                    "Insufficient Payment", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-                }
-
             try
                 {
+                // Validate cart state
+                if (_cartItems.Count == 0)
+                    {
+                    MessageBox.Show("Cart is empty. Please add products to complete a sale.",
+                        "Empty Cart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                    }
+
+                // Ensure cart display is in sync before processing
+                if (dgvCart.Rows.Count != _cartItems.Count)
+                    {
+                    _logger.LogWarning("Cart display out of sync. Refreshing before sale completion.");
+                    RefreshCartDisplay();
+                    
+                    // Wait a moment for the refresh to complete
+                    await Task.Delay(100);
+                    }
+
+                // Additional validation to ensure all cart items are valid
+                foreach (var item in _cartItems)
+                    {
+                    if (item.Quantity <= 0 || item.UnitPrice <= 0)
+                        {
+                        MessageBox.Show($"Invalid item in cart: {item.ProductName}. Please remove and re-add.",
+                            "Invalid Cart Item", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                        }
+                    }
+
+                decimal total = 0;
+                for (int i = 0; i < _cartItems.Count; i++)
+                    total += _cartItems[i].Total;
+                total *= (1 + _taxRate);
+
+                if (nudPaidAmount.Value < total)
+                    {
+                    MessageBox.Show("Paid amount is less than total amount.",
+                        "Insufficient Payment", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                    }
+
                 var customerId = 1; // Default to walk-in customer
                 if (cboCustomer.SelectedItem is CustomerDto customer)
                     {
@@ -730,8 +863,24 @@ namespace InventoryPro.WinForms.Forms
                 var response = await _apiService.CreateSaleAsync(sale).ConfigureAwait(false);
                 if (response.Success)
                     {
-                    MessageBox.Show($"Sale completed successfully!\n\nSale ID: {response.Data?.Id}\nChange: {(nudPaidAmount.Value - total):C}",
-                        "Sale Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    var result = MessageBox.Show($"Sale completed successfully!\n\nSale ID: {response.Data?.Id}\nChange: {(nudPaidAmount.Value - total):C}\n\nWould you like to generate an invoice?",
+                        "Sale Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+
+                    // Show invoice if requested
+                    if (result == DialogResult.Yes && response.Data != null)
+                        {
+                        try
+                            {
+                            using var invoiceForm = Program.GetRequiredService<InvoiceForm>();
+                            invoiceForm.LoadSaleData(response.Data);
+                            invoiceForm.ShowDialog();
+                            }
+                        catch (Exception invoiceEx)
+                            {
+                            _logger.LogError(invoiceEx, "Error opening invoice form");
+                            MessageBox.Show("Error opening invoice form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
 
                     // Clear cart and reset form
                     _cartItems.Clear();
@@ -749,8 +898,18 @@ namespace InventoryPro.WinForms.Forms
             catch (Exception ex)
                 {
                 _logger.LogError(ex, "Error completing sale");
-                MessageBox.Show("Error completing sale. Please try again.",
+                MessageBox.Show("Error completing sale. Please check the cart and try again.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                
+                // Try to refresh cart display in case of data issues
+                try
+                    {
+                    RefreshCartDisplay();
+                    }
+                catch (Exception refreshEx)
+                    {
+                    _logger.LogError(refreshEx, "Error refreshing cart display after sale completion error");
+                    }
                 }
             }
 

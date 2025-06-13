@@ -418,6 +418,37 @@ namespace InventoryPro.SalesService.Services
         }
 
         /// <summary>
+        /// Gets total customers count
+        /// </summary>
+        public async Task<int> GetTotalCustomersAsync()
+        {
+            return await _context.Customers.Where(c => c.IsActive).CountAsync();
+        }
+
+        /// <summary>
+        /// Gets count of new customers in date range
+        /// </summary>
+        public async Task<int> GetNewCustomersCountAsync(DateTime startDate, DateTime endDate)
+        {
+            return await _context.Customers
+                .Where(c => c.IsActive && c.CreatedAt >= startDate && c.CreatedAt <= endDate)
+                .CountAsync();
+        }
+
+        /// <summary>
+        /// Gets recent sales for dashboard activities
+        /// </summary>
+        public async Task<IEnumerable<Sale>> GetRecentSalesAsync(int count = 10)
+        {
+            return await _context.Sales
+                .Include(s => s.Customer)
+                .Where(s => s.Status == "Completed")
+                .OrderByDescending(s => s.SaleDate)
+                .Take(count)
+                .ToListAsync();
+        }
+
+        /// <summary>
         /// Gets top customers by purchase amount
         /// </summary>
         public async Task<IEnumerable<(Customer Customer, decimal TotalPurchases)>> GetTopCustomersAsync(int count = 10)

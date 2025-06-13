@@ -196,6 +196,54 @@ namespace InventoryPro.SalesService.Controllers
             }
 
         /// <summary>
+        /// Get dashboard statistics for sales
+        /// </summary>
+        [HttpGet("dashboard-stats")]
+        public async Task<IActionResult> GetDashboardStats()
+            {
+            try
+                {
+                var today = DateTime.Today;
+                var startOfMonth = new DateTime(today.Year, today.Month, 1);
+                var startOfYear = new DateTime(today.Year, 1, 1);
+
+                var todaySales = await _salesService.GetTotalSalesAsync(today, today.AddDays(1));
+                var monthSales = await _salesService.GetTotalSalesAsync(startOfMonth, today.AddDays(1));
+                var yearSales = await _salesService.GetTotalSalesAsync(startOfYear, today.AddDays(1));
+                
+                var todayOrders = await _salesService.GetSalesCountAsync(today, today.AddDays(1));
+                var monthOrders = await _salesService.GetSalesCountAsync(startOfMonth, today.AddDays(1));
+
+                var totalCustomers = await _salesService.GetTotalCustomersAsync();
+                var newCustomersThisMonth = await _salesService.GetNewCustomersCountAsync(startOfMonth, today.AddDays(1));
+
+                var recentSales = await _salesService.GetRecentSalesAsync(10);
+                var recentActivities = recentSales.Select(s => 
+                    $"Sale #{s.Id} - {s.Customer?.Name ?? "Walk-in"} - ${s.TotalAmount:N2} ({s.SaleDate:HH:mm})")
+                    .ToList();
+
+                var stats = new
+                    {
+                    TodaySales = todaySales,
+                    MonthSales = monthSales,
+                    YearSales = yearSales,
+                    TodayOrders = todayOrders,
+                    MonthOrders = monthOrders,
+                    TotalCustomers = totalCustomers,
+                    NewCustomersThisMonth = newCustomersThisMonth,
+                    RecentActivities = recentActivities
+                    };
+
+                return Ok(stats);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting dashboard statistics");
+                return StatusCode(500, "Internal server error");
+                }
+            }
+
+        /// <summary>
         /// Get top customers
         /// </summary>
         [HttpGet("top-customers")]

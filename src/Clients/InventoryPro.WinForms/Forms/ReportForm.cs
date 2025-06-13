@@ -119,7 +119,7 @@ namespace InventoryPro.WinForms.Forms
             var pnlControls = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 100,
+                Height = 120,
                 BackColor = Color.FromArgb(248, 248, 248),
                 Padding = new Padding(10)
             };
@@ -187,6 +187,20 @@ namespace InventoryPro.WinForms.Forms
             btnGenerateSales.FlatAppearance.BorderSize = 0;
             btnGenerateSales.Click += BtnGenerateSales_Click;
 
+            // Invoice generation button
+            var btnGenerateInvoices = new Button
+            {
+                Text = "📄 Generate Invoices",
+                Location = new Point(790, 11),
+                Size = new Size(140, 30),
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            btnGenerateInvoices.FlatAppearance.BorderSize = 0;
+            btnGenerateInvoices.Click += BtnGenerateInvoices_Click;
+
             // Summary labels
             lblSalesTotalValue = new Label
             {
@@ -215,7 +229,7 @@ namespace InventoryPro.WinForms.Forms
 
             pnlControls.Controls.AddRange(new Control[] {
                 lblDateRange, dtpSalesStart, lblTo, dtpSalesEnd,
-                lblFormat, cboSalesFormat, btnGenerateSales,
+                lblFormat, cboSalesFormat, btnGenerateSales, btnGenerateInvoices,
                 lblSalesTotalValue, lblSalesOrderCount, lblSalesAvgOrder
             });
 
@@ -668,6 +682,54 @@ namespace InventoryPro.WinForms.Forms
             {
                 _logger.LogError(ex, "Error generating financial report");
                 MessageBox.Show("Error generating financial report.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void BtnGenerateInvoices_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                var result = MessageBox.Show("This will generate sample invoices for recent sales.\n\nWould you like to continue?",
+                    "Generate Invoices", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    // Get recent sales (in real app, this would fetch from API)
+                    var response = await _apiService.GetSalesAsync(new PaginationParameters
+                    {
+                        PageSize = 10,
+                        SearchTerm = ""
+                    });
+
+                    if (response.Success && response.Data?.Items.Any() == true)
+                    {
+                        var salesList = new List<SaleDto>(response.Data.Items);
+
+                        // Show dialog to select which sales to generate invoices for
+                        using var saleSelectionForm = new SaleSelectionForm(salesList);
+                        if (saleSelectionForm.ShowDialog() == DialogResult.OK)
+                        {
+                            var selectedSales = saleSelectionForm.SelectedSales;
+                            foreach (var sale in selectedSales)
+                            {
+                                using var invoiceForm = Program.GetRequiredService<InvoiceForm>();
+                                invoiceForm.LoadSaleData(sale);
+                                invoiceForm.ShowDialog();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("No sales data available for invoice generation.",
+                            "No Data", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating invoices");
+                MessageBox.Show("Error generating invoices",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

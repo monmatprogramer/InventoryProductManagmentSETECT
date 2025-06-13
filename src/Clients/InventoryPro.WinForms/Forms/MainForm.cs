@@ -380,21 +380,38 @@ namespace InventoryPro.WinForms.Forms
 
             try
             {
-                // Product statistics
-                lblTotalProducts.Text = _dashboardStats.TotalProducts.ToString("N0");
-                lblLowStockProducts.Text = _dashboardStats.LowStockProducts.ToString("N0");
-                lblOutOfStockProducts.Text = _dashboardStats.OutOfStockProducts.ToString("N0");
+                // Product statistics with better formatting and context
+                lblTotalProducts.Text = $"{_dashboardStats.TotalProducts:N0} Items";
+                lblLowStockProducts.Text = $"{_dashboardStats.LowStockProducts:N0} Alerts";
+                lblOutOfStockProducts.Text = $"{_dashboardStats.OutOfStockProducts:N0} Out";
                 lblInventoryValue.Text = $"${_dashboardStats.TotalInventoryValue:N2}";
 
-                // Sales statistics
+                // Sales statistics with better context
                 lblTodaySales.Text = $"${_dashboardStats.TodaySales:N2}";
                 lblMonthSales.Text = $"${_dashboardStats.MonthSales:N2}";
                 lblYearSales.Text = $"${_dashboardStats.YearSales:N2}";
-                lblTodayOrders.Text = _dashboardStats.TodayOrders.ToString("N0");
+                lblTodayOrders.Text = $"{_dashboardStats.TodayOrders:N0} Orders";
 
-                // Customer statistics
-                lblTotalCustomers.Text = _dashboardStats.TotalCustomers.ToString("N0");
-                lblNewCustomers.Text = _dashboardStats.NewCustomersThisMonth.ToString("N0");
+                // Customer statistics with better context
+                lblTotalCustomers.Text = $"{_dashboardStats.TotalCustomers:N0} Total";
+                lblNewCustomers.Text = $"{_dashboardStats.NewCustomersThisMonth:N0} New";
+
+                // Update status based on data availability
+                if (_dashboardStats.TodaySales > 0 || _dashboardStats.TodayOrders > 0)
+                {
+                    lblStatus.Text = $"Active • {_dashboardStats.TodayOrders} sales today";
+                    lblStatus.ForeColor = Color.Green;
+                }
+                else if (_dashboardStats.TotalProducts > 0)
+                {
+                    lblStatus.Text = $"Ready • {_dashboardStats.TotalProducts} products in inventory";
+                    lblStatus.ForeColor = Color.Blue;
+                }
+                else
+                {
+                    lblStatus.Text = "No data available";
+                    lblStatus.ForeColor = Color.Orange;
+                }
             }
             finally
             {
@@ -413,9 +430,24 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 lstRecentActivities.Items.Clear();
-                foreach (var activity in _dashboardStats.RecentActivities.Take(10))
+                
+                if (_dashboardStats.RecentActivities.Any())
                 {
-                    lstRecentActivities.Items.Add(activity);
+                    // Add activities with timestamps if available
+                    foreach (var activity in _dashboardStats.RecentActivities.Take(10))
+                    {
+                        var listItem = new ListViewItem(DateTime.Now.ToString("HH:mm"));
+                        listItem.SubItems.Add(activity);
+                        lstRecentActivities.Items.Add(listItem);
+                    }
+                }
+                else
+                {
+                    // Show helpful message when no activities
+                    var listItem = new ListViewItem("--:--");
+                    listItem.SubItems.Add("No recent activities. Start by adding products or making sales.");
+                    listItem.ForeColor = Color.Gray;
+                    lstRecentActivities.Items.Add(listItem);
                 }
             }
             finally
@@ -435,13 +467,48 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 lstLowStockAlerts.Items.Clear();
-                foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                
+                if (_dashboardStats.LowStockAlerts.Any())
                 {
-                    var item = new ListViewItem(product.Name);
-                    item.SubItems.Add(product.SKU);
-                    item.SubItems.Add(product.Stock.ToString("N0"));
-                    item.SubItems.Add(product.MinStock.ToString("N0"));
-                    item.Tag = product;
+                    foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                    {
+                        var item = new ListViewItem(product.Name);
+                        item.SubItems.Add(product.SKU);
+                        item.SubItems.Add($"{product.Stock:N0}");
+                        item.SubItems.Add($"{product.MinStock:N0}");
+                        
+                        // Add status indicator
+                        var stockLevel = product.Stock;
+                        var minStock = product.MinStock;
+                        var status = stockLevel == 0 ? "OUT OF STOCK" : 
+                                   stockLevel <= minStock ? "LOW STOCK" : "OK";
+                        item.SubItems.Add(status);
+                        
+                        // Color coding based on stock level
+                        if (stockLevel == 0)
+                        {
+                            item.BackColor = Color.LightCoral;
+                            item.ForeColor = Color.DarkRed;
+                        }
+                        else if (stockLevel <= minStock)
+                        {
+                            item.BackColor = Color.LightYellow;
+                            item.ForeColor = Color.DarkOrange;
+                        }
+                        
+                        item.Tag = product;
+                        lstLowStockAlerts.Items.Add(item);
+                    }
+                }
+                else
+                {
+                    // Show message when no low stock alerts
+                    var item = new ListViewItem("No low stock alerts");
+                    item.SubItems.Add("--");
+                    item.SubItems.Add("--");
+                    item.SubItems.Add("--");
+                    item.SubItems.Add("All Good!");
+                    item.ForeColor = Color.Green;
                     lstLowStockAlerts.Items.Add(item);
                 }
             }
@@ -494,9 +561,52 @@ namespace InventoryPro.WinForms.Forms
         }
 
         /// <summary>
-        /// Opens the Sales management form
+        /// Opens the Sales management form with options
         /// </summary>
         private void BtnSales_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var contextMenu = new ContextMenuStrip();
+                
+                var posItem = new ToolStripMenuItem("Point of Sale (POS)")
+                {
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Image = null // You can add an icon here
+                };
+                posItem.Click += (s, args) => OpenPOSForm();
+                
+                var detailsItem = new ToolStripMenuItem("Sales History & Details")
+                {
+                    Font = new Font("Segoe UI", 10),
+                    Image = null // You can add an icon here
+                };
+                detailsItem.Click += (s, args) => OpenSalesDetailsForm();
+                
+                contextMenu.Items.AddRange(new ToolStripItem[] { posItem, detailsItem });
+                
+                // Show context menu at button location
+                if (sender is Control button)
+                {
+                    contextMenu.Show(button, new Point(0, button.Height));
+                }
+                else
+                {
+                    // Fallback: just open POS
+                    OpenPOSForm();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Sales menu");
+                MessageBox.Show("Error opening Sales menu", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Opens the Point of Sale form
+        /// </summary>
+        private void OpenPOSForm()
         {
             try
             {
@@ -508,8 +618,25 @@ namespace InventoryPro.WinForms.Forms
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error opening Sales form");
-                MessageBox.Show("Error opening Sales form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _logger.LogError(ex, "Error opening POS form");
+                MessageBox.Show("Error opening POS form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Opens the Sales Details and History form
+        /// </summary>
+        private void OpenSalesDetailsForm()
+        {
+            try
+            {
+                using var salesDetailsForm = Program.GetRequiredService<SalesDetailsForm>();
+                salesDetailsForm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Sales Details form");
+                MessageBox.Show("Error opening Sales Details form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1345,6 +1472,110 @@ namespace InventoryPro.WinForms.Forms
         {
             // Open products form in add mode
             BtnProducts_Click(sender, e);
+        }
+
+        /// <summary>
+        /// Handles Sales Reports menu item click
+        /// </summary>
+        private void MenuSalesReports_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                }
+                _reportForm.Show();
+                _reportForm.BringToFront();
+                // Switch to Sales Reports tab
+                if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
+                {
+                    tabControl.SelectedIndex = 0; // Sales Reports tab
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Sales Reports");
+                MessageBox.Show("Error opening Sales Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handles Inventory Reports menu item click
+        /// </summary>
+        private void MenuInventoryReports_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                }
+                _reportForm.Show();
+                _reportForm.BringToFront();
+                // Switch to Inventory Reports tab
+                if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
+                {
+                    tabControl.SelectedIndex = 1; // Inventory Reports tab
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Inventory Reports");
+                MessageBox.Show("Error opening Inventory Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handles Financial Reports menu item click
+        /// </summary>
+        private void MenuFinancialReports_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                }
+                _reportForm.Show();
+                _reportForm.BringToFront();
+                // Switch to Financial Reports tab
+                if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
+                {
+                    tabControl.SelectedIndex = 2; // Financial Reports tab
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Financial Reports");
+                MessageBox.Show("Error opening Financial Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handles Custom Reports menu item click
+        /// </summary>
+        private void MenuCustomReports_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                {
+                    _reportForm = Program.GetRequiredService<ReportForm>();
+                }
+                _reportForm.Show();
+                _reportForm.BringToFront();
+                // Switch to Custom Reports tab
+                if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
+                {
+                    tabControl.SelectedIndex = 3; // Custom Reports tab
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening Custom Reports");
+                MessageBox.Show("Error opening Custom Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         #endregion

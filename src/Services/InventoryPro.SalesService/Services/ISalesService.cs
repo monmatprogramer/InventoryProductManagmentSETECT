@@ -29,6 +29,9 @@ namespace InventoryPro.SalesService.Services
         Task<decimal> GetTotalSalesAsync(DateTime? startDate = null, DateTime? endDate = null);
         Task<int> GetSalesCountAsync(DateTime? startDate = null, DateTime? endDate = null);
         Task<Dictionary<string, decimal>> GetSalesByPaymentMethodAsync(DateTime? startDate = null, DateTime? endDate = null);
+        Task<int> GetTotalCustomersAsync();
+        Task<int> GetNewCustomersCountAsync(DateTime startDate, DateTime endDate);
+        Task<IEnumerable<Sale>> GetRecentSalesAsync(int count = 10);
         Task<IEnumerable<(Customer Customer, decimal TotalPurchases)>> GetTopCustomersAsync(int count = 10);
 
         // Inventory integration (will call Product Service)

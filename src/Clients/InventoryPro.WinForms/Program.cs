@@ -251,7 +251,9 @@ static class Program
                 services.AddTransient<ProductForm>();
                 services.AddTransient<CustomerForm>();
                 services.AddTransient<SalesForm>();
+                services.AddTransient<SalesDetailsForm>();
                 services.AddTransient<ReportForm>();
+                services.AddTransient<InvoiceForm>();
 
                 // Logging
                 services.AddLogging(configure => configure.AddSerilog());
