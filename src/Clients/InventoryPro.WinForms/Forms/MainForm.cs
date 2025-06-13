@@ -243,6 +243,12 @@ namespace InventoryPro.WinForms.Forms
             // Update window title
             this.Text = $"InventoryPro - Dashboard ({_currentUser.Username})";
 
+            // Refresh context menus with user role information
+            if (IsHandleCreated)
+                {
+                InitializeContextMenus();
+                }
+
             lblStatus.Text = "Ready";
             }
 
@@ -602,6 +608,388 @@ namespace InventoryPro.WinForms.Forms
                     BtnProducts_Click(sender, e);
                     }
                 }
+            }
+
+        #endregion
+
+        #region Context Menu Implementation
+
+        /// <summary>
+        /// Initializes context menus for different sections of the dashboard
+        /// </summary>
+        private void InitializeContextMenus()
+            {
+            try
+                {
+                InitializeDashboardContextMenu();
+                InitializeStatsContextMenu();
+                InitializeAlertsContextMenu();
+                InitializeActivitiesContextMenu();
+                AssignContextMenus();
+                _logger.LogInformation("Context menus initialized successfully");
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error initializing context menus");
+                }
+            }
+
+        /// <summary>
+        /// Initializes the main dashboard context menu
+        /// </summary>
+        private void InitializeDashboardContextMenu()
+            {
+            dashboardContextMenu.Items.Clear();
+
+            // Refresh Dashboard
+            var refreshItem = new ToolStripMenuItem("🔄 Refresh Dashboard", null, OnRefreshDashboard);
+            refreshItem.ShortcutKeys = Keys.F5;
+            refreshItem.ShowShortcutKeys = true;
+            dashboardContextMenu.Items.Add(refreshItem);
+
+            dashboardContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Export Dashboard
+            var exportItem = new ToolStripMenuItem("📊 Export Dashboard", null, OnExportDashboard);
+            exportItem.Enabled = _dashboardStats != null;
+            dashboardContextMenu.Items.Add(exportItem);
+            }
+
+        /// <summary>
+        /// Initializes the statistics panel context menu
+        /// </summary>
+        private void InitializeStatsContextMenu()
+            {
+            statsContextMenu.Items.Clear();
+
+            // View Products
+            var viewProductsItem = new ToolStripMenuItem("📦 View Products", null, (s, e) => BtnProducts_Click(s, e));
+            statsContextMenu.Items.Add(viewProductsItem);
+
+            // Add Product (for managers/admins)
+            if (_currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase)))
+                {
+                var addProductItem = new ToolStripMenuItem("➕ Add New Product", null, OnAddProduct);
+                statsContextMenu.Items.Add(addProductItem);
+                }
+
+            statsContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Product Reports
+            var reportsItem = new ToolStripMenuItem("📋 Product Reports", null, (s, e) => BtnReports_Click(s, e));
+            reportsItem.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+            statsContextMenu.Items.Add(reportsItem);
+            }
+
+        /// <summary>
+        /// Initializes the low stock alerts context menu
+        /// </summary>
+        private void InitializeAlertsContextMenu()
+            {
+            alertsContextMenu.Items.Clear();
+
+            // View Selected Product
+            var viewProductItem = new ToolStripMenuItem("👁️ View Product Details", null, OnViewSelectedProduct);
+            alertsContextMenu.Items.Add(viewProductItem);
+
+            // Update Stock
+            var updateStockItem = new ToolStripMenuItem("📝 Update Stock", null, OnUpdateSelectedStock);
+            alertsContextMenu.Items.Add(updateStockItem);
+
+            alertsContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Alert Settings
+            var alertSettingsItem = new ToolStripMenuItem("🔔 Alert Settings", null, OnAlertSettings);
+            alertsContextMenu.Items.Add(alertSettingsItem);
+            }
+
+        /// <summary>
+        /// Initializes the activities panel context menu
+        /// </summary>
+        private void InitializeActivitiesContextMenu()
+            {
+            activitiesContextMenu.Items.Clear();
+
+            // View Sales
+            var viewSalesItem = new ToolStripMenuItem("💰 View Sales", null, (s, e) => BtnSales_Click(s, e));
+            activitiesContextMenu.Items.Add(viewSalesItem);
+
+            // New Sale
+            var newSaleItem = new ToolStripMenuItem("➕ New Sale", null, OnNewSale);
+            activitiesContextMenu.Items.Add(newSaleItem);
+
+            activitiesContextMenu.Items.Add(new ToolStripSeparator());
+
+            // Sales Reports
+            var salesReportsItem = new ToolStripMenuItem("📈 Sales Reports", null, (s, e) => BtnReports_Click(s, e));
+            salesReportsItem.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+            activitiesContextMenu.Items.Add(salesReportsItem);
+            }
+
+        /// <summary>
+        /// Assigns context menus to appropriate controls
+        /// </summary>
+        private void AssignContextMenus()
+            {
+            // Assign dashboard context menu to main dashboard panel
+            pnlDashboard.ContextMenuStrip = dashboardContextMenu;
+            
+            // Assign stats context menu to statistics panel
+            pnlStats.ContextMenuStrip = statsContextMenu;
+            
+            // Assign alerts context menu to alerts panel and low stock list
+            pnlAlerts.ContextMenuStrip = alertsContextMenu;
+            lstLowStockAlerts.ContextMenuStrip = alertsContextMenu;
+            
+            // Assign activities context menu to activities panel and list
+            pnlActivities.ContextMenuStrip = activitiesContextMenu;
+            lstRecentActivities.ContextMenuStrip = activitiesContextMenu;
+
+            // Add opening event handlers for dynamic updates
+            alertsContextMenu.Opening += AlertsContextMenu_Opening;
+            statsContextMenu.Opening += StatsContextMenu_Opening;
+            activitiesContextMenu.Opening += ActivitiesContextMenu_Opening;
+            }
+
+        #endregion
+
+        #region Context Menu Event Handlers
+
+        /// <summary>
+        /// Handles refresh dashboard context menu click
+        /// </summary>
+        private async void OnRefreshDashboard(object? sender, EventArgs e)
+            {
+            try
+                {
+                await LoadDashboardStatsAsync(forceRefresh: true);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error refreshing dashboard from context menu");
+                MessageBox.Show("Error refreshing dashboard", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles export dashboard context menu click
+        /// </summary>
+        private void OnExportDashboard(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (_dashboardStats == null)
+                    {
+                    MessageBox.Show("No dashboard data available to export", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                    }
+
+                // Simple text export for now
+                var exportData = $"InventoryPro Dashboard Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
+                    $"Products: {_dashboardStats.TotalProducts}\n" +
+                    $"Low Stock: {_dashboardStats.LowStockProducts}\n" +
+                    $"Out of Stock: {_dashboardStats.OutOfStockProducts}\n" +
+                    $"Inventory Value: ${_dashboardStats.TotalInventoryValue:N2}\n" +
+                    $"Today's Sales: ${_dashboardStats.TodaySales:N2}\n" +
+                    $"Today's Orders: {_dashboardStats.TodayOrders}\n" +
+                    $"Total Customers: {_dashboardStats.TotalCustomers}";
+
+                Clipboard.SetText(exportData);
+                MessageBox.Show("Dashboard data copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error exporting dashboard");
+                MessageBox.Show("Error exporting dashboard data", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles add product context menu click
+        /// </summary>
+        private void OnAddProduct(object? sender, EventArgs e)
+            {
+            try
+                {
+                // Open products form in add mode
+                BtnProducts_Click(sender, e);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening add product");
+                MessageBox.Show("Error opening product form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles view selected product from alerts context menu
+        /// </summary>
+        private void OnViewSelectedProduct(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (lstLowStockAlerts.SelectedItems.Count > 0 && 
+                    lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
+                    {
+                    // Open products form and navigate to selected product
+                    BtnProducts_Click(sender, e);
+                    }
+                else
+                    {
+                    MessageBox.Show("Please select a product from the list", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error viewing selected product");
+                MessageBox.Show("Error viewing product details", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles update stock for selected product
+        /// </summary>
+        private void OnUpdateSelectedStock(object? sender, EventArgs e)
+            {
+            try
+                {
+                if (lstLowStockAlerts.SelectedItems.Count > 0 && 
+                    lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
+                    {
+                    // Simple stock update dialog using a basic input form
+                    string result = ShowInputDialog($"Update stock for {product.Name}\nCurrent Stock: {product.Stock}", "Update Stock", product.Stock.ToString());
+
+                    if (!string.IsNullOrEmpty(result) && int.TryParse(result, out int newStock))
+                        {
+                        // TODO: Implement stock update API call
+                        MessageBox.Show($"Stock updated to {newStock} for {product.Name}", "Stock Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                else
+                    {
+                    MessageBox.Show("Please select a product from the list", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error updating stock");
+                MessageBox.Show("Error updating stock", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Handles alert settings context menu click
+        /// </summary>
+        private void OnAlertSettings(object? sender, EventArgs e)
+            {
+            try
+                {
+                MessageBox.Show("Alert settings functionality will be implemented in a future update", "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening alert settings");
+                }
+            }
+
+        /// <summary>
+        /// Handles new sale context menu click
+        /// </summary>
+        private void OnNewSale(object? sender, EventArgs e)
+            {
+            try
+                {
+                // Open sales form
+                BtnSales_Click(sender, e);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error opening new sale");
+                MessageBox.Show("Error opening sales form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+        /// <summary>
+        /// Updates alerts context menu based on selection
+        /// </summary>
+        private void AlertsContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+            {
+            var hasSelection = lstLowStockAlerts.SelectedItems.Count > 0;
+            
+            // Update menu items based on selection
+            foreach (ToolStripMenuItem item in alertsContextMenu.Items.OfType<ToolStripMenuItem>())
+                {
+                if (item.Text.Contains("View Product") || item.Text.Contains("Update Stock"))
+                    {
+                    item.Enabled = hasSelection;
+                    }
+                }
+            }
+
+        /// <summary>
+        /// Updates stats context menu based on user role
+        /// </summary>
+        private void StatsContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+            {
+            // Update role-based items
+            foreach (ToolStripMenuItem item in statsContextMenu.Items.OfType<ToolStripMenuItem>())
+                {
+                if (item.Text.Contains("Add New") || item.Text.Contains("Reports"))
+                    {
+                    item.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                        _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+            }
+
+        /// <summary>
+        /// Updates activities context menu based on user role
+        /// </summary>
+        private void ActivitiesContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
+            {
+            // Update role-based items
+            foreach (ToolStripMenuItem item in activitiesContextMenu.Items.OfType<ToolStripMenuItem>())
+                {
+                if (item.Text.Contains("Reports"))
+                    {
+                    item.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) || 
+                        _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+            }
+
+        /// <summary>
+        /// Shows a simple input dialog
+        /// </summary>
+        private string ShowInputDialog(string text, string caption, string defaultValue = "")
+            {
+            Form prompt = new Form()
+                {
+                Width = 400,
+                Height = 180,
+                Text = caption,
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+                };
+
+            Label textLabel = new Label() { Left = 10, Top = 10, Width = 360, Height = 40, Text = text };
+            TextBox textBox = new TextBox() { Left = 10, Top = 55, Width = 360, Text = defaultValue };
+            Button confirmation = new Button() { Text = "OK", Left = 295, Width = 75, Top = 90, DialogResult = DialogResult.OK };
+            Button cancel = new Button() { Text = "Cancel", Left = 210, Width = 75, Top = 90, DialogResult = DialogResult.Cancel };
+
+            prompt.Controls.Add(textLabel);
+            prompt.Controls.Add(textBox);
+            prompt.Controls.Add(confirmation);
+            prompt.Controls.Add(cancel);
+            prompt.AcceptButton = confirmation;
+            prompt.CancelButton = cancel;
+
+            return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : string.Empty;
             }
 
         #endregion

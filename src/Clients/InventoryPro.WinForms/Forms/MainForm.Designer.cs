@@ -62,6 +62,12 @@
             this.lstRecentActivities = new ListBox();
             this.lstLowStockAlerts = new ListView();
 
+            // Context menus
+            this.dashboardContextMenu = new ContextMenuStrip();
+            this.statsContextMenu = new ContextMenuStrip();
+            this.alertsContextMenu = new ContextMenuStrip();
+            this.activitiesContextMenu = new ContextMenuStrip();
+
             this.SuspendLayout();
 
             #region Menu Strip Configuration
@@ -203,6 +209,10 @@
             this.pnlAlerts.Controls.Add(this.lstLowStockAlerts);
             #endregion
 
+            #region Context Menu Configuration
+            this.InitializeContextMenus();
+            #endregion
+
             #region Form Configuration
             // MainForm
             this.AutoScaleDimensions = new SizeF(7F, 15F);
@@ -266,6 +276,12 @@
 
         private ListBox lstRecentActivities;
         private ListView lstLowStockAlerts;
+
+        // Context menus
+        private ContextMenuStrip dashboardContextMenu;
+        private ContextMenuStrip statsContextMenu;
+        private ContextMenuStrip alertsContextMenu;
+        private ContextMenuStrip activitiesContextMenu;
         #endregion
         }
     }
