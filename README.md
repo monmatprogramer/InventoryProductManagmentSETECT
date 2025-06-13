@@ -213,6 +213,7 @@ Write-Host "🌐 Gateway URL: http://localhost:5000" -ForegroundColor Yellow
 3. Press **F5** to run
 
 **Default Login:**
+
 - Username: `admin`
 - Password: `admin123`
 
@@ -294,23 +295,27 @@ Write-Host "🌐 Gateway URL: http://localhost:5000" -ForegroundColor Yellow
 ### Architecture Patterns Used
 
 #### 1. **Microservices Architecture**
+
 - **Single Responsibility**: Each service handles one business domain
 - **Independent Deployment**: Services can be updated independently
 - **Database per Service**: Each service has its own database
 - **Communication via HTTP**: Services communicate through REST APIs
 
 #### 2. **API Gateway Pattern**
+
 - **Single Entry Point**: All client requests go through the gateway
 - **Cross-cutting Concerns**: Authentication, logging, rate limiting
 - **Service Discovery**: Routes requests to appropriate services
 - **Load Balancing**: Distributes load across service instances
 
 #### 3. **Repository Pattern**
+
 - **Data Access Abstraction**: Separates business logic from data access
 - **Testability**: Easy to mock for unit testing
 - **Maintainability**: Changes to data access don't affect business logic
 
 #### 4. **Dependency Injection**
+
 - **Loose Coupling**: Classes don't create their dependencies
 - **Testability**: Easy to inject mock objects for testing
 - **Configuration**: Dependencies configured in one place
@@ -364,6 +369,7 @@ public async Task<IActionResult> Login([FromBody] LoginRequest request)
 ```
 
 **What this code does:**
+
 - Receives login credentials from the client
 - Validates the input data
 - Authenticates the user against the database
@@ -387,7 +393,7 @@ public async Task<IActionResult> Login([FromBody] LoginRequest request)
         }
       ],
       "UpstreamPathTemplate": "/auth/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"],
       "RateLimitOptions": {
         "EnableRateLimiting": true,
         "Period": "1m",
@@ -399,6 +405,7 @@ public async Task<IActionResult> Login([FromBody] LoginRequest request)
 ```
 
 **What this configuration does:**
+
 - Routes all `/auth/*` requests to the Auth Service (port 5041)
 - Applies rate limiting (100 requests per minute)
 - Supports all HTTP methods (GET, POST, PUT, DELETE)
@@ -466,6 +473,7 @@ public async Task<IActionResult> GetProducts([FromQuery] PaginationParameters pa
 ```
 
 **What this code does:**
+
 - Retrieves all products from the database
 - Applies search filtering if a search term is provided
 - Implements pagination to handle large datasets
@@ -511,6 +519,7 @@ static IHostBuilder CreateHostBuilder()
 ```
 
 **What this code does:**
+
 - Sets up dependency injection container for the Windows Forms app
 - Configures HttpClient with base URL and timeout
 - Adds retry and circuit breaker policies for resilience
@@ -550,6 +559,7 @@ public class ProductDto
 ```
 
 **What this code does:**
+
 - Defines the structure for product data transfer
 - Includes validation attributes for data integrity
 - Provides clear error messages for validation failures
@@ -684,16 +694,19 @@ Phase 4: Testing & Polish (Week 7-8)
 ### Design Decisions and Trade-offs
 
 #### **Why Microservices?**
+
 - ✅ **Pros**: Scalability, maintainability, team autonomy
 - ❌ **Cons**: Complexity, network latency, data consistency challenges
 - **Decision**: Benefits outweigh complexity for learning purposes
 
 #### **Why Windows Forms?**
+
 - ✅ **Pros**: Rich desktop experience, full .NET ecosystem access
 - ❌ **Cons**: Windows-only, traditional UI framework
 - **Decision**: Perfect for business applications and .NET demonstration
 
 #### **Why JWT Authentication?**
+
 - ✅ **Pros**: Stateless, scalable, standard-based
 - ❌ **Cons**: Token size, token revocation complexity
 - **Decision**: Industry standard for API authentication
@@ -718,12 +731,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 1. **Microservices Architecture**
 
 **What you learn:**
+
 - How to break down monolithic applications into smaller services
 - Service-to-service communication patterns
 - Database per service pattern
 - Handling distributed system challenges
 
 **Real-world application:**
+
 - Large enterprise applications (Netflix, Amazon, Uber)
 - Cloud-native applications
 - Scalable web services
@@ -731,12 +746,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 2. **API Gateway Pattern**
 
 **What you learn:**
+
 - Centralized request routing
 - Cross-cutting concerns (auth, logging, rate limiting)
 - Service discovery and load balancing
 - API versioning and management
 
 **Real-world application:**
+
 - Cloud platforms (AWS API Gateway, Azure API Management)
 - Enterprise integration patterns
 - Mobile app backends
@@ -744,12 +761,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 3. **JWT Authentication**
 
 **What you learn:**
+
 - Token-based authentication
 - Stateless authentication systems
 - Role-based access control
 - Security best practices
 
 **Real-world application:**
+
 - Single Sign-On (SSO) systems
 - Mobile app authentication
 - API security
@@ -757,12 +776,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 4. **Modern .NET Development**
 
 **What you learn:**
+
 - .NET 9.0 features and capabilities
 - Entity Framework Core for data access
 - Dependency injection patterns
 - Async programming patterns
 
 **Real-world application:**
+
 - Enterprise web applications
 - Cloud-native applications
 - High-performance APIs
@@ -770,12 +791,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 5. **Desktop Application Development**
 
 **What you learn:**
+
 - Windows Forms in modern .NET
 - Desktop-to-API communication
 - User experience design
 - Error handling and user feedback
 
 **Real-world application:**
+
 - Business desktop applications
 - Point-of-sale systems
 - Administrative tools
@@ -783,12 +806,14 @@ Phase 4: Testing & Polish (Week 7-8)
 ### 6. **Software Architecture Principles**
 
 **What you learn:**
+
 - Separation of concerns
 - Single responsibility principle
 - Dependency inversion
 - Clean architecture patterns
 
 **Real-world application:**
+
 - Maintainable codebases
 - Scalable system design
 - Team collaboration patterns
@@ -932,7 +957,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 👨‍💻 Author
 
-**[Your Name]** - *Initial work and architecture*
+**MONMAT** - _Initial work and architecture_
 
 ## 🙏 Acknowledgments
 
