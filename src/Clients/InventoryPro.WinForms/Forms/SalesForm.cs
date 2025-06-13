@@ -871,23 +871,35 @@ namespace InventoryPro.WinForms.Forms
                         {
                         try
                             {
-                            using var invoiceForm = Program.GetRequiredService<InvoiceForm>();
-                            invoiceForm.LoadSaleData(response.Data);
-                            invoiceForm.ShowDialog();
+                            // Ensure we're on the UI thread for form operations
+                            if (InvokeRequired)
+                                {
+                                Invoke(new Action(() => ShowInvoiceForm(response.Data)));
+                                }
+                            else
+                                {
+                                ShowInvoiceForm(response.Data);
+                                }
                             }
                         catch (Exception invoiceEx)
                             {
-                            _logger.LogError(invoiceEx, "Error opening invoice form");
-                            MessageBox.Show("Error opening invoice form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            _logger.LogError(invoiceEx, "Error opening invoice form: {Error}", invoiceEx.Message);
+                            MessageBox.Show($"Error opening invoice form: {invoiceEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             }
                         }
 
-                    // Clear cart and reset form
-                    _cartItems.Clear();
-                    cboCustomer.SelectedIndex = 0;
-                    cboPaymentMethod.SelectedIndex = 0;
-                    UpdateTotals();
-                    await LoadProductsAsync().ConfigureAwait(false); // Refresh stock levels
+                    // Clear cart and reset form - ensure UI operations are on UI thread
+                    if (InvokeRequired)
+                        {
+                        Invoke(new Action(() => ClearCartAndResetForm()));
+                        }
+                    else
+                        {
+                        ClearCartAndResetForm();
+                        }
+                    
+                    // Refresh stock levels
+                    await LoadProductsAsync().ConfigureAwait(false);
                     }
                 else
                     {
@@ -897,18 +909,16 @@ namespace InventoryPro.WinForms.Forms
                 }
             catch (Exception ex)
                 {
-                _logger.LogError(ex, "Error completing sale");
-                MessageBox.Show("Error completing sale. Please check the cart and try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _logger.LogError(ex, "Error completing sale: {Error}", ex.Message);
                 
-                // Try to refresh cart display in case of data issues
-                try
+                // Ensure we're on UI thread for UI operations
+                if (InvokeRequired)
                     {
-                    RefreshCartDisplay();
+                    Invoke(new Action(() => HandleSaleCompletionError(ex)));
                     }
-                catch (Exception refreshEx)
+                else
                     {
-                    _logger.LogError(refreshEx, "Error refreshing cart display after sale completion error");
+                    HandleSaleCompletionError(ex);
                     }
                 }
             }
@@ -927,6 +937,64 @@ namespace InventoryPro.WinForms.Forms
                     cboPaymentMethod.SelectedIndex = 0;
                     UpdateTotals();
                     }
+                }
+            }
+
+        private void ShowInvoiceForm(SaleDto sale)
+            {
+            try
+                {
+                var invoiceForm = Program.GetRequiredService<InvoiceForm>();
+                invoiceForm.LoadSaleData(sale);
+                invoiceForm.Show(); // Use Show() instead of ShowDialog() to avoid parent issues
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error in ShowInvoiceForm method");
+                throw; // Re-throw to be caught by calling code
+                }
+            }
+
+        private void ClearCartAndResetForm()
+            {
+            try
+                {
+                _cartItems.Clear();
+                cboCustomer.SelectedIndex = 0;
+                cboPaymentMethod.SelectedIndex = 0;
+                UpdateTotals();
+                _logger.LogInformation("Cart cleared and form reset after successful sale");
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error clearing cart and resetting form");
+                // Don't throw here to prevent cascading errors
+                }
+            }
+
+        private void HandleSaleCompletionError(Exception ex)
+            {
+            try
+                {
+                // Show user-friendly error message
+                MessageBox.Show($"Error completing sale: {ex.Message}\n\nThe sale may not have been saved. Please check your cart and try again.",
+                    "Sale Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                
+                // Try to refresh cart display in case of data issues
+                try
+                    {
+                    RefreshCartDisplay();
+                    }
+                catch (Exception refreshEx)
+                    {
+                    _logger.LogError(refreshEx, "Error refreshing cart display after sale completion error");
+                    // Continue execution - don't let refresh errors crash the app
+                    }
+                }
+            catch (Exception handlerEx)
+                {
+                _logger.LogError(handlerEx, "Error in HandleSaleCompletionError method");
+                // Last resort - just log and continue to prevent app crash
                 }
             }
 
