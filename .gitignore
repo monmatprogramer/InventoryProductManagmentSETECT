@@ -361,3 +361,44 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Claude Code specific files
+.claude/
+.claude*
+
+# Sensitive configuration files
+appsettings.Production.json
+**/appsettings.Production.json
+*.env
+.env.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+logs/
+*.log
+**/*.log
+
+# Temporary files
+temp/
+tmp/
+**/.tmp/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Personal notes and documentation drafts
+notes.md
+todo.md
+NOTES.txt
