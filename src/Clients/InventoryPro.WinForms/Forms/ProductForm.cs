@@ -206,10 +206,13 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
+                _logger.LogInformation("Starting to load categories");
                 var response = await _apiService.GetCategoriesAsync();
+                
                 if (response.Success && response.Data != null)
                 {
                     _categories = response.Data;
+                    _logger.LogInformation("Successfully loaded {CategoryCount} categories", _categories.Count);
 
                     // Update category combo box
                     cboCategory.Items.Clear();
@@ -217,13 +220,28 @@ namespace InventoryPro.WinForms.Forms
                     foreach (var category in _categories)
                     {
                         cboCategory.Items.Add(category.Name);
+                        _logger.LogDebug("Added category: {CategoryName}", category.Name);
                     }
                     cboCategory.SelectedIndex = 0;
+                    _logger.LogInformation("Category dropdown populated successfully");
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to load categories. Success: {Success}, Data: {Data}, Message: {Message}", 
+                        response.Success, response.Data?.Count ?? 0, response.Message);
+                    
+                    // Show user-friendly error message
+                    lblStatus.Text = "Failed to load categories";
+                    MessageBox.Show($"Unable to load categories: {response.Message}", 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading categories");
+                lblStatus.Text = "Error loading categories";
+                MessageBox.Show($"Error loading categories: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

@@ -225,8 +225,10 @@ namespace InventoryPro.WinForms.Services
             {
             try
                 {
+                _logger.LogInformation("Making request to products/categories endpoint");
                 await AddAuthorizationHeader();
                 var response = await _httpClient.GetAsync("products/categories");
+                _logger.LogInformation("Categories response: {StatusCode}", response.StatusCode);
                 return await HandleResponse<List<CategoryDto>>(response);
                 }
             catch (Exception ex)
