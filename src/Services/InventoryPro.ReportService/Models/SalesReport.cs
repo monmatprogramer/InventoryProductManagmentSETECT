@@ -153,4 +153,67 @@ namespace InventoryPro.ReportService.Models
         public List<int> SelectedProducts { get; set; } = new();
         public List<int> SelectedCustomers { get; set; } = new();
         }
+
+    /// <summary>
+    /// Custom report parameters with flexible options
+    /// </summary>
+    public class CustomReportParameters
+        {
+        public DateTime StartDate { get; set; } = DateTime.UtcNow.AddMonths(-1);
+        public DateTime EndDate { get; set; } = DateTime.UtcNow;
+        public string Format { get; set; } = "PDF"; // PDF, Excel, CSV
+        public string ReportTitle { get; set; } = "Custom Report";
+        
+        // Report sections to include
+        public bool IncludeSalesOverview { get; set; } = true;
+        public bool IncludeDailySales { get; set; } = true;
+        public bool IncludeTopProducts { get; set; } = true;
+        public bool IncludeTopCustomers { get; set; } = true;
+        public bool IncludeSalesByCategory { get; set; } = true;
+        public bool IncludeInventoryStatus { get; set; } = false;
+        public bool IncludeFinancialSummary { get; set; } = false;
+        
+        // Filtering options
+        public List<int> SelectedCategories { get; set; } = new();
+        public List<int> SelectedProducts { get; set; } = new();
+        public List<int> SelectedCustomers { get; set; } = new();
+        public decimal? MinSalesAmount { get; set; }
+        public decimal? MaxSalesAmount { get; set; }
+        public string? PaymentMethod { get; set; }
+        public string? SalesStatus { get; set; } = "Completed";
+        
+        // Chart options
+        public bool IncludeCharts { get; set; } = true;
+        public int TopProductsCount { get; set; } = 10;
+        public int TopCustomersCount { get; set; } = 10;
+        }
+
+    /// <summary>
+    /// Custom report result
+    /// </summary>
+    public class CustomReport
+        {
+        public string Title { get; set; } = "Custom Report";
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+        
+        // Sales data
+        public SalesReport? SalesData { get; set; }
+        public InventoryReport? InventoryData { get; set; }
+        public FinancialReport? FinancialData { get; set; }
+        
+        // Summary metrics
+        public decimal TotalRevenue { get; set; }
+        public int TotalTransactions { get; set; }
+        public decimal AverageTransactionValue { get; set; }
+        public int UniqueCustomers { get; set; }
+        public int ProductsSold { get; set; }
+        
+        // Filtered data based on custom parameters
+        public List<DailySales> FilteredDailySales { get; set; } = new();
+        public List<ProductSales> FilteredTopProducts { get; set; } = new();
+        public List<CustomerSales> FilteredTopCustomers { get; set; } = new();
+        public Dictionary<string, decimal> FilteredSalesByCategory { get; set; } = new();
+        }
     }

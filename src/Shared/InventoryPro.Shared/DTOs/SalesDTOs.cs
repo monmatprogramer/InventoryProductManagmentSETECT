@@ -97,6 +97,14 @@ namespace InventoryPro.Shared.DTOs
         [Required(ErrorMessage = "Product is required")]
         public int ProductId { get; set; }
 
+        [Required(ErrorMessage = "Product name is required")]
+        [StringLength(100, ErrorMessage = "Product name cannot exceed 100 characters")]
+        public string ProductName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Product SKU is required")]
+        [StringLength(50, ErrorMessage = "Product SKU cannot exceed 50 characters")]
+        public string ProductSKU { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Quantity is required")]
         [Range(1, int.MaxValue, ErrorMessage = "Quantity must be greater than 0")]
         public int Quantity { get; set; }

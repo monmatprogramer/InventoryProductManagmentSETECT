@@ -75,6 +75,22 @@ namespace InventoryPro.Shared.DTOs
         }
 
     /// <summary>
+    /// Data Transfer Object for updating product stock
+    /// </summary>
+    public class UpdateStockDto
+        {
+        [Required(ErrorMessage = "Quantity is required")]
+        public int Quantity { get; set; }
+
+        [Required(ErrorMessage = "Movement type is required")]
+        [StringLength(50, ErrorMessage = "Movement type cannot exceed 50 characters")]
+        public string MovementType { get; set; } = string.Empty; // Sale, Purchase, Adjustment, Return
+
+        [StringLength(200, ErrorMessage = "Reason cannot exceed 200 characters")]
+        public string Reason { get; set; } = string.Empty;
+        }
+
+    /// <summary>
     /// Data Transfer Object for product categories
     /// </summary>
     public class CategoryDto

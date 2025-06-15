@@ -15,6 +15,9 @@ namespace InventoryPro.WinForms.Forms
         private readonly IApiService _apiService;
         private readonly IAuthService _authService;
 
+        // Event to notify when sales data changes
+        public event EventHandler? SalesDataChanged;
+
         // Form sections
         private Panel pnlLeft = null!;
         private Panel pnlRight = null!;
@@ -29,6 +32,7 @@ namespace InventoryPro.WinForms.Forms
         private Label lblProduct = null!;
         private TextBox txtProductSearch = null!;
         private Button btnAddProduct = null!;
+        private Button btnRefreshData = null!;
         private DataGridView dgvProducts = null!;
 
         // Shopping cart
@@ -136,13 +140,25 @@ namespace InventoryPro.WinForms.Forms
                 {
                 Text = "Add",
                 Location = new Point(400, 79),
-                Size = new Size(70, 27),
+                Size = new Size(60, 27),
                 BackColor = Color.FromArgb(46, 204, 113),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat
                 };
             btnAddProduct.FlatAppearance.BorderSize = 0;
             btnAddProduct.Click += BtnAddProduct_Click;
+
+            btnRefreshData = new Button
+                {
+                Text = "Refresh",
+                Location = new Point(470, 79),
+                Size = new Size(70, 27),
+                BackColor = Color.FromArgb(52, 152, 219),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat
+                };
+            btnRefreshData.FlatAppearance.BorderSize = 0;
+            btnRefreshData.Click += BtnRefreshData_Click;
 
             // Products grid
             dgvProducts = new DataGridView
@@ -160,7 +176,7 @@ namespace InventoryPro.WinForms.Forms
 
             pnlLeft.Controls.AddRange(new Control[] {
                 lblCustomer, cboCustomer, btnNewCustomer,
-                lblProduct, txtProductSearch, btnAddProduct,
+                lblProduct, txtProductSearch, btnAddProduct, btnRefreshData,
                 dgvProducts
             });
 
@@ -425,6 +441,18 @@ namespace InventoryPro.WinForms.Forms
             cboCustomer.EndUpdate();
             }
 
+        private void SelectCustomerById(int customerId)
+            {
+            for (int i = 1; i < cboCustomer.Items.Count; i++) // Start from 1 to skip "Walk-in Customer"
+                {
+                if (cboCustomer.Items[i] is CustomerDto customer && customer.Id == customerId)
+                    {
+                    cboCustomer.SelectedIndex = i;
+                    break;
+                    }
+                }
+            }
+
         private async Task LoadProductsAsync()
             {
             try
@@ -434,13 +462,30 @@ namespace InventoryPro.WinForms.Forms
                     {
                     // Use a for loop for better performance on large lists
                     var items = response.Data.Items;
-                    var filtered = new List<ProductDto>(items.Count);
+                    var inStock = new List<ProductDto>();
+                    var outOfStock = new List<ProductDto>();
+                    
                     for (int i = 0; i < items.Count; i++)
                         {
                         if (items[i].Stock > 0)
-                            filtered.Add(items[i]);
+                            {
+                            inStock.Add(items[i]);
+                            }
+                        else
+                            {
+                            outOfStock.Add(items[i]);
+                            }
                         }
-                    _products = filtered;
+                    
+                    _products = inStock; // Only show in-stock products for selection
+                    
+                    // Log out-of-stock items for awareness
+                    if (outOfStock.Count > 0)
+                        {
+                        _logger.LogInformation("Found {OutOfStockCount} out-of-stock products that are hidden from sales selection", 
+                            outOfStock.Count);
+                        }
+                    
                     // UpdateProductGrid must be called on UI thread
                     if (InvokeRequired)
                         Invoke(new Action(UpdateProductGrid));
@@ -563,6 +608,14 @@ namespace InventoryPro.WinForms.Forms
 
         private void AddProductToCart(ProductDto product)
             {
+            // Check if product has stock
+            if (product.Stock <= 0)
+                {
+                MessageBox.Show($"Product '{product.Name}' is out of stock and cannot be added to cart.",
+                    "Out of Stock", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+                }
+
             CartItem? existingItem = null;
             for (int i = 0; i < _cartItems.Count; i++)
                 {
@@ -578,15 +631,35 @@ namespace InventoryPro.WinForms.Forms
                 if (existingItem.Quantity < product.Stock)
                     {
                     existingItem.Quantity++;
+                    
+                    // Show low stock warning if approaching limit
+                    if (existingItem.Quantity >= product.Stock * 0.8) // 80% of stock
+                        {
+                        var remaining = product.Stock - existingItem.Quantity;
+                        if (remaining > 0)
+                            {
+                            MessageBox.Show($"Low stock warning: Only {remaining} more '{product.Name}' available after this addition.",
+                                "Low Stock Warning", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            }
+                        }
                     }
                 else
                     {
-                    MessageBox.Show($"Cannot add more. Only {product.Stock} items in stock.",
-                        "Stock Limit", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show($"Cannot add more '{product.Name}'. Only {product.Stock} items in stock.",
+                        "Stock Limit Reached", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                 }
             else
                 {
+                // Show low stock warning for new items if stock is low
+                if (product.Stock <= product.MinStock)
+                    {
+                    var result = MessageBox.Show($"Warning: '{product.Name}' is low in stock ({product.Stock} remaining).\n\nDo you want to add it to cart?",
+                        "Low Stock Alert", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (result == DialogResult.No)
+                        return;
+                    }
+
                 _cartItems.Add(new CartItem
                     {
                     ProductId = product.Id,
@@ -715,6 +788,51 @@ namespace InventoryPro.WinForms.Forms
             BtnAddProduct_Click(sender, e);
             }
 
+        private async void BtnRefreshData_Click(object? sender, EventArgs e)
+            {
+            try
+                {
+                btnRefreshData.Enabled = false;
+                btnRefreshData.Text = "Refreshing...";
+                
+                var oldProductCount = _products.Count;
+                
+                // Refresh both customers and products
+                await LoadCustomersAsync();
+                await LoadProductsAsync();
+                
+                var newProductCount = _products.Count;
+                var stockStatusMessage = "";
+                
+                if (newProductCount != oldProductCount)
+                    {
+                    var difference = newProductCount - oldProductCount;
+                    if (difference > 0)
+                        {
+                        stockStatusMessage = $"\n{difference} new product(s) now available for sale.";
+                        }
+                    else if (difference < 0)
+                        {
+                        stockStatusMessage = $"\n{Math.Abs(difference)} product(s) are now out of stock.";
+                        }
+                    }
+                
+                MessageBox.Show($"Data refreshed successfully!\n\nProducts available: {newProductCount}{stockStatusMessage}", 
+                    "Refresh Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error refreshing data");
+                MessageBox.Show($"Error refreshing data: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            finally
+                {
+                btnRefreshData.Enabled = true;
+                btnRefreshData.Text = "Refresh";
+                }
+            }
+
         private void DgvCart_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
             {
             try
@@ -782,14 +900,57 @@ namespace InventoryPro.WinForms.Forms
             UpdateChange();
             }
 
-        private void BtnNewCustomer_Click(object? sender, EventArgs e)
+        private async void BtnNewCustomer_Click(object? sender, EventArgs e)
             {
             using (var dialog = new CustomerEditDialog())
                 {
-                if (dialog.ShowDialog() == DialogResult.OK)
+                if (dialog.ShowDialog() == DialogResult.OK && dialog.Customer != null)
                     {
-                    // In a real implementation, save the customer and refresh the list
-                    Task.Run(() => LoadCustomersAsync()).ConfigureAwait(false);
+                    try
+                        {
+                        // Create the customer in the database
+                        var customerDto = new CustomerDto
+                            {
+                            Name = dialog.Customer.Name,
+                            Email = dialog.Customer.Email,
+                            Phone = dialog.Customer.Phone,
+                            Address = dialog.Customer.Address
+                            };
+
+                        var response = await _apiService.CreateCustomerAsync(customerDto);
+                        if (response.Success && response.Data != null)
+                            {
+                            MessageBox.Show($"Customer '{response.Data.Name}' added successfully!",
+                                "Customer Added", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                            // Refresh the customer list
+                            await LoadCustomersAsync();
+
+                            // Notify dashboard of data change
+                            SalesDataChanged?.Invoke(this, EventArgs.Empty);
+
+                            // Select the newly added customer
+                            if (InvokeRequired)
+                                {
+                                Invoke(new Action(() => SelectCustomerById(response.Data.Id)));
+                                }
+                            else
+                                {
+                                SelectCustomerById(response.Data.Id);
+                                }
+                            }
+                        else
+                            {
+                            MessageBox.Show($"Failed to add customer: {response.Message}",
+                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+                    catch (Exception ex)
+                        {
+                        _logger.LogError(ex, "Error adding new customer");
+                        MessageBox.Show($"Error adding customer: {ex.Message}",
+                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
                 }
             }
@@ -827,6 +988,47 @@ namespace InventoryPro.WinForms.Forms
                         }
                     }
 
+                // Real-time stock validation before sale completion
+                btnCompleteSale.Enabled = false;
+                btnCompleteSale.Text = "Validating Stock...";
+                
+                var stockValidationErrors = new List<string>();
+                foreach (var item in _cartItems)
+                    {
+                    try
+                        {
+                        var productResponse = await _apiService.GetProductByIdAsync(item.ProductId);
+                        if (productResponse.Success && productResponse.Data != null)
+                            {
+                            var currentStock = productResponse.Data.Stock;
+                            if (currentStock < item.Quantity)
+                                {
+                                stockValidationErrors.Add($"'{item.ProductName}': Need {item.Quantity}, but only {currentStock} available");
+                                }
+                            }
+                        else
+                            {
+                            stockValidationErrors.Add($"'{item.ProductName}': Product not found or unavailable");
+                            }
+                        }
+                    catch (Exception ex)
+                        {
+                        _logger.LogError(ex, "Error validating stock for product {ProductId}", item.ProductId);
+                        stockValidationErrors.Add($"'{item.ProductName}': Unable to verify stock");
+                        }
+                    }
+
+                btnCompleteSale.Enabled = true;
+                btnCompleteSale.Text = "Complete Sale";
+
+                if (stockValidationErrors.Any())
+                    {
+                    var errorMessage = "Stock validation failed:\n\n" + string.Join("\n", stockValidationErrors) + 
+                        "\n\nPlease refresh the product data and adjust quantities.";
+                    MessageBox.Show(errorMessage, "Stock Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                    }
+
                 decimal total = 0;
                 for (int i = 0; i < _cartItems.Count; i++)
                     total += _cartItems[i].Total;
@@ -854,6 +1056,8 @@ namespace InventoryPro.WinForms.Forms
                     Items = _cartItems.Select(i => new CreateSaleItemDto
                         {
                         ProductId = i.ProductId,
+                        ProductName = i.ProductName,
+                        ProductSKU = i.ProductSKU,
                         Quantity = i.Quantity,
                         UnitPrice = i.UnitPrice,
                         DiscountAmount = 0
@@ -863,6 +1067,9 @@ namespace InventoryPro.WinForms.Forms
                 var response = await _apiService.CreateSaleAsync(sale).ConfigureAwait(false);
                 if (response.Success)
                     {
+                    // Notify dashboard of data change
+                    SalesDataChanged?.Invoke(this, EventArgs.Empty);
+
                     var result = MessageBox.Show($"Sale completed successfully!\n\nSale ID: {response.Data?.Id}\nChange: {(nudPaidAmount.Value - total):C}\n\nWould you like to generate an invoice?",
                         "Sale Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
 
@@ -903,8 +1110,30 @@ namespace InventoryPro.WinForms.Forms
                     }
                 else
                     {
-                    MessageBox.Show($"Error completing sale: {response.Message}",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    // Handle specific stock validation errors
+                    if (response.Message != null && response.Message.Contains("Insufficient stock"))
+                        {
+                        var stockError = response.Message;
+                        var userMessage = "Stock validation failed during sale processing:\n\n" + stockError + 
+                            "\n\nThis can happen if another user purchased the same product simultaneously." +
+                            "\n\nPlease refresh the product data and try again.";
+                        
+                        MessageBox.Show(userMessage, "Stock Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        
+                        // Refresh product data automatically
+                        Task.Run(async () => 
+                            {
+                            await LoadProductsAsync();
+                            if (InvokeRequired)
+                                Invoke(new Action(() => MessageBox.Show("Product data refreshed. Please check quantities and try again.", 
+                                    "Data Refreshed", MessageBoxButtons.OK, MessageBoxIcon.Information)));
+                            });
+                        }
+                    else
+                        {
+                        MessageBox.Show($"Error completing sale: {response.Message}",
+                            "Sale Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
                     }
                 }
             catch (Exception ex)

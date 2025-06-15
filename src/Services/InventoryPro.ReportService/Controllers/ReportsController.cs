@@ -291,5 +291,36 @@ namespace InventoryPro.ReportService.Controllers
                 return StatusCode(500, "Internal server error");
                 }
             }
+
+        /// <summary>
+        /// Generate custom report with user-defined parameters
+        /// </summary>
+        [HttpPost("custom")]
+        public async Task<IActionResult> GenerateCustomReport([FromBody] CustomReportParameters parameters)
+            {
+            try
+                {
+                var report = await _reportService.GenerateCustomReportAsync(parameters);
+
+                if (parameters.Format.ToLower() == "pdf")
+                    {
+                    var pdfData = await _reportService.ExportReportToPdfAsync(report, "Custom Report");
+                    return File(pdfData, "application/pdf", $"CustomReport_{DateTime.Now:yyyyMMdd}.pdf");
+                    }
+                else if (parameters.Format.ToLower() == "excel")
+                    {
+                    var excelData = await _reportService.ExportReportToExcelAsync(report, "Custom Report");
+                    return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        $"CustomReport_{DateTime.Now:yyyyMMdd}.xlsx");
+                    }
+
+                return Ok(report);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating custom report");
+                return StatusCode(500, "Internal server error");
+                }
+            }
         }
     }

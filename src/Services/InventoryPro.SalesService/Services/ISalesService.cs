@@ -37,5 +37,6 @@ namespace InventoryPro.SalesService.Services
         // Inventory integration (will call Product Service)
         Task<bool> CheckProductAvailabilityAsync(int productId, int quantity);
         Task<bool> UpdateProductStockAsync(int productId, int quantity);
+        Task<(bool isAvailable, int currentStock, string productName)> CheckProductAvailabilityDetailedAsync(int productId, int quantity, string? authorizationHeader = null);
         }
     }

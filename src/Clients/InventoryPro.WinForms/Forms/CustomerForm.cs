@@ -410,7 +410,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 try
                 {
-                    var response = await _apiService.DeleteProductAsync(selectedCustomer.Id);
+                    var response = await _apiService.DeleteCustomerAsync(selectedCustomer.Id);
                     if (response.Success)
                     {
                         await LoadCustomersAsync();

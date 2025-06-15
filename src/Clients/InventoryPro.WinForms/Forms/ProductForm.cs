@@ -13,6 +13,9 @@ namespace InventoryPro.WinForms.Forms
         private readonly ILogger<ProductForm> _logger;
         private readonly IApiService _apiService;
 
+        // Event to notify when product data changes
+        public event EventHandler? ProductDataChanged;
+
         // Controls
         private DataGridView dgvProducts;
         private ToolStrip toolStrip;
@@ -363,6 +366,7 @@ namespace InventoryPro.WinForms.Forms
                         if (response.Success)
                         {
                             await LoadProductsAsync();
+                            ProductDataChanged?.Invoke(this, EventArgs.Empty);
                             MessageBox.Show("Product created successfully.",
                                 "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
@@ -410,6 +414,7 @@ namespace InventoryPro.WinForms.Forms
                         if (response.Success)
                         {
                             await LoadProductsAsync();
+                            ProductDataChanged?.Invoke(this, EventArgs.Empty);
                             MessageBox.Show("Product updated successfully.",
                                 "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
@@ -458,6 +463,7 @@ namespace InventoryPro.WinForms.Forms
                     if (response.Success)
                     {
                         await LoadProductsAsync();
+                        ProductDataChanged?.Invoke(this, EventArgs.Empty);
                         MessageBox.Show("Product deleted successfully.",
                             "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }

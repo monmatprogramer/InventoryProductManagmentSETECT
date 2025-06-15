@@ -516,22 +516,272 @@ namespace InventoryPro.WinForms.Forms
 
         private void SetupCustomTab()
         {
-            var lblInfo = new Label
+            // Create controls panel
+            var pnlControls = new Panel
             {
-                Text = "Custom Reports\n\nThis section allows you to create custom reports based on specific criteria.\n" +
-                       "Features include:\n" +
-                       "• Product performance analysis\n" +
-                       "• Customer purchase patterns\n" +
-                       "• Seasonal trends\n" +
-                       "• Profit margin analysis\n\n" +
-                       "Coming Soon!",
-                Location = new Point(50, 50),
-                Size = new Size(600, 300),
-                Font = new Font("Segoe UI", 12),
-                ForeColor = Color.FromArgb(51, 51, 51)
+                Dock = DockStyle.Top,
+                Height = 200,
+                BackColor = Color.FromArgb(248, 248, 248),
+                Padding = new Padding(10)
             };
 
-            tabCustom.Controls.Add(lblInfo);
+            // Title
+            var lblTitle = new Label
+            {
+                Text = "Custom Report Builder",
+                Location = new Point(10, 10),
+                Size = new Size(200, 25),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = Color.FromArgb(41, 128, 185)
+            };
+
+            // Date range selection
+            var lblDateRange = new Label
+            {
+                Text = "Date Range:",
+                Location = new Point(10, 45),
+                Size = new Size(80, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+
+            var dtpCustomStart = new DateTimePicker
+            {
+                Name = "dtpCustomStart",
+                Location = new Point(100, 42),
+                Size = new Size(120, 25),
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Now.AddMonths(-1)
+            };
+
+            var lblTo = new Label
+            {
+                Text = "to",
+                Location = new Point(230, 45),
+                Size = new Size(25, 25)
+            };
+
+            var dtpCustomEnd = new DateTimePicker
+            {
+                Name = "dtpCustomEnd",
+                Location = new Point(265, 42),
+                Size = new Size(120, 25),
+                Format = DateTimePickerFormat.Short,
+                Value = DateTime.Now
+            };
+
+            // Report title
+            var lblReportTitle = new Label
+            {
+                Text = "Report Title:",
+                Location = new Point(400, 45),
+                Size = new Size(80, 25)
+            };
+
+            var txtReportTitle = new TextBox
+            {
+                Name = "txtReportTitle",
+                Location = new Point(490, 42),
+                Size = new Size(200, 25),
+                Text = "Custom Sales Report"
+            };
+
+            // Report sections (checkboxes)
+            var grpSections = new GroupBox
+            {
+                Text = "Include Sections",
+                Location = new Point(10, 75),
+                Size = new Size(300, 110),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+
+            var chkDailySales = new CheckBox
+            {
+                Name = "chkDailySales",
+                Text = "Daily Sales Trend",
+                Location = new Point(10, 20),
+                Size = new Size(140, 20),
+                Checked = true
+            };
+
+            var chkTopProducts = new CheckBox
+            {
+                Name = "chkTopProducts",
+                Text = "Top Products",
+                Location = new Point(150, 20),
+                Size = new Size(100, 20),
+                Checked = true
+            };
+
+            var chkTopCustomers = new CheckBox
+            {
+                Name = "chkTopCustomers",
+                Text = "Top Customers",
+                Location = new Point(10, 45),
+                Size = new Size(140, 20),
+                Checked = true
+            };
+
+            var chkSalesByCategory = new CheckBox
+            {
+                Name = "chkSalesByCategory",
+                Text = "Sales by Category",
+                Location = new Point(150, 45),
+                Size = new Size(120, 20),
+                Checked = true
+            };
+
+            var chkInventoryStatus = new CheckBox
+            {
+                Name = "chkInventoryStatus",
+                Text = "Inventory Status",
+                Location = new Point(10, 70),
+                Size = new Size(140, 20)
+            };
+
+            var chkFinancialSummary = new CheckBox
+            {
+                Name = "chkFinancialSummary",
+                Text = "Financial Summary",
+                Location = new Point(150, 70),
+                Size = new Size(120, 20)
+            };
+
+            grpSections.Controls.AddRange(new Control[] {
+                chkDailySales, chkTopProducts, chkTopCustomers,
+                chkSalesByCategory, chkInventoryStatus, chkFinancialSummary
+            });
+
+            // Format and generate controls
+            var grpGenerate = new GroupBox
+            {
+                Text = "Generate Report",
+                Location = new Point(320, 75),
+                Size = new Size(250, 110),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+
+            var lblFormat = new Label
+            {
+                Text = "Format:",
+                Location = new Point(10, 25),
+                Size = new Size(50, 25)
+            };
+
+            var cboCustomFormat = new ComboBox
+            {
+                Name = "cboCustomFormat",
+                Location = new Point(70, 22),
+                Size = new Size(80, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Items = { "View", "PDF", "Excel" }
+            };
+            cboCustomFormat.SelectedIndex = 0;
+
+            var btnGenerateCustom = new Button
+            {
+                Name = "btnGenerateCustom",
+                Text = "Generate Custom Report",
+                Location = new Point(10, 55),
+                Size = new Size(200, 35),
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold)
+            };
+            btnGenerateCustom.FlatAppearance.BorderSize = 0;
+            btnGenerateCustom.Click += BtnGenerateCustom_Click;
+
+            grpGenerate.Controls.AddRange(new Control[] {
+                lblFormat, cboCustomFormat, btnGenerateCustom
+            });
+
+            // Advanced filters group
+            var grpFilters = new GroupBox
+            {
+                Text = "Advanced Filters",
+                Location = new Point(580, 75),
+                Size = new Size(300, 110),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+
+            var lblMinAmount = new Label
+            {
+                Text = "Min Sales:",
+                Location = new Point(10, 25),
+                Size = new Size(60, 20)
+            };
+
+            var txtMinAmount = new TextBox
+            {
+                Name = "txtMinAmount",
+                Location = new Point(80, 22),
+                Size = new Size(80, 25),
+                PlaceholderText = "0.00"
+            };
+
+            var lblMaxAmount = new Label
+            {
+                Text = "Max Sales:",
+                Location = new Point(170, 25),
+                Size = new Size(60, 20)
+            };
+
+            var txtMaxAmount = new TextBox
+            {
+                Name = "txtMaxAmount",
+                Location = new Point(240, 22),
+                Size = new Size(50, 25),
+                PlaceholderText = "No limit"
+            };
+
+            var lblPaymentMethod = new Label
+            {
+                Text = "Payment:",
+                Location = new Point(10, 55),
+                Size = new Size(60, 20)
+            };
+
+            var cboPaymentMethod = new ComboBox
+            {
+                Name = "cboPaymentMethod",
+                Location = new Point(80, 52),
+                Size = new Size(100, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Items = { "All", "Cash", "Card", "Bank Transfer" }
+            };
+            cboPaymentMethod.SelectedIndex = 0;
+
+            grpFilters.Controls.AddRange(new Control[] {
+                lblMinAmount, txtMinAmount, lblMaxAmount, txtMaxAmount,
+                lblPaymentMethod, cboPaymentMethod
+            });
+
+            pnlControls.Controls.AddRange(new Control[] {
+                lblTitle, lblDateRange, dtpCustomStart, lblTo, dtpCustomEnd,
+                lblReportTitle, txtReportTitle, grpSections, grpGenerate, grpFilters
+            });
+
+            // Results area
+            var pnlResults = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.White
+            };
+
+            var lblResults = new Label
+            {
+                Name = "lblCustomResults",
+                Text = "Custom report results will appear here after generation.",
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 12),
+                ForeColor = Color.Gray
+            };
+
+            pnlResults.Controls.Add(lblResults);
+
+            tabCustom.Controls.Add(pnlResults);
+            tabCustom.Controls.Add(pnlControls);
         }
 
         #region Event Handlers
@@ -732,6 +982,133 @@ namespace InventoryPro.WinForms.Forms
                 MessageBox.Show("Error generating invoices",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private async void BtnGenerateCustom_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Get controls by name from the custom tab
+                var dtpCustomStart = tabCustom.Controls.Find("dtpCustomStart", true).FirstOrDefault() as DateTimePicker;
+                var dtpCustomEnd = tabCustom.Controls.Find("dtpCustomEnd", true).FirstOrDefault() as DateTimePicker;
+                var txtReportTitle = tabCustom.Controls.Find("txtReportTitle", true).FirstOrDefault() as TextBox;
+                var cboCustomFormat = tabCustom.Controls.Find("cboCustomFormat", true).FirstOrDefault() as ComboBox;
+                var chkDailySales = tabCustom.Controls.Find("chkDailySales", true).FirstOrDefault() as CheckBox;
+                var chkTopProducts = tabCustom.Controls.Find("chkTopProducts", true).FirstOrDefault() as CheckBox;
+                var chkTopCustomers = tabCustom.Controls.Find("chkTopCustomers", true).FirstOrDefault() as CheckBox;
+                var chkSalesByCategory = tabCustom.Controls.Find("chkSalesByCategory", true).FirstOrDefault() as CheckBox;
+                var chkInventoryStatus = tabCustom.Controls.Find("chkInventoryStatus", true).FirstOrDefault() as CheckBox;
+                var chkFinancialSummary = tabCustom.Controls.Find("chkFinancialSummary", true).FirstOrDefault() as CheckBox;
+                var txtMinAmount = tabCustom.Controls.Find("txtMinAmount", true).FirstOrDefault() as TextBox;
+                var txtMaxAmount = tabCustom.Controls.Find("txtMaxAmount", true).FirstOrDefault() as TextBox;
+                var cboPaymentMethod = tabCustom.Controls.Find("cboPaymentMethod", true).FirstOrDefault() as ComboBox;
+                var lblCustomResults = tabCustom.Controls.Find("lblCustomResults", true).FirstOrDefault() as Label;
+
+                if (dtpCustomStart == null || dtpCustomEnd == null || txtReportTitle == null || 
+                    cboCustomFormat == null || lblCustomResults == null)
+                {
+                    MessageBox.Show("Error: Unable to find required controls for custom report generation.", 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Build custom report parameters
+                var parameters = new
+                {
+                    StartDate = dtpCustomStart.Value,
+                    EndDate = dtpCustomEnd.Value,
+                    Format = cboCustomFormat.Text,
+                    ReportTitle = txtReportTitle.Text,
+                    IncludeDailySales = chkDailySales?.Checked ?? false,
+                    IncludeTopProducts = chkTopProducts?.Checked ?? false,
+                    IncludeTopCustomers = chkTopCustomers?.Checked ?? false,
+                    IncludeSalesByCategory = chkSalesByCategory?.Checked ?? false,
+                    IncludeInventoryStatus = chkInventoryStatus?.Checked ?? false,
+                    IncludeFinancialSummary = chkFinancialSummary?.Checked ?? false,
+                    TopProductsCount = 10,
+                    TopCustomersCount = 10,
+                    IncludeCharts = true,
+                    MinSalesAmount = decimal.TryParse(txtMinAmount?.Text, out var minAmount) ? (decimal?)minAmount : null,
+                    MaxSalesAmount = decimal.TryParse(txtMaxAmount?.Text, out var maxAmount) ? (decimal?)maxAmount : null,
+                    PaymentMethod = cboPaymentMethod?.Text == "All" ? null : cboPaymentMethod?.Text,
+                    SalesStatus = "Completed",
+                    SelectedCategories = new List<int>(),
+                    SelectedProducts = new List<int>(),
+                    SelectedCustomers = new List<int>()
+                };
+
+                lblCustomResults.Text = "Generating custom report...";
+                lblCustomResults.ForeColor = Color.Blue;
+
+                if (cboCustomFormat.Text != "View")
+                {
+                    // Generate and download file
+                    var response = await _apiService.GenerateCustomReportAsync(parameters);
+                    
+                    if (response.Success && response.Data != null)
+                    {
+                        var extension = cboCustomFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
+                        var fileName = $"{txtReportTitle.Text}_{DateTime.Now:yyyyMMdd}{extension}";
+                        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+                        
+                        await File.WriteAllBytesAsync(filePath, response.Data);
+                        
+                        lblCustomResults.Text = $"Custom report exported successfully!\nSaved to: {filePath}";
+                        lblCustomResults.ForeColor = Color.Green;
+                        
+                        var result = MessageBox.Show($"Custom report generated successfully!\n\nFile saved to:\n{filePath}\n\nWould you like to open the file?",
+                            "Export Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        
+                        if (result == DialogResult.Yes)
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath) { UseShellExecute = true });
+                        }
+                    }
+                    else
+                    {
+                        lblCustomResults.Text = $"Error generating custom report: {response.Message}";
+                        lblCustomResults.ForeColor = Color.Red;
+                        MessageBox.Show($"Error generating custom report: {response.Message}",
+                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                else
+                {
+                    // Display in UI
+                    lblCustomResults.Text = "Custom report generated successfully!\n\n" +
+                                          $"Report Title: {txtReportTitle.Text}\n" +
+                                          $"Period: {dtpCustomStart.Value:yyyy-MM-dd} to {dtpCustomEnd.Value:yyyy-MM-dd}\n" +
+                                          $"Sections included: {GetIncludedSections(chkDailySales, chkTopProducts, chkTopCustomers, chkSalesByCategory, chkInventoryStatus, chkFinancialSummary)}\n\n" +
+                                          "Note: This is a preview. Use PDF or Excel format for detailed reports with charts and full data.";
+                    lblCustomResults.ForeColor = Color.Green;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating custom report");
+                var lblCustomResults = tabCustom.Controls.Find("lblCustomResults", true).FirstOrDefault() as Label;
+                if (lblCustomResults != null)
+                {
+                    lblCustomResults.Text = "Error generating custom report.";
+                    lblCustomResults.ForeColor = Color.Red;
+                }
+                MessageBox.Show("Error generating custom report.",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private string GetIncludedSections(params CheckBox?[] checkBoxes)
+        {
+            var sections = new List<string>();
+            
+            if (checkBoxes[0]?.Checked == true) sections.Add("Daily Sales");
+            if (checkBoxes[1]?.Checked == true) sections.Add("Top Products");
+            if (checkBoxes[2]?.Checked == true) sections.Add("Top Customers");
+            if (checkBoxes[3]?.Checked == true) sections.Add("Sales by Category");
+            if (checkBoxes[4]?.Checked == true) sections.Add("Inventory Status");
+            if (checkBoxes[5]?.Checked == true) sections.Add("Financial Summary");
+            
+            return sections.Any() ? string.Join(", ", sections) : "None";
         }
 
         #endregion

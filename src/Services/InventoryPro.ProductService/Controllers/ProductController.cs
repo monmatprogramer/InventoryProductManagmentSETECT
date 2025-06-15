@@ -235,6 +235,67 @@ namespace InventoryPro.ProductService.Controllers
             }
 
         /// <summary>
+        /// Update product stock
+        /// </summary>
+        [HttpPost("{id}/stock")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> UpdateStock(int id, [FromBody] UpdateStockDto request)
+            {
+            try
+                {
+                var result = await _productService.UpdateStockAsync(
+                    id, 
+                    request.Quantity, 
+                    request.MovementType, 
+                    request.Reason, 
+                    User.Identity?.Name ?? "System");
+                
+                if (!result)
+                    return NotFound();
+
+                return Ok(new { success = true });
+                }
+            catch (InvalidOperationException ex)
+                {
+                return BadRequest(ex.Message);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error updating stock for product {ProductId}", id);
+                return StatusCode(500, "Internal server error");
+                }
+            }
+
+        /// <summary>
+        /// Get low stock products
+        /// </summary>
+        [HttpGet("low-stock")]
+        public async Task<IActionResult> GetLowStockProducts()
+            {
+            try
+                {
+                var products = await _productService.GetLowStockProductsAsync();
+                var dtos = products.Select(p => new ProductDto
+                    {
+                    Id = p.Id,
+                    Name = p.Name,
+                    SKU = p.SKU,
+                    Price = p.Price,
+                    Stock = p.StockQuantity,
+                    MinStock = p.MinimumStock,
+                    CategoryName = p.Category?.Name ?? "Uncategorized"
+                    }).ToList();
+
+                return Ok(dtos);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting low stock products");
+                return StatusCode(500, "Internal server error");
+                }
+            }
+
+        /// <summary>
         /// Get all categories
         /// </summary>
         [HttpGet("categories")]

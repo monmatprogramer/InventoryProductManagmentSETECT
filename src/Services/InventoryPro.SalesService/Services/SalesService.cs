@@ -13,12 +13,14 @@ namespace InventoryPro.SalesService.Services
         private readonly SalesDbContext _context;
         private readonly ILogger<SalesService> _logger;
         private readonly HttpClient _httpClient;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public SalesService(SalesDbContext context, ILogger<SalesService> logger, HttpClient httpClient)
+        public SalesService(SalesDbContext context, ILogger<SalesService> logger, HttpClient httpClient, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _logger = logger;
             _httpClient = httpClient;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         #region Customer Operations
@@ -239,13 +241,23 @@ namespace InventoryPro.SalesService.Services
                 if (customer == null)
                     throw new InvalidOperationException("Customer not found");
 
+                // Get authorization header from current HTTP context
+                var authorizationHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+
                 // Check product availability and update stock
                 foreach (var item in sale.SaleItems)
                 {
-                    var isAvailable = await CheckProductAvailabilityAsync(item.ProductId, item.Quantity);
+                    var (isAvailable, currentStock, actualProductName) = await CheckProductAvailabilityDetailedAsync(item.ProductId, item.Quantity, authorizationHeader);
                     if (!isAvailable)
                     {
-                        throw new InvalidOperationException($"Insufficient stock for product: {item.ProductName}");
+                        // Use the most reliable product name: from API > from client > fallback
+                        var productDisplayName = !string.IsNullOrEmpty(actualProductName) && actualProductName != "Unknown Product"
+                            ? actualProductName
+                            : (!string.IsNullOrEmpty(item.ProductName) && item.ProductName != "Product" 
+                                ? item.ProductName 
+                                : $"Product ID {item.ProductId}");
+                        
+                        throw new InvalidOperationException($"Insufficient stock for product '{productDisplayName}': requested {item.Quantity}, available {currentStock}");
                     }
                 }
 
@@ -267,7 +279,7 @@ namespace InventoryPro.SalesService.Services
                 // Update product stock
                 foreach (var item in sale.SaleItems)
                 {
-                    await UpdateProductStockAsync(item.ProductId, -item.Quantity);
+                    await UpdateProductStockAsync(item.ProductId, -item.Quantity, authorizationHeader);
                 }
 
                 // Create payment record
@@ -337,10 +349,13 @@ namespace InventoryPro.SalesService.Services
                 if (sale == null || sale.Status == "Cancelled")
                     return false;
 
+                // Get authorization header from current HTTP context
+                var authorizationHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+
                 // Reverse stock for each item
                 foreach (var item in sale.SaleItems)
                 {
-                    await UpdateProductStockAsync(item.ProductId, item.Quantity);
+                    await UpdateProductStockAsync(item.ProductId, item.Quantity, authorizationHeader);
                 }
 
                 sale.Status = "Cancelled";
@@ -484,46 +499,154 @@ namespace InventoryPro.SalesService.Services
         #region Inventory Integration
 
         /// <summary>
+        /// Checks product availability by calling Product Service and returns detailed stock info
+        /// </summary>
+        public async Task<(bool isAvailable, int currentStock, string productName)> CheckProductAvailabilityDetailedAsync(int productId, int quantity, string? authorizationHeader = null)
+        {
+            try
+            {
+                _logger.LogInformation("Checking availability for product {ProductId}, quantity {Quantity}",
+                    productId, quantity);
+
+                // Create request message with authorization header
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/products/{productId}");
+                
+                if (!string.IsNullOrEmpty(authorizationHeader))
+                {
+                    request.Headers.Authorization = 
+                        System.Net.Http.Headers.AuthenticationHeaderValue.Parse(authorizationHeader);
+                }
+
+                // Call Product Service to get current stock
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Product {ProductId} not found or unavailable", productId);
+                    return (false, 0, $"Product ID {productId}");
+                }
+
+                var jsonContent = await response.Content.ReadAsStringAsync();
+                using var doc = System.Text.Json.JsonDocument.Parse(jsonContent);
+                var productElement = doc.RootElement;
+
+                // Debug logging to see the actual JSON response
+                _logger.LogInformation("Product Service response for ProductId {ProductId}: {JsonContent}", 
+                    productId, jsonContent);
+
+                var productName = "Unknown Product";
+                var currentStock = 0;
+
+                // Try both PascalCase and camelCase for product name
+                if (productElement.TryGetProperty("Name", out var nameElement) || 
+                    productElement.TryGetProperty("name", out nameElement))
+                {
+                    productName = nameElement.GetString() ?? $"Product ID {productId}";
+                    _logger.LogInformation("Successfully extracted product name: '{ProductName}'", productName);
+                }
+                else
+                {
+                    _logger.LogWarning("Could not find 'Name' or 'name' property in product response for ProductId {ProductId}", productId);
+                }
+
+                // Try both PascalCase and camelCase for stock
+                if (productElement.TryGetProperty("Stock", out var stockElement) || 
+                    productElement.TryGetProperty("stock", out stockElement))
+                {
+                    currentStock = stockElement.GetInt32();
+                    var isAvailable = currentStock >= quantity;
+                    
+                    _logger.LogInformation("Product {ProductId} ({ProductName}) has {CurrentStock} in stock, requested {Quantity}, available: {IsAvailable}",
+                        productId, productName, currentStock, quantity, isAvailable);
+                        
+                    return (isAvailable, currentStock, productName);
+                }
+
+                _logger.LogWarning("Could not determine stock for product {ProductId}", productId);
+                return (false, 0, productName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking product availability for product {ProductId}", productId);
+                return (false, 0, $"Product ID {productId}");
+            }
+        }
+
+        /// <summary>
         /// Checks product availability by calling Product Service
         /// </summary>
         public async Task<bool> CheckProductAvailabilityAsync(int productId, int quantity)
         {
-            try
-            {
-                // Simulate an asynchronous operation
-                await Task.Delay(10); // Placeholder for actual async API call
+            var (isAvailable, _, _) = await CheckProductAvailabilityDetailedAsync(productId, quantity);
+            return isAvailable;
+        }
 
-                _logger.LogInformation("Checking availability for product {ProductId}, quantity {Quantity}",
-                    productId, quantity);
-
-                return true; // Placeholder
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking product availability");
-                return false;
-            }
+        /// <summary>
+        /// Updates product stock by calling Product Service (backward compatibility)
+        /// </summary>
+        public async Task<bool> UpdateProductStockAsync(int productId, int quantity)
+        {
+            // Get authorization header from current HTTP context
+            var authorizationHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+            return await UpdateProductStockAsync(productId, quantity, authorizationHeader);
         }
 
         /// <summary>
         /// Updates product stock by calling Product Service
         /// </summary>
-        public async Task<bool> UpdateProductStockAsync(int productId, int quantity)
+        public async Task<bool> UpdateProductStockAsync(int productId, int quantity, string? authorizationHeader = null)
         {
             try
             {
-                // Simulate an asynchronous operation
-                await Task.Delay(10); // Placeholder for actual async API call
-
                 _logger.LogInformation("Updating stock for product {ProductId}, quantity change {Quantity}",
                     productId, quantity);
 
-                // Simulate success response from an external service
-                return await Task.FromResult(true); // Ensures the method is truly asynchronous
+                // Determine movement type and reason based on quantity
+                var movementType = quantity < 0 ? "Sale" : "Return";
+                var reason = quantity < 0 ? "Product sold" : "Product returned";
+
+                // Create the stock update request
+                var updateRequest = new
+                {
+                    Quantity = quantity,
+                    MovementType = movementType,
+                    Reason = reason
+                };
+
+                var jsonContent = System.Text.Json.JsonSerializer.Serialize(updateRequest);
+                var content = new StringContent(jsonContent, System.Text.Encoding.UTF8, "application/json");
+
+                // Create request message with authorization header
+                using var request = new HttpRequestMessage(HttpMethod.Post, $"/api/products/{productId}/stock")
+                {
+                    Content = content
+                };
+                
+                if (!string.IsNullOrEmpty(authorizationHeader))
+                {
+                    request.Headers.Authorization = 
+                        System.Net.Http.Headers.AuthenticationHeaderValue.Parse(authorizationHeader);
+                }
+
+                // Call Product Service to update stock
+                var response = await _httpClient.SendAsync(request);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Successfully updated stock for product {ProductId}, change: {Quantity}",
+                        productId, quantity);
+                    return true;
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning("Failed to update stock for product {ProductId}. Status: {StatusCode}, Error: {Error}",
+                        productId, response.StatusCode, errorContent);
+                    return false;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating product stock");
+                _logger.LogError(ex, "Error updating product stock for product {ProductId}", productId);
                 return false;
             }
         }

@@ -32,5 +32,8 @@ namespace InventoryPro.ReportService.Services
         // Dashboard Statistics
         Task<Dictionary<string, object>> GetDashboardStatisticsAsync();
         Task<List<object>> GetRecentActivitiesAsync(int count = 10);
+
+        // Custom Reports
+        Task<CustomReport> GenerateCustomReportAsync(CustomReportParameters parameters);
         }
     }

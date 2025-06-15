@@ -118,11 +118,30 @@ namespace InventoryPro.SalesService.Controllers
                 // Add sale items
                 foreach (var itemDto in dto.Items)
                     {
+                    var productName = itemDto.ProductName;
+                    var productSKU = itemDto.ProductSKU;
+
+                    // Debug logging to see what we're receiving from client
+                    _logger.LogInformation("Received sale item: ProductId={ProductId}, ProductName='{ProductName}', ProductSKU='{ProductSKU}'", 
+                        itemDto.ProductId, productName, productSKU);
+
+                    // Fallback: If product name/SKU not provided, use ProductId as identifier
+                    if (string.IsNullOrEmpty(productName))
+                        {
+                        productName = $"Product ID {itemDto.ProductId}";
+                        _logger.LogWarning("Product name not provided for ProductId {ProductId}, using fallback", itemDto.ProductId);
+                        }
+                    if (string.IsNullOrEmpty(productSKU))
+                        {
+                        productSKU = $"SKU-{itemDto.ProductId}";
+                        _logger.LogWarning("Product SKU not provided for ProductId {ProductId}, using fallback", itemDto.ProductId);
+                        }
+
                     sale.SaleItems.Add(new SaleItem
                         {
                         ProductId = itemDto.ProductId,
-                        ProductName = "Product", // Should be fetched from Product Service
-                        ProductSKU = "SKU", // Should be fetched from Product Service
+                        ProductName = productName,
+                        ProductSKU = productSKU,
                         Quantity = itemDto.Quantity,
                         UnitPrice = itemDto.UnitPrice,
                         DiscountAmount = itemDto.DiscountAmount

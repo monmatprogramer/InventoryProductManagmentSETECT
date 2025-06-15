@@ -1,4 +1,5 @@
 using InventoryPro.ReportService.Models;
+using InventoryPro.Shared.DTOs;
 using System.Text;
 using System.Net.Http.Json;
 
@@ -13,18 +14,21 @@ namespace InventoryPro.ReportService.Services
         private readonly ILogger<ReportService> _logger;
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
+        private readonly RealDataService _realDataService;
 
         public ReportService(ILogger<ReportService> logger, HttpClient httpClient, IConfiguration configuration)
             {
             _logger = logger;
             _httpClient = httpClient;
             _configuration = configuration;
+            _realDataService = new RealDataService(httpClient, 
+                logger);
             }
 
         #region Sales Reports
 
         /// <summary>
-        /// Generates comprehensive sales report
+        /// Generates comprehensive sales report with real data
         /// </summary>
         public async Task<SalesReport> GenerateSalesReportAsync(ReportParameters parameters)
             {
@@ -33,84 +37,33 @@ namespace InventoryPro.ReportService.Services
                 var startDate = parameters.StartDate ?? DateTime.UtcNow.AddMonths(-1);
                 var endDate = parameters.EndDate ?? DateTime.UtcNow;
 
+                _logger.LogInformation("Generating sales report for period {StartDate} to {EndDate}", startDate, endDate);
+
+                // Fetch real data from microservices
+                var sales = await _realDataService.GetRealSalesDataAsync(startDate, endDate);
+                var customers = await _realDataService.GetRealCustomersDataAsync();
+
+                // Calculate totals from real data
+                var completedSales = sales.Where(s => s.Status == "Completed").ToList();
+                var totalSales = completedSales.Sum(s => s.TotalAmount);
+                var totalOrders = completedSales.Count;
+                var averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+
                 var report = new SalesReport
                     {
                     StartDate = startDate,
-                    EndDate = endDate
+                    EndDate = endDate,
+                    TotalSales = totalSales,
+                    TotalOrders = totalOrders,
+                    AverageOrderValue = averageOrderValue,
+                    DailySales = _realDataService.ProcessDailySalesData(sales, startDate, endDate),
+                    TopProducts = await _realDataService.ProcessTopProductsDataAsync(sales),
+                    TopCustomers = _realDataService.ProcessTopCustomersData(sales, customers),
+                    SalesByCategory = await _realDataService.ProcessSalesByCategoryAsync(sales),
+                    SalesByPaymentMethod = _realDataService.ProcessSalesByPaymentMethod(sales)
                     };
 
-                // Fetch real data from Sales Service
-                try
-                    {
-                    var salesStatsResponse = await _httpClient.GetAsync($"http://localhost:5282/api/sales/stats?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}");
-                    if (salesStatsResponse.IsSuccessStatusCode)
-                        {
-                        var salesStats = await salesStatsResponse.Content.ReadFromJsonAsync<dynamic>();
-                        report.TotalSales = salesStats?.GetProperty("totalSales").GetDecimal() ?? 0;
-                        report.TotalOrders = salesStats?.GetProperty("salesCount").GetInt32() ?? 0;
-                        report.AverageOrderValue = report.TotalOrders > 0 ? report.TotalSales / report.TotalOrders : 0;
-                        }
-                    }
-                catch (Exception ex)
-                    {
-                    _logger.LogWarning(ex, "Could not fetch sales stats, using fallback data");
-                    }
-
-                // Get detailed data
-                report.DailySales = await GetDailySalesAsync(startDate, endDate);
-                report.TopProducts = await GetTopSellingProductsAsync(startDate, endDate);
-                report.TopCustomers = await GetTopCustomersAsync(startDate, endDate);
-
-                // Try to get real category data from Product Service
-                try
-                    {
-                    var categoriesResponse = await _httpClient.GetAsync("http://localhost:5089/api/products/categories");
-                    if (categoriesResponse.IsSuccessStatusCode)
-                        {
-                        var categories = await categoriesResponse.Content.ReadFromJsonAsync<List<dynamic>>();
-                        report.SalesByCategory = new Dictionary<string, decimal>();
-                        foreach (var category in categories ?? new List<dynamic>())
-                            {
-                            var categoryName = category.GetProperty("name").GetString() ?? "Unknown";
-                            // This would ideally come from sales data grouped by category
-                            report.SalesByCategory[categoryName] = (decimal)(new Random().Next(1000, 20000));
-                            }
-                        }
-                    else
-                        {
-                        // Fallback category data
-                        report.SalesByCategory = new Dictionary<string, decimal>
-                            {
-                            { "Electronics", 45230.50m },
-                            { "Clothing", 23450.25m },
-                            { "Food & Beverages", 35670.00m },
-                            { "Home & Garden", 21100.00m },
-                            { "Sports & Outdoors", 15000.00m }
-                            };
-                        }
-                    }
-                catch
-                    {
-                    report.SalesByCategory = new Dictionary<string, decimal>
-                        {
-                        { "Electronics", 45230.50m },
-                        { "Clothing", 23450.25m },
-                        { "Food & Beverages", 35670.00m },
-                        { "Home & Garden", 21100.00m },
-                        { "Sports & Outdoors", 15000.00m }
-                        };
-                    }
-
-                report.SalesByPaymentMethod = new Dictionary<string, decimal>
-                    {
-                    { "Cash", report.TotalSales * 0.4m },
-                    { "Credit Card", report.TotalSales * 0.35m },
-                    { "Debit Card", report.TotalSales * 0.25m }
-                    };
-
-                _logger.LogInformation("Sales report generated for period {StartDate} to {EndDate}",
-                    startDate, endDate);
-
+                _logger.LogInformation("Sales report generated successfully with {SalesCount} sales records", sales.Count);
                 return report;
                 }
             catch (Exception ex)
@@ -182,40 +135,40 @@ namespace InventoryPro.ReportService.Services
         #region Inventory Reports
 
         /// <summary>
-        /// Generates comprehensive inventory report
+        /// Generates comprehensive inventory report with real data
         /// </summary>
         public async Task<InventoryReport> GenerateInventoryReportAsync(ReportParameters parameters)
             {
             try
                 {
+                _logger.LogInformation("Generating inventory report");
+
+                // Fetch real data from Product Service
+                var products = await _realDataService.GetRealProductsDataAsync();
+                var inventoryByCategory = await _realDataService.ProcessInventoryByCategoryAsync();
+                var lowStockProducts = await _realDataService.ProcessLowStockProductsAsync();
+
+                // Calculate real statistics
+                var activeProducts = products.Where(p => p.IsActive).ToList();
+                var inactiveProducts = products.Where(p => !p.IsActive).ToList();
+                var lowStock = products.Where(p => p.Stock <= p.MinStock && p.Stock > 0).ToList();
+                var outOfStock = products.Where(p => p.Stock == 0).ToList();
+                var totalValue = products.Sum(p => p.Stock * p.Price);
+
                 var report = new InventoryReport
                     {
-                    ReportDate = DateTime.UtcNow
+                    ReportDate = DateTime.UtcNow,
+                    TotalProducts = products.Count,
+                    ActiveProducts = activeProducts.Count,
+                    InactiveProducts = inactiveProducts.Count,
+                    LowStockProducts = lowStock.Count,
+                    OutOfStockProducts = outOfStock.Count,
+                    TotalInventoryValue = totalValue,
+                    InventoryByCategory = inventoryByCategory,
+                    ProductInventoryDetails = lowStockProducts
                     };
 
-                // Fetch data from Product Service
-                // In a real implementation, this would make HTTP calls to the Product Service
-
-                // Mock data for demonstration
-                report.TotalProducts = 150;
-                report.ActiveProducts = 145;
-                report.InactiveProducts = 5;
-                report.LowStockProducts = 12;
-                report.OutOfStockProducts = 3;
-                report.TotalInventoryValue = 234567.89m;
-
-                report.InventoryByCategory = new List<CategoryInventory>
-                {
-                    new() { CategoryId = 1, CategoryName = "Electronics", ProductCount = 45, TotalStock = 1234, TotalValue = 123450.00m },
-                    new() { CategoryId = 2, CategoryName = "Clothing", ProductCount = 30, TotalStock = 2345, TotalValue = 45670.00m },
-                    new() { CategoryId = 3, CategoryName = "Food & Beverages", ProductCount = 40, TotalStock = 3456, TotalValue = 34567.89m },
-                    new() { CategoryId = 4, CategoryName = "Home & Garden", ProductCount = 35, TotalStock = 890, TotalValue = 30880.00m }
-                };
-
-                report.ProductInventoryDetails = await GetLowStockProductsAsync();
-
-                _logger.LogInformation("Inventory report generated");
-
+                _logger.LogInformation("Inventory report generated successfully with {ProductCount} products", products.Count);
                 return report;
                 }
             catch (Exception ex)
@@ -282,7 +235,7 @@ namespace InventoryPro.ReportService.Services
         #region Financial Reports
 
         /// <summary>
-        /// Generates financial report
+        /// Generates financial report with real data
         /// </summary>
         public async Task<FinancialReport> GenerateFinancialReportAsync(ReportParameters parameters)
             {
@@ -291,23 +244,33 @@ namespace InventoryPro.ReportService.Services
                 var startDate = parameters.StartDate ?? new DateTime(DateTime.UtcNow.Year, 1, 1);
                 var endDate = parameters.EndDate ?? DateTime.UtcNow;
 
+                _logger.LogInformation("Generating financial report for period {StartDate} to {EndDate}", startDate, endDate);
+
+                // Fetch real sales data
+                var sales = await _realDataService.GetRealSalesDataAsync(startDate, endDate);
+                var completedSales = sales.Where(s => s.Status == "Completed").ToList();
+
+                // Calculate real financial metrics
+                var grossRevenue = completedSales.Sum(s => s.TotalAmount);
+                var totalDiscounts = completedSales.Sum(s => s.Items.Sum(i => i.DiscountAmount * i.Quantity));
+                var netRevenue = grossRevenue - totalDiscounts;
+                var averageTransactionValue = completedSales.Any() ? grossRevenue / completedSales.Count : 0;
+
                 var report = new FinancialReport
                     {
                     StartDate = startDate,
                     EndDate = endDate,
-                    GrossRevenue = 567890.50m,
-                    TotalDiscounts = 12340.50m,
-                    NetRevenue = 555550.00m,
-                    TotalTransactions = 1234,
-                    AverageTransactionValue = 450.28m
+                    GrossRevenue = grossRevenue,
+                    TotalDiscounts = totalDiscounts,
+                    NetRevenue = netRevenue,
+                    TotalTransactions = completedSales.Count,
+                    AverageTransactionValue = averageTransactionValue,
+                    MonthlyRevenue = _realDataService.ProcessMonthlyRevenueData(sales, endDate.Year),
+                    RevenueByCategory = await _realDataService.ProcessSalesByCategoryAsync(sales)
                     };
 
-                report.MonthlyRevenue = await GetMonthlyRevenueAsync(DateTime.UtcNow.Year);
-                report.RevenueByCategory = await GetRevenueByCategory(startDate, endDate);
-
-                _logger.LogInformation("Financial report generated for period {StartDate} to {EndDate}",
-                    startDate, endDate);
-
+                _logger.LogInformation("Financial report generated successfully with {TransactionCount} transactions", 
+                    completedSales.Count);
                 return report;
                 }
             catch (Exception ex)
@@ -372,19 +335,34 @@ namespace InventoryPro.ReportService.Services
             {
             try
                 {
-                // In a real implementation, this would use a PDF library like iTextSharp or similar
-                // For now, return mock PDF data
-                var pdfContent = $"PDF Report - {reportType}\n" +
-                                $"Generated at: {DateTime.Now}\n" +
-                                $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
-
-                return await Task.FromResult(Encoding.UTF8.GetBytes(pdfContent));
+                return await Task.Run(() =>
+                {
+                    return reportType.ToLower() switch
+                    {
+                        "sales report" when report is SalesReport salesReport => 
+                            PdfGenerator.GenerateSalesReportPdf(salesReport),
+                        "inventory report" when report is InventoryReport inventoryReport => 
+                            PdfGenerator.GenerateInventoryReportPdf(inventoryReport),
+                        "custom report" when report is CustomReport customReport => 
+                            PdfGenerator.GenerateCustomReportPdf(customReport),
+                        _ => GenerateFallbackPdf(report, reportType)
+                    };
+                });
                 }
             catch (Exception ex)
                 {
                 _logger.LogError(ex, "Error exporting report to PDF");
                 throw;
                 }
+            }
+
+        private byte[] GenerateFallbackPdf(object report, string reportType)
+            {
+            // Fallback for unsupported report types
+            var pdfContent = $"PDF Report - {reportType}\n" +
+                            $"Generated at: {DateTime.Now}\n" +
+                            $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
+            return Encoding.UTF8.GetBytes(pdfContent);
             }
 
         /// <summary>
@@ -469,6 +447,143 @@ namespace InventoryPro.ReportService.Services
             };
 
             return await Task.FromResult(activities.Take(count).ToList());
+            }
+
+        #endregion
+
+        #region Custom Reports
+
+        /// <summary>
+        /// Generates custom report based on user-defined parameters
+        /// </summary>
+        public async Task<CustomReport> GenerateCustomReportAsync(CustomReportParameters parameters)
+            {
+            try
+                {
+                _logger.LogInformation("Generating custom report '{Title}' for period {StartDate} to {EndDate}", 
+                    parameters.ReportTitle, parameters.StartDate, parameters.EndDate);
+
+                var customReport = new CustomReport
+                    {
+                    Title = parameters.ReportTitle,
+                    StartDate = parameters.StartDate,
+                    EndDate = parameters.EndDate,
+                    GeneratedAt = DateTime.UtcNow
+                    };
+
+                // Fetch base data
+                var sales = await _realDataService.GetRealSalesDataAsync(parameters.StartDate, parameters.EndDate);
+                var customers = await _realDataService.GetRealCustomersDataAsync();
+
+                // Apply filters
+                var filteredSales = ApplyCustomFilters(sales, parameters);
+                var completedSales = filteredSales.Where(s => s.Status == parameters.SalesStatus).ToList();
+
+                // Calculate summary metrics
+                customReport.TotalRevenue = completedSales.Sum(s => s.TotalAmount);
+                customReport.TotalTransactions = completedSales.Count;
+                customReport.AverageTransactionValue = completedSales.Any() ? 
+                    customReport.TotalRevenue / completedSales.Count : 0;
+                customReport.UniqueCustomers = completedSales.Select(s => s.CustomerId).Distinct().Count();
+                customReport.ProductsSold = completedSales.SelectMany(s => s.Items).Sum(i => i.Quantity);
+
+                // Generate filtered data based on selections
+                if (parameters.IncludeDailySales)
+                    {
+                    customReport.FilteredDailySales = _realDataService.ProcessDailySalesData(
+                        filteredSales, parameters.StartDate, parameters.EndDate);
+                    }
+
+                if (parameters.IncludeTopProducts)
+                    {
+                    customReport.FilteredTopProducts = (await _realDataService.ProcessTopProductsDataAsync(filteredSales))
+                        .Take(parameters.TopProductsCount).ToList();
+                    }
+
+                if (parameters.IncludeTopCustomers)
+                    {
+                    customReport.FilteredTopCustomers = _realDataService.ProcessTopCustomersData(filteredSales, customers)
+                        .Take(parameters.TopCustomersCount).ToList();
+                    }
+
+                if (parameters.IncludeSalesByCategory)
+                    {
+                    customReport.FilteredSalesByCategory = await _realDataService.ProcessSalesByCategoryAsync(filteredSales);
+                    }
+
+                // Include full reports if requested
+                if (parameters.IncludeSalesOverview)
+                    {
+                    var salesParams = new ReportParameters 
+                        { 
+                        StartDate = parameters.StartDate, 
+                        EndDate = parameters.EndDate 
+                        };
+                    customReport.SalesData = await GenerateSalesReportAsync(salesParams);
+                    }
+
+                if (parameters.IncludeInventoryStatus)
+                    {
+                    var inventoryParams = new ReportParameters();
+                    customReport.InventoryData = await GenerateInventoryReportAsync(inventoryParams);
+                    }
+
+                if (parameters.IncludeFinancialSummary)
+                    {
+                    var financialParams = new ReportParameters 
+                        { 
+                        StartDate = parameters.StartDate, 
+                        EndDate = parameters.EndDate 
+                        };
+                    customReport.FinancialData = await GenerateFinancialReportAsync(financialParams);
+                    }
+
+                _logger.LogInformation("Custom report '{Title}' generated successfully with {TransactionCount} transactions", 
+                    parameters.ReportTitle, customReport.TotalTransactions);
+
+                return customReport;
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating custom report");
+                throw;
+                }
+            }
+
+        private List<SaleDto> ApplyCustomFilters(List<SaleDto> sales, CustomReportParameters parameters)
+            {
+            var filtered = sales.AsQueryable();
+
+            // Filter by selected customers
+            if (parameters.SelectedCustomers.Any())
+                {
+                filtered = filtered.Where(s => parameters.SelectedCustomers.Contains(s.CustomerId));
+                }
+
+            // Filter by sales amount range
+            if (parameters.MinSalesAmount.HasValue)
+                {
+                filtered = filtered.Where(s => s.TotalAmount >= parameters.MinSalesAmount.Value);
+                }
+
+            if (parameters.MaxSalesAmount.HasValue)
+                {
+                filtered = filtered.Where(s => s.TotalAmount <= parameters.MaxSalesAmount.Value);
+                }
+
+            // Filter by payment method
+            if (!string.IsNullOrEmpty(parameters.PaymentMethod))
+                {
+                filtered = filtered.Where(s => s.PaymentMethod.Equals(parameters.PaymentMethod, StringComparison.OrdinalIgnoreCase));
+                }
+
+            // Filter by products (if sale contains any of the selected products)
+            if (parameters.SelectedProducts.Any())
+                {
+                filtered = filtered.Where(s => s.Items.Any(i => parameters.SelectedProducts.Contains(i.ProductId)));
+                }
+
+            return filtered.ToList();
             }
 
         #endregion

@@ -208,7 +208,26 @@ namespace InventoryPro.WinForms.Services
                 {
                 await AddAuthorizationHeader();
                 var response = await _httpClient.DeleteAsync($"products/{id}");
-                return await HandleResponse<bool>(response);
+                
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Delete product response content: {Content}", content);
+
+                if (response.IsSuccessStatusCode)
+                    {
+                    return new ApiResponse<bool>
+                        {
+                        Success = true,
+                        Data = true,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<bool>
+                    {
+                    Success = false,
+                    Message = $"Request failed with status {response.StatusCode}: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
                 }
             catch (Exception ex)
                 {
@@ -315,6 +334,40 @@ namespace InventoryPro.WinForms.Services
                 {
                 _logger.LogError(ex, "Error updating customer");
                 return CreateErrorResponse<CustomerDto>(ex);
+                }
+            }
+
+        public async Task<ApiResponse<bool>> DeleteCustomerAsync(int id)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+                var response = await _httpClient.DeleteAsync($"customers/{id}");
+                
+                var content = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Delete customer response content: {Content}", content);
+
+                if (response.IsSuccessStatusCode)
+                    {
+                    return new ApiResponse<bool>
+                        {
+                        Success = true,
+                        Data = true,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<bool>
+                    {
+                    Success = false,
+                    Message = $"Request failed with status {response.StatusCode}: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error deleting customer");
+                return CreateErrorResponse<bool>(ex);
                 }
             }
 
@@ -663,6 +716,126 @@ namespace InventoryPro.WinForms.Services
                 {
                 _logger.LogError(ex, "Error getting top customers");
                 return CreateErrorResponse<List<object>>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Generate custom report as file export
+        /// </summary>
+        public async Task<ApiResponse<byte[]>> GenerateCustomReportAsync(object parameters)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var json = JsonSerializer.Serialize(parameters, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/custom", content);
+                
+                if (response.IsSuccessStatusCode)
+                    {
+                    var fileContent = await response.Content.ReadAsByteArrayAsync();
+                    return new ApiResponse<byte[]>
+                        {
+                        Success = true,
+                        Data = fileContent,
+                        StatusCode = (int)response.StatusCode
+                        };
+                    }
+
+                return new ApiResponse<byte[]>
+                    {
+                    Success = false,
+                    Message = $"Failed to generate custom report: {response.ReasonPhrase}",
+                    StatusCode = (int)response.StatusCode
+                    };
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error generating custom report");
+                return CreateErrorResponse<byte[]>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get sales report data for viewing
+        /// </summary>
+        public async Task<ApiResponse<object>> GetSalesReportDataAsync(DateTime startDate, DateTime endDate)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = "View"
+                    };
+
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/sales", content);
+                return await HandleResponse<object>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting sales report data");
+                return CreateErrorResponse<object>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get inventory report data for viewing
+        /// </summary>
+        public async Task<ApiResponse<object>> GetInventoryReportDataAsync()
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new { Format = "View" };
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/inventory", content);
+                return await HandleResponse<object>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting inventory report data");
+                return CreateErrorResponse<object>(ex);
+                }
+            }
+
+        /// <summary>
+        /// Get financial report data for viewing
+        /// </summary>
+        public async Task<ApiResponse<object>> GetFinancialReportDataAsync(DateTime startDate, DateTime endDate)
+            {
+            try
+                {
+                await AddAuthorizationHeader();
+
+                var requestData = new
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = "View"
+                    };
+
+                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync("reports/financial", content);
+                return await HandleResponse<object>(response);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting financial report data");
+                return CreateErrorResponse<object>(ex);
                 }
             }
 

@@ -530,6 +530,7 @@ namespace InventoryPro.WinForms.Forms
                 if (_productForm == null || _productForm.IsDisposed)
                 {
                     _productForm = Program.GetRequiredService<ProductForm>();
+                    _productForm.ProductDataChanged += OnProductDataChanged;
                 }
                 _productForm.ShowDialog();
             }
@@ -538,6 +539,14 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogError(ex, "Error opening Products form");
                 MessageBox.Show("Error opening Products form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Handles product data changes to refresh dashboard
+        /// </summary>
+        private async void OnProductDataChanged(object? sender, EventArgs e)
+        {
+            await RefreshDashboardAsync();
         }
 
         /// <summary>
@@ -613,6 +622,7 @@ namespace InventoryPro.WinForms.Forms
                 if (_salesForm == null || _salesForm.IsDisposed)
                 {
                     _salesForm = Program.GetRequiredService<SalesForm>();
+                    _salesForm.SalesDataChanged += OnSalesDataChanged;
                 }
                 _salesForm.ShowDialog();
             }
@@ -621,6 +631,14 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogError(ex, "Error opening POS form");
                 MessageBox.Show("Error opening POS form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Handles sales data changes to refresh dashboard
+        /// </summary>
+        private async void OnSalesDataChanged(object? sender, EventArgs e)
+        {
+            await RefreshDashboardAsync();
         }
 
         /// <summary>
@@ -673,6 +691,21 @@ namespace InventoryPro.WinForms.Forms
             {
                 _logger.LogError(ex, "Error refreshing dashboard");
                 MessageBox.Show("Error refreshing dashboard", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Public method to refresh dashboard stats from external forms
+        /// </summary>
+        public async Task RefreshDashboardAsync()
+        {
+            try
+            {
+                await LoadDashboardStatsAsync(forceRefresh: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error refreshing dashboard from external call");
             }
         }
 

@@ -23,6 +23,9 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 
+// Add HTTP context accessor for accessing request headers in services
+builder.Services.AddHttpContextAccessor();
+
 // Configure Entity Framework with SQL Server
 builder.Services.AddDbContext<SalesDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
