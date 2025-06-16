@@ -2,6 +2,7 @@
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
+using System.Drawing.Drawing2D;
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -64,11 +65,65 @@ namespace InventoryPro.WinForms.Forms
 
             InitializeComponent();
             this.Load += SalesForm_Load;
+            this.Shown += SalesForm_Shown;
         }
 
         private async void SalesForm_Load(object? sender, EventArgs e)
         {
-            await InitializeAsync().ConfigureAwait(false);
+            try
+            {
+                btnRefreshData.Enabled = false;
+                btnRefreshData.Text = "Loading...";
+                
+                await InitializeAsync().ConfigureAwait(false);
+                
+                RunOnUiThread(() =>
+                {
+                    btnRefreshData.Enabled = true;
+                    btnRefreshData.Text = "🔄 Refresh";
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during form initialization");
+                RunOnUiThread(() =>
+                {
+                    btnRefreshData.Enabled = true;
+                    btnRefreshData.Text = "🔄 Refresh";
+                    MessageBox.Show($"Error loading data: {ex.Message}", "Initialization Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                });
+            }
+        }
+
+        private async void SalesForm_Shown(object? sender, EventArgs e)
+        {
+            if (_products.Count == 0)
+            {
+                try
+                {
+                    btnRefreshData.Enabled = false;
+                    btnRefreshData.Text = "Loading...";
+                    
+                    await Task.Delay(100);
+                    await LoadProductsAsync().ConfigureAwait(false);
+                    
+                    RunOnUiThread(() =>
+                    {
+                        btnRefreshData.Enabled = true;
+                        btnRefreshData.Text = "🔄 Refresh";
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading data on form shown");
+                    RunOnUiThread(() =>
+                    {
+                        btnRefreshData.Enabled = true;
+                        btnRefreshData.Text = "🔄 Refresh";
+                    });
+                }
+            }
         }
 
         private async Task InitializeAsync()
@@ -179,13 +234,14 @@ namespace InventoryPro.WinForms.Forms
 
             btnRefreshData = new Button
             {
-                Text = "🔄 Refresh",
+                Text = "Loading...",
                 Location = new Point(440, 78),
                 Size = new Size(90, 32),
                 BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Enabled = false
             };
             btnRefreshData.FlatAppearance.BorderSize = 0;
             btnRefreshData.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 105, 217);
@@ -1225,23 +1281,30 @@ namespace InventoryPro.WinForms.Forms
                 {
                     SalesDataChanged?.Invoke(this, EventArgs.Empty);
 
-                    var result = MessageBox.Show($"Sale completed successfully!\n\nSale ID: {response.Data?.Id}\nChange: {(nudPaidAmount.Value - total):C}\n\nWould you like to generate an invoice?",
-                        "Sale Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                    var saleId = response.Data?.Id ?? 0;
+                    var changeAmount = nudPaidAmount.Value - total;
+                    var saleData = response.Data;
 
-                    if (result == DialogResult.Yes && response.Data != null)
+                    RunOnUiThread(() =>
                     {
-                        try
-                        {
-                            RunOnUiThread(() => ShowInvoiceForm(response.Data));
-                        }
-                        catch (Exception invoiceEx)
-                        {
-                            _logger.LogError(invoiceEx, "Error opening invoice form: {Error}", invoiceEx.Message);
-                            MessageBox.Show($"Error opening invoice form: {invoiceEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
-                    }
+                        var confirmDialog = new InvoiceConfirmationDialog(saleId, changeAmount);
+                        var result = confirmDialog.ShowDialog(this);
 
-                    RunOnUiThread(ClearCartAndResetForm);
+                        if (result == DialogResult.Yes && saleData != null)
+                        {
+                            try
+                            {
+                                ShowInvoiceForm(saleData);
+                            }
+                            catch (Exception invoiceEx)
+                            {
+                                _logger.LogError(invoiceEx, "Error opening invoice form: {Error}", invoiceEx.Message);
+                                MessageBox.Show($"Error opening invoice form: {invoiceEx.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
+
+                        ClearCartAndResetForm();
+                    });
 
                     await LoadProductsAsync().ConfigureAwait(false);
                 }
@@ -1380,5 +1443,318 @@ namespace InventoryPro.WinForms.Forms
         public int MaxStock { get; set; }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    /// <summary>
+    /// Modern, professional invoice confirmation dialog
+    /// </summary>
+    public class InvoiceConfirmationDialog : Form
+    {
+        private readonly int _saleId;
+        private readonly decimal _changeAmount;
+        private Button btnGenerateInvoice = null!;
+        private Button btnNoThanks = null!;
+        private Panel pnlHeader = null!;
+        private Panel pnlContent = null!;
+        private Panel pnlButtons = null!;
+        private Label lblTitle = null!;
+        private Label lblMessage = null!;
+        private Label lblSaleId = null!;
+        private Label lblChange = null!;
+        private PictureBox picIcon = null!;
+        private System.Windows.Forms.Timer _animationTimer = null!;
+
+        public InvoiceConfirmationDialog(int saleId, decimal changeAmount)
+        {
+            _saleId = saleId;
+            _changeAmount = changeAmount;
+            InitializeDialog();
+            UpdateDataLabels();
+        }
+
+        private void UpdateDataLabels()
+        {
+            if (lblSaleId != null)
+            {
+                lblSaleId.Text = $"📋 Sale ID: #{_saleId:D6}";
+            }
+            
+            if (lblChange != null)
+            {
+                lblChange.Text = $"💰 Change Due: {_changeAmount:C}";
+                lblChange.ForeColor = _changeAmount >= 0 ? Color.FromArgb(40, 167, 69) : Color.FromArgb(220, 53, 69);
+            }
+        }
+
+        private void InitializeDialog()
+        {
+            // Form properties
+            this.Text = "Sale Completed Successfully";
+            this.Size = new Size(500, 430);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.BackColor = Color.White;
+            this.ShowInTaskbar = false;
+            this.TopMost = true; // Ensure it appears on top
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+
+            // Add drop shadow effect
+            this.Paint += (s, e) =>
+            {
+                var shadowSize = 8;
+                var shadowColor = Color.FromArgb(50, 0, 0, 0);
+                using (var brush = new SolidBrush(shadowColor))
+                {
+                    e.Graphics.FillRectangle(brush, shadowSize, shadowSize, this.Width - shadowSize, this.Height - shadowSize);
+                }
+                e.Graphics.FillRectangle(Brushes.White, 0, 0, this.Width - shadowSize, this.Height - shadowSize);
+                using (var pen = new Pen(Color.FromArgb(200, 200, 200), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, this.Width - shadowSize - 1, this.Height - shadowSize - 1);
+                }
+            };
+
+            // Header panel with gradient background
+            pnlHeader = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(492, 80),
+                BackColor = Color.FromArgb(40, 167, 69)
+            };
+            pnlHeader.Paint += (s, e) =>
+            {
+                using (var brush = new LinearGradientBrush(
+                    new Rectangle(0, 0, pnlHeader.Width, pnlHeader.Height),
+                    Color.FromArgb(40, 167, 69),
+                    Color.FromArgb(25, 135, 84),
+                    LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, pnlHeader.Width, pnlHeader.Height);
+                }
+            };
+
+            // Success icon
+            picIcon = new PictureBox
+            {
+                Location = new Point(30, 20),
+                Size = new Size(40, 40),
+                BackColor = Color.Transparent
+            };
+            picIcon.Paint += (s, e) =>
+            {
+                // Draw a checkmark circle
+                using (var brush = new SolidBrush(Color.White))
+                using (var pen = new Pen(Color.White, 3))
+                {
+                    e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                    e.Graphics.FillEllipse(brush, 5, 5, 30, 30);
+                    using (var greenBrush = new SolidBrush(Color.FromArgb(40, 167, 69)))
+                    {
+                        e.Graphics.FillEllipse(greenBrush, 7, 7, 26, 26);
+                    }
+                    // Draw checkmark
+                    e.Graphics.DrawLines(pen, new Point[] {
+                        new Point(15, 20), new Point(18, 23), new Point(25, 16)
+                    });
+                }
+            };
+
+            // Title label
+            lblTitle = new Label
+            {
+                Text = "🎉 Sale Completed Successfully!",
+                Location = new Point(85, 20),
+                Size = new Size(350, 35),
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
+            };
+
+            pnlHeader.Controls.AddRange(new Control[] { picIcon, lblTitle });
+
+            // Content panel
+            pnlContent = new Panel
+            {
+                Location = new Point(0, 80),
+                Size = new Size(492, 250),
+                BackColor = Color.White,
+                Padding = new Padding(30, 20, 30, 20)
+            };
+
+            // Main message
+            lblMessage = new Label
+            {
+                Text = "Your transaction has been processed successfully!\nWould you like to generate an invoice for this sale?",
+                Location = new Point(30, 30),
+                Size = new Size(430, 60),
+                Font = new Font("Segoe UI", 11),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                TextAlign = ContentAlignment.TopLeft
+            };
+
+            // Sale ID display
+            var pnlSaleInfo = new Panel
+            {
+                Location = new Point(30, 100),
+                Size = new Size(430, 100),
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(20)
+            };
+            pnlSaleInfo.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlSaleInfo.Width - 1, pnlSaleInfo.Height - 1);
+                }
+            };
+
+            lblSaleId = new Label
+            {
+                Text = "📋 Sale ID: Loading...",
+                Location = new Point(20, 20),
+                Size = new Size(390, 30),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            lblChange = new Label
+            {
+                Text = "💰 Change Due: Loading...",
+                Location = new Point(20, 50),
+                Size = new Size(390, 30),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69),
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            pnlSaleInfo.Controls.AddRange(new Control[] { lblSaleId, lblChange });
+            pnlContent.Controls.AddRange(new Control[] { lblMessage, pnlSaleInfo });
+
+            // Buttons panel
+            pnlButtons = new Panel
+            {
+                Location = new Point(0, 330),
+                Size = new Size(492, 90),
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(40, 25, 40, 25)
+            };
+            pnlButtons.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 220, 220), 1))
+                {
+                    e.Graphics.DrawLine(pen, 0, 0, pnlButtons.Width, 0);
+                }
+            };
+
+            // Generate Invoice button (primary)
+            btnGenerateInvoice = new Button
+            {
+                Text = "📄 Generate Invoice",
+                Location = new Point(170, 25),
+                Size = new Size(180, 45),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DialogResult = DialogResult.Yes,
+                Cursor = Cursors.Hand
+            };
+            btnGenerateInvoice.FlatAppearance.BorderSize = 0;
+            btnGenerateInvoice.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 105, 217);
+            btnGenerateInvoice.FlatAppearance.MouseDownBackColor = Color.FromArgb(0, 86, 179);
+
+            // No Thanks button (secondary)
+            btnNoThanks = new Button
+            {
+                Text = "❌ No Thanks",
+                Location = new Point(365, 25),
+                Size = new Size(120, 45),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DialogResult = DialogResult.No,
+                Cursor = Cursors.Hand
+            };
+            btnNoThanks.FlatAppearance.BorderSize = 0;
+            btnNoThanks.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
+            btnNoThanks.FlatAppearance.MouseDownBackColor = Color.FromArgb(73, 80, 87);
+
+            // Add hover effects
+            btnGenerateInvoice.MouseEnter += (s, e) => btnGenerateInvoice.BackColor = Color.FromArgb(0, 105, 217);
+            btnGenerateInvoice.MouseLeave += (s, e) => btnGenerateInvoice.BackColor = Color.FromArgb(0, 123, 255);
+            btnNoThanks.MouseEnter += (s, e) => btnNoThanks.BackColor = Color.FromArgb(90, 98, 104);
+            btnNoThanks.MouseLeave += (s, e) => btnNoThanks.BackColor = Color.FromArgb(108, 117, 125);
+
+            pnlButtons.Controls.AddRange(new Control[] { btnGenerateInvoice, btnNoThanks });
+
+            // Add all panels to form
+            this.Controls.AddRange(new Control[] { pnlHeader, pnlContent, pnlButtons });
+
+            // Set up animation timer for entrance effect
+            _animationTimer = new System.Windows.Forms.Timer { Interval = 16 }; // ~60 FPS
+            var animationStep = 0;
+            _animationTimer.Tick += (s, e) =>
+            {
+                animationStep++;
+                if (animationStep <= 10)
+                {
+                    // Slide in from top with fade
+                    this.Opacity = animationStep * 0.1;
+                    this.Top = this.Owner?.Top + 50 - (animationStep * 5) ?? this.Top;
+                }
+                else
+                {
+                    _animationTimer.Stop();
+                    this.Opacity = 1.0;
+                }
+            };
+
+            // Set default buttons
+            this.AcceptButton = btnGenerateInvoice;
+            this.CancelButton = btnNoThanks;
+
+            // Handle form activation to ensure it stays on top
+            this.Activated += (s, e) => this.BringToFront();
+        }
+
+        protected override void SetVisibleCore(bool value)
+        {
+            base.SetVisibleCore(value);
+            if (value && !this.IsDisposed)
+            {
+                this.BringToFront();
+                this.Focus();
+                this.TopMost = true;
+                
+                // Start entrance animation
+                if (_animationTimer != null && !_animationTimer.Enabled)
+                {
+                    this.Opacity = 0;
+                    _animationTimer.Start();
+                }
+            }
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            this.BringToFront();
+            this.Focus();
+            btnGenerateInvoice.Focus(); // Focus the primary button
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _animationTimer?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }
