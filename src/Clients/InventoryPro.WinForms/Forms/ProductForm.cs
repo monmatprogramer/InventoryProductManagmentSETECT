@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using InventoryPro.Shared.DTOs;
+using InventoryPro.WinForms.Dialogs;
 using InventoryPro.WinForms.Services;
-using InventoryPro.Shared.DTOs;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel;
+
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -72,6 +74,7 @@ namespace InventoryPro.WinForms.Forms
             _searchTimer.Tick += SearchTimer_Tick;
 
             InitializeComponent();
+            SetupEventHandlers();
             InitializeAsync();
             
             // Add form resize handler for overall responsiveness
@@ -172,13 +175,6 @@ namespace InventoryPro.WinForms.Forms
                 Padding = new Padding(25, 15, 25, 15),
                 BackColor = Color.White,
                 Margin = new Padding(20)
-            };
-            pnlSearch.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(Color.FromArgb(220, 224, 229), 1))
-                {
-                    e.Graphics.DrawLine(pen, 0, pnlSearch.Height - 1, pnlSearch.Width, pnlSearch.Height - 1);
-                }
             };
 
             // Search section
@@ -359,6 +355,22 @@ namespace InventoryPro.WinForms.Forms
             this.Controls.Add(pnlSearch);
             this.Controls.Add(toolStrip);
             this.Controls.Add(statusStrip);
+        }
+
+        private void SetupEventHandlers()
+        {
+            // Setup search panel paint event for bottom border
+            var pnlSearch = this.Controls.OfType<Panel>().FirstOrDefault(p => p.Height == 90);
+            if (pnlSearch != null)
+            {
+                pnlSearch.Paint += (s, e) =>
+                {
+                    using (var pen = new Pen(Color.FromArgb(220, 224, 229), 1))
+                    {
+                        e.Graphics.DrawLine(pen, 0, pnlSearch.Height - 1, pnlSearch.Width, pnlSearch.Height - 1);
+                    }
+                };
+            }
         }
 
         private async void InitializeAsync()
@@ -766,19 +778,34 @@ namespace InventoryPro.WinForms.Forms
                 {
                     try
                     {
-                        var response = await _apiService.CreateProductAsync(dialog.Product);
-                        if (response.Success)
+                        // Map ProductDto to CreateProductDto
+                        var createProductDto = new CreateProductDto
                         {
+                            Name = dialog.Product.Name,
+                            SKU = dialog.Product.SKU,
+                            Description = dialog.Product.Description,
+                            Price = dialog.Product.Price,
+                            Stock = dialog.Product.Stock,
+                            MinStock = dialog.Product.MinStock,
+                            CategoryId = dialog.Product.CategoryId
+                        };
+
+                        var response = await _apiService.CreateProductAsync(createProductDto);
+                        if (response.Success)
+                            {
                             await LoadProductsAsync();
                             ProductDataChanged?.Invoke(this, EventArgs.Empty);
                             MessageBox.Show("Product created successfully.",
                                 "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
+                            }
                         else
-                        {
+                            {
                             MessageBox.Show($"Error creating product: {response.Message}",
                                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
+                            }
+
+               
+                      
                     }
                     catch (Exception ex)
                     {
@@ -791,98 +818,109 @@ namespace InventoryPro.WinForms.Forms
         }
 
         private async void BtnEdit_Click(object? sender, EventArgs e)
-        {
-            if (dgvProducts.SelectedRows.Count == 0)
             {
-                MessageBox.Show("Please select a product to edit.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto;
-            if (selectedProduct == null)
-            {
-                MessageBox.Show("Selected product is invalid.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            using (var dialog = new ProductEditDialog(_categories, selectedProduct))
-            {
-                if (dialog.ShowDialog() == DialogResult.OK)
+            if (dgvProducts.SelectedRows.Count > 0)
                 {
-                    try
+                var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto; // Declare 'selectedProduct' here
+                if (selectedProduct != null)
                     {
-                        var response = await _apiService.UpdateProductAsync(
-                            selectedProduct.Id, dialog.Product);
-                        if (response.Success)
+                    using (var dialog = new ProductEditDialog(_categories, selectedProduct))
                         {
-                            await LoadProductsAsync();
-                            ProductDataChanged?.Invoke(this, EventArgs.Empty);
-                            MessageBox.Show("Product updated successfully.",
-                                "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        if (dialog.ShowDialog() == DialogResult.OK)
+                            {
+                            try
+                                {
+                                // Map ProductDto to CreateProductDto
+                                var updateProductDto = new CreateProductDto
+                                    {
+                                    Name = dialog.Product.Name,
+                                    SKU = dialog.Product.SKU,
+                                    Description = dialog.Product.Description,
+                                    Price = dialog.Product.Price,
+                                    Stock = dialog.Product.Stock,
+                                    MinStock = dialog.Product.MinStock,
+                                    CategoryId = dialog.Product.CategoryId
+                                    };
+
+                                var response = await _apiService.UpdateProductAsync(
+                                    selectedProduct.Id, updateProductDto); // Use 'selectedProduct' here
+                                if (response.Success)
+                                    {
+                                    await LoadProductsAsync();
+                                    ProductDataChanged?.Invoke(this, EventArgs.Empty);
+                                    MessageBox.Show("Product updated successfully.",
+                                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    }
+                                else
+                                    {
+                                    MessageBox.Show($"Error updating product: {response.Message}",
+                                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                    }
+                                }
+                            catch (Exception ex)
+                                {
+                                _logger.LogError(ex, "Error updating product");
+                                MessageBox.Show("Error updating product.",
+                                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
+                            }
                         }
-                        else
-                        {
-                            MessageBox.Show($"Error updating product: {response.Message}",
-                                "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error updating product");
-                        MessageBox.Show("Error updating product.",
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
+            else
+                {
+                MessageBox.Show("Please select a product to edit.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
-        }
 
         private async void BtnDelete_Click(object? sender, EventArgs e)
         {
-            if (dgvProducts.SelectedRows.Count == 0)
+            if (dgvProducts.SelectedRows.Count > 0)
             {
-                MessageBox.Show("Please select a product to delete.",
-                    "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto;
-            if (selectedProduct == null)
-            {
-                MessageBox.Show("Selected product is invalid.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            var result = MessageBox.Show(
-                $"Are you sure you want to delete '{selectedProduct.Name}'?",
-                "Confirm Delete", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
-            if (result == DialogResult.Yes)
-            {
-                try
+                var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto;
+                if (selectedProduct != null)
                 {
-                    var response = await _apiService.DeleteProductAsync(selectedProduct.Id);
-                    if (response.Success)
+                    var productInfo =
+                        $"Product: {selectedProduct.Name}\n" +
+                        $"SKU: {selectedProduct.SKU}\n" +
+                        $"Category: {selectedProduct.CategoryName}\n" +
+                        $"Price: {selectedProduct.Price:C2}\n\n" +
+                           "Are you sure you want to delete this product?";
+                    using (var dialog = new ModernDeleteConfirmationDialog(productInfo))
                     {
-                        await LoadProductsAsync();
-                        ProductDataChanged?.Invoke(this, EventArgs.Empty);
-                        MessageBox.Show("Product deleted successfully.",
-                            "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Error deleting product: {response.Message}",
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        if (dialog.ShowDialog() == DialogResult.Yes)
+                        {
+                            try
+                            {
+                                var response = await _apiService.DeleteProductAsync(selectedProduct.Id);
+                                if (response.Success)
+                                {
+                                    await LoadProductsAsync();
+                                    ProductDataChanged?.Invoke(this, EventArgs.Empty);
+                                    using (var dialogSuccess = new ModernSuccessDialog("Product deleted successfully."))
+                                        {
+                                        dialogSuccess.ShowDialog(this);
+                                        }
+                                    }
+                                else
+                                {
+                                    MessageBox.Show($"Error deleting product: {response.Message}",
+                                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error deleting product");
+                                MessageBox.Show("Error deleting product.",
+                                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            }
+                        }
                     }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error deleting product");
-                    MessageBox.Show("Error deleting product.",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
+            }
+            else
+            {
+                MessageBox.Show("Please select a product to delete.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -992,26 +1030,51 @@ namespace InventoryPro.WinForms.Forms
     }
 
     /// <summary>
-    /// Dialog for editing products
+    /// Modern Product Edit Dialog with improved layout and styling
     /// </summary>
     public class ProductEditDialog : Form
     {
-        private TextBox txtName;
-        private TextBox txtSKU;
-        private TextBox txtDescription;
-        private NumericUpDown nudPrice;
-        private NumericUpDown nudStock;
-        private NumericUpDown nudMinStock;
-        private ComboBox cboCategory;
-        private CheckBox chkActive;
-        private Button btnOK;
-        private Button btnCancel;
+        private readonly List<CategoryDto> _categories;
+        private readonly ProductDto? _existingProduct;
 
         [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-        public CreateProductDto Product { get; private set; } = new CreateProductDto();
+        public ProductDto Product { get; private set; } = null!;
 
-        public ProductEditDialog(List<CategoryDto> categories, ProductDto? existingProduct = null)
+        private TextBox txtName = null!;
+        private TextBox txtSKU = null!;
+        private TextBox txtDescription = null!;
+        private NumericUpDown nudPrice = null!;
+        private NumericUpDown nudStock = null!;
+        private NumericUpDown nudMinStock = null!;
+        private ComboBox cboCategory = null!;
+        private Button btnOK = null!;
+        private Button btnCancel = null!;
+
+        public ProductEditDialog(List<CategoryDto> categories)
+            : this(categories, null)
         {
+        }
+
+        public ProductEditDialog(List<CategoryDto> categories, ProductDto? existingProduct)
+        {
+            _categories = categories ?? throw new ArgumentNullException(nameof(categories));
+            _existingProduct = existingProduct;
+            
+            InitializeComponent();
+            SetupForm();
+            PopulateCategories();
+            
+            if (_existingProduct != null)
+            {
+                PopulateFields();
+            }
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+
+            // Initialize controls
             txtName = new TextBox();
             txtSKU = new TextBox();
             txtDescription = new TextBox();
@@ -1019,183 +1082,231 @@ namespace InventoryPro.WinForms.Forms
             nudStock = new NumericUpDown();
             nudMinStock = new NumericUpDown();
             cboCategory = new ComboBox();
-            chkActive = new CheckBox();
             btnOK = new Button();
             btnCancel = new Button();
 
-            InitializeComponent(categories, existingProduct);
-        }
-
-        private void InitializeComponent(List<CategoryDto> categories, ProductDto? existingProduct)
-        {
-            this.Text = existingProduct == null ? "Add Product" : "Edit Product";
-            this.Size = new Size(400, 500);
+            // Form properties
+            this.Text = _existingProduct == null ? "Add New Product" : "Edit Product";
+            this.Size = new Size(450, 550);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.BackColor = Color.White;
+            this.Font = new Font("Segoe UI", 9F);
 
+            // Product Name
             var lblName = new Label
             {
-                Text = "Name:",
+                Text = "Product Name:",
                 Location = new Point(20, 20),
-                Size = new Size(100, 25)
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             txtName = new TextBox
             {
                 Location = new Point(20, 45),
-                Size = new Size(340, 25)
+                Size = new Size(390, 25),
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // SKU
             var lblSKU = new Label
             {
                 Text = "SKU:",
                 Location = new Point(20, 80),
-                Size = new Size(100, 25)
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             txtSKU = new TextBox
             {
                 Location = new Point(20, 105),
-                Size = new Size(340, 25)
+                Size = new Size(390, 25),
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Description
             var lblDescription = new Label
             {
                 Text = "Description:",
                 Location = new Point(20, 140),
-                Size = new Size(100, 25)
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             txtDescription = new TextBox
             {
                 Location = new Point(20, 165),
-                Size = new Size(340, 60),
-                Multiline = true
+                Size = new Size(390, 80),
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Price
             var lblPrice = new Label
             {
                 Text = "Price:",
-                Location = new Point(20, 235),
-                Size = new Size(100, 25)
+                Location = new Point(20, 260),
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             nudPrice = new NumericUpDown
             {
-                Location = new Point(20, 260),
-                Size = new Size(160, 25),
+                Location = new Point(20, 285),
+                Size = new Size(180, 25),
                 DecimalPlaces = 2,
-                Maximum = 999999.99m,
-                Minimum = 0.01m
+                Maximum = 999999,
+                Minimum = 0,
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Stock
             var lblStock = new Label
             {
                 Text = "Stock:",
-                Location = new Point(200, 235),
-                Size = new Size(100, 25)
+                Location = new Point(220, 260),
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             nudStock = new NumericUpDown
             {
-                Location = new Point(200, 260),
-                Size = new Size(160, 25),
+                Location = new Point(220, 285),
+                Size = new Size(190, 25),
                 Maximum = 999999,
-                Minimum = 0
+                Minimum = 0,
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Minimum Stock
             var lblMinStock = new Label
             {
                 Text = "Minimum Stock:",
-                Location = new Point(20, 295),
-                Size = new Size(100, 25)
+                Location = new Point(20, 320),
+                Size = new Size(120, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             nudMinStock = new NumericUpDown
             {
-                Location = new Point(20, 320),
-                Size = new Size(160, 25),
+                Location = new Point(20, 345),
+                Size = new Size(180, 25),
                 Maximum = 999999,
                 Minimum = 0,
-                Value = 10
+                Font = new Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            // Category
             var lblCategory = new Label
             {
                 Text = "Category:",
-                Location = new Point(200, 295),
-                Size = new Size(100, 25)
+                Location = new Point(220, 320),
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
             };
 
             cboCategory = new ComboBox
             {
-                Location = new Point(200, 320),
-                Size = new Size(160, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                Location = new Point(220, 345),
+                Size = new Size(190, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10)
             };
 
-            foreach (var category in categories)
-            {
-                cboCategory.Items.Add(category);
-            }
-            cboCategory.DisplayMember = "Name";
-            cboCategory.ValueMember = "Id";
-            if (cboCategory.Items.Count > 0)
-                cboCategory.SelectedIndex = 0;
-
-            chkActive = new CheckBox
-            {
-                Text = "Active",
-                Location = new Point(20, 360),
-                Size = new Size(100, 25),
-                Checked = true
-            };
-
+            // Buttons
             btnOK = new Button
             {
-                Text = "OK",
-                Location = new Point(205, 410),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.OK
+                Text = "Save",
+                Location = new Point(250, 400),
+                Size = new Size(80, 35),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(40, 167, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
+            btnOK.FlatAppearance.BorderSize = 0;
             btnOK.Click += BtnOK_Click;
 
             btnCancel = new Button
             {
                 Text = "Cancel",
-                Location = new Point(285, 410),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.Cancel
+                Location = new Point(340, 400),
+                Size = new Size(80, 35),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
+            btnCancel.FlatAppearance.BorderSize = 0;
 
+            // Add all controls to form
             this.Controls.AddRange(new Control[] {
-                lblName, txtName, lblSKU, txtSKU, lblDescription, txtDescription,
-                lblPrice, nudPrice, lblStock, nudStock, lblMinStock, nudMinStock,
-                lblCategory, cboCategory, chkActive, btnOK, btnCancel
+                lblName, txtName,
+                lblSKU, txtSKU,
+                lblDescription, txtDescription,
+                lblPrice, nudPrice,
+                lblStock, nudStock,
+                lblMinStock, nudMinStock,
+                lblCategory, cboCategory,
+                btnOK, btnCancel
             });
 
-            // Load existing product data
-            if (existingProduct != null)
-            {
-                txtName.Text = existingProduct.Name;
-                txtSKU.Text = existingProduct.SKU;
-                txtDescription.Text = existingProduct.Description;
-                nudPrice.Value = existingProduct.Price;
-                nudStock.Value = existingProduct.Stock;
-                nudMinStock.Value = existingProduct.MinStock;
-                chkActive.Checked = existingProduct.IsActive;
+            this.ResumeLayout(false);
+        }
 
-                // Select category
-                for (int i = 0; i < cboCategory.Items.Count; i++)
+        private void SetupForm()
+        {
+            this.AcceptButton = btnOK;
+            this.CancelButton = btnCancel;
+        }
+
+        private void PopulateCategories()
+        {
+            cboCategory.Items.Clear();
+            foreach (var category in _categories)
+            {
+                cboCategory.Items.Add(category);
+            }
+            cboCategory.DisplayMember = "Name";
+            cboCategory.ValueMember = "Id";
+        }
+
+        private void PopulateFields()
+        {
+            if (_existingProduct != null)
+            {
+                txtName.Text = _existingProduct.Name ?? string.Empty;
+                txtSKU.Text = _existingProduct.SKU ?? string.Empty;
+                txtDescription.Text = _existingProduct.Description ?? string.Empty;
+                nudPrice.Value = _existingProduct.Price;
+                nudStock.Value = _existingProduct.Stock;
+                nudMinStock.Value = _existingProduct.MinStock;
+
+                var categoryItem = _categories.FirstOrDefault(c => c.Id == _existingProduct.CategoryId);
+                if (categoryItem != null)
                 {
-                    var cat = cboCategory.Items[i] as CategoryDto;
-                    if (cat != null && cat.Id == existingProduct.CategoryId)
-                    {
-                        cboCategory.SelectedIndex = i;
-                        break;
-                    }
+                    cboCategory.SelectedItem = categoryItem;
                 }
             }
         }
@@ -1207,6 +1318,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 MessageBox.Show("Please enter a product name.",
                     "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtName.Focus();
                 this.DialogResult = DialogResult.None;
                 return;
             }
@@ -1215,6 +1327,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 MessageBox.Show("Please enter a SKU.",
                     "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtSKU.Focus();
                 this.DialogResult = DialogResult.None;
                 return;
             }
@@ -1223,81 +1336,35 @@ namespace InventoryPro.WinForms.Forms
             {
                 MessageBox.Show("Please select a category.",
                     "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                cboCategory.Focus();
+                this.DialogResult = DialogResult.None;
+                return;
+            }
+
+            if (nudPrice.Value <= 0)
+            {
+                MessageBox.Show("Please enter a valid price greater than 0.",
+                    "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                nudPrice.Focus();
                 this.DialogResult = DialogResult.None;
                 return;
             }
 
             // Create product DTO
             var selectedCategory = (CategoryDto)cboCategory.SelectedItem;
-            Product = new CreateProductDto
+            Product = new ProductDto
             {
+                Id = _existingProduct?.Id ?? 0,
                 Name = txtName.Text.Trim(),
                 SKU = txtSKU.Text.Trim(),
                 Description = txtDescription.Text.Trim(),
                 Price = nudPrice.Value,
                 Stock = (int)nudStock.Value,
                 MinStock = (int)nudMinStock.Value,
-                CategoryId = selectedCategory.Id
+                CategoryId = selectedCategory.Id,
+                CategoryName = selectedCategory.Name,
+                IsActive = true
             };
         }
-    }
-
-    /// <summary>
-    /// Modern color table for toolbar styling
-    /// </summary>
-    public class ModernColorTable : ProfessionalColorTable
-    {
-        public override Color ToolStripDropDownBackground => Color.FromArgb(52, 58, 64);
-        public override Color ImageMarginGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color ImageMarginGradientMiddle => Color.FromArgb(52, 58, 64);
-        public override Color ImageMarginGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color MenuBorder => Color.FromArgb(73, 80, 87);
-        public override Color MenuItemBorder => Color.FromArgb(0, 123, 255);
-        public override Color MenuItemSelected => Color.FromArgb(73, 80, 87);
-        public override Color MenuStripGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color MenuStripGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color MenuItemSelectedGradientBegin => Color.FromArgb(73, 80, 87);
-        public override Color MenuItemSelectedGradientEnd => Color.FromArgb(73, 80, 87);
-        public override Color MenuItemPressedGradientBegin => Color.FromArgb(90, 98, 104);
-        public override Color MenuItemPressedGradientEnd => Color.FromArgb(90, 98, 104);
-        public override Color ButtonSelectedHighlight => Color.FromArgb(73, 80, 87);
-        public override Color ButtonSelectedBorder => Color.FromArgb(0, 123, 255);
-        public override Color ButtonPressedHighlight => Color.FromArgb(90, 98, 104);
-        public override Color ButtonPressedBorder => Color.FromArgb(0, 105, 217);
-        public override Color ButtonCheckedHighlight => Color.FromArgb(73, 80, 87);
-        public override Color ButtonCheckedGradientBegin => Color.FromArgb(73, 80, 87);
-        public override Color ButtonCheckedGradientEnd => Color.FromArgb(73, 80, 87);
-        public override Color ButtonCheckedGradientMiddle => Color.FromArgb(73, 80, 87);
-        public override Color ButtonSelectedGradientBegin => Color.FromArgb(73, 80, 87);
-        public override Color ButtonSelectedGradientEnd => Color.FromArgb(73, 80, 87);
-        public override Color ButtonSelectedGradientMiddle => Color.FromArgb(73, 80, 87);
-        public override Color ButtonPressedGradientBegin => Color.FromArgb(90, 98, 104);
-        public override Color ButtonPressedGradientEnd => Color.FromArgb(90, 98, 104);
-        public override Color ButtonPressedGradientMiddle => Color.FromArgb(90, 98, 104);
-        public override Color CheckBackground => Color.FromArgb(73, 80, 87);
-        public override Color CheckSelectedBackground => Color.FromArgb(90, 98, 104);
-        public override Color CheckPressedBackground => Color.FromArgb(90, 98, 104);
-        public override Color GripDark => Color.FromArgb(73, 80, 87);
-        public override Color GripLight => Color.FromArgb(108, 117, 125);
-        public override Color ImageMarginRevealedGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color ImageMarginRevealedGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color ImageMarginRevealedGradientMiddle => Color.FromArgb(52, 58, 64);
-        public override Color SeparatorDark => Color.FromArgb(73, 80, 87);
-        public override Color SeparatorLight => Color.FromArgb(108, 117, 125);
-        public override Color StatusStripGradientBegin => Color.FromArgb(248, 249, 250);
-        public override Color StatusStripGradientEnd => Color.FromArgb(248, 249, 250);
-        public override Color ToolStripBorder => Color.FromArgb(73, 80, 87);
-        public override Color ToolStripContentPanelGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripContentPanelGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripGradientMiddle => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripPanelGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color ToolStripPanelGradientEnd => Color.FromArgb(52, 58, 64);
-        public override Color OverflowButtonGradientBegin => Color.FromArgb(73, 80, 87);
-        public override Color OverflowButtonGradientEnd => Color.FromArgb(73, 80, 87);
-        public override Color OverflowButtonGradientMiddle => Color.FromArgb(73, 80, 87);
-        public override Color RaftingContainerGradientBegin => Color.FromArgb(52, 58, 64);
-        public override Color RaftingContainerGradientEnd => Color.FromArgb(52, 58, 64);
     }
 }

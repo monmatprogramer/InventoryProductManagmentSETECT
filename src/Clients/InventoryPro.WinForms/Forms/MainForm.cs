@@ -36,10 +36,12 @@ namespace InventoryPro.WinForms.Forms
         private readonly Color _gradientStart = Color.FromArgb(45, 108, 175);
         private readonly Color _gradientEnd = Color.FromArgb(79, 172, 254);
 
-        // Animation variables
+        // Animation variables (reserved for future use)
+        #pragma warning disable CS0649, CS0414
         private Timer? _animationTimer;
         private float _animationProgress = 0f;
         private bool _animationDirection = true;
+        #pragma warning restore CS0649, CS0414
 
         // Child forms for different modules
         private ProductForm? _productForm;
@@ -727,13 +729,13 @@ namespace InventoryPro.WinForms.Forms
             {
             try
                 {
-                using var salesDetailsForm = Program.GetRequiredService<SalesDetailsForm>();
-                salesDetailsForm.ShowDialog();
+                using var salesHistoryForm = Program.GetRequiredService<SalesHistoryForm>();
+                salesHistoryForm.ShowDialog();
                 }
             catch (Exception ex)
                 {
-                _logger.LogError(ex, "Error opening Sales Details form");
-                MessageBox.Show("Error opening Sales Details form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _logger.LogError(ex, "Error opening Sales History form");
+                MessageBox.Show("Error opening Sales History form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
 
@@ -1534,6 +1536,22 @@ namespace InventoryPro.WinForms.Forms
         private void MenuFullScreen_Click(object sender, EventArgs e)
             {
             this.WindowState = this.WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;
+            }
+
+        /// <summary>
+        /// Handles Sales History menu item click
+        /// </summary>
+        private void MenuSalesHistory_Click(object sender, EventArgs e)
+            {
+            OpenSalesDetailsForm();
+            }
+
+        /// <summary>
+        /// Handles New Sale menu item click
+        /// </summary>
+        private void MenuNewSale_Click(object sender, EventArgs e)
+            {
+            OpenPOSForm();
             }
 
         /// <summary>

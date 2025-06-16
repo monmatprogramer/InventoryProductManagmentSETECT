@@ -334,6 +334,10 @@ namespace InventoryPro.WinForms.Forms
                 var idColumn = dgvCustomers.Columns["Id"];
                 if (idColumn != null)
                 {
+                    if (idColumn.DefaultCellStyle == null)
+                    {
+                        idColumn.DefaultCellStyle = new DataGridViewCellStyle();
+                    }
                     idColumn.Width = 70;
                     idColumn.HeaderText = "ID";
                     idColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;

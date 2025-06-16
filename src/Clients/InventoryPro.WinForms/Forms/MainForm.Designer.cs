@@ -26,6 +26,9 @@
             menuView = new ToolStripMenuItem();
             menuDashboard = new ToolStripMenuItem();
             menuFullScreen = new ToolStripMenuItem();
+            menuSales = new ToolStripMenuItem();
+            menuSalesHistory = new ToolStripMenuItem();
+            menuNewSale = new ToolStripMenuItem();
             menuReports = new ToolStripMenuItem();
             menuSalesReports = new ToolStripMenuItem();
             menuInventoryReports = new ToolStripMenuItem();
@@ -86,7 +89,7 @@
             // menuStrip1
             // 
             menuStrip1.ImageScalingSize = new Size(20, 20);
-            menuStrip1.Items.AddRange(new ToolStripItem[] { menuFile, menuView, menuReports, menuTools, menuWindow, menuHelp });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { menuFile, menuView, menuSales, menuReports, menuTools, menuWindow, menuHelp });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Padding = new Padding(7, 3, 0, 3);
@@ -157,6 +160,29 @@
             menuFullScreen.Size = new Size(195, 26);
             menuFullScreen.Text = "&Full Screen";
             menuFullScreen.Click += MenuFullScreen_Click;
+            // 
+            // menuSales
+            // 
+            menuSales.DropDownItems.AddRange(new ToolStripItem[] { menuSalesHistory, menuNewSale });
+            menuSales.Name = "menuSales";
+            menuSales.Size = new Size(56, 24);
+            menuSales.Text = "&Sales";
+            // 
+            // menuSalesHistory
+            // 
+            menuSalesHistory.Name = "menuSalesHistory";
+            menuSalesHistory.ShortcutKeys = Keys.Control | Keys.H;
+            menuSalesHistory.Size = new Size(250, 26);
+            menuSalesHistory.Text = "Sales &History && Transactions";
+            menuSalesHistory.Click += MenuSalesHistory_Click;
+            // 
+            // menuNewSale
+            // 
+            menuNewSale.Name = "menuNewSale";
+            menuNewSale.ShortcutKeys = Keys.Control | Keys.N;
+            menuNewSale.Size = new Size(250, 26);
+            menuNewSale.Text = "&New Sale (POS)";
+            menuNewSale.Click += MenuNewSale_Click;
             // 
             // menuReports
             // 
@@ -621,6 +647,9 @@
         private ToolStripMenuItem menuView;
         private ToolStripMenuItem menuDashboard;
         private ToolStripMenuItem menuFullScreen;
+        private ToolStripMenuItem menuSales;
+        private ToolStripMenuItem menuSalesHistory;
+        private ToolStripMenuItem menuNewSale;
         private ToolStripMenuItem menuReports;
         private ToolStripMenuItem menuSalesReports;
         private ToolStripMenuItem menuInventoryReports;

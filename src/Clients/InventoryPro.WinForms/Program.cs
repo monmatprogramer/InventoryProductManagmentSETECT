@@ -252,6 +252,7 @@ static class Program
                 services.AddTransient<CustomerForm>();
                 services.AddTransient<SalesForm>();
                 services.AddTransient<SalesDetailsForm>();
+                services.AddTransient<SalesHistoryForm>();
                 services.AddTransient<ReportForm>();
                 services.AddTransient<InvoiceForm>();
 

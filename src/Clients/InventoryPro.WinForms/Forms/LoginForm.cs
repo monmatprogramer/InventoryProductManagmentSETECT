@@ -26,11 +26,16 @@ namespace InventoryPro.WinForms.Forms
         // Animation and UI state variables
         private bool _isLoggingIn = false;
         private bool _passwordVisible = false;
+        
+        // Animation variables (reserved for future use)
+        #pragma warning disable CS0414
         private float _animationProgress = 0f;
         private bool _animationDirection = true;
+        private float _overlayOpacity = 0f;
+        #pragma warning restore CS0414
+        
         private float _buttonAnimationProgress = 0f;
         private float _loadingSpinnerAngle = 0f;
-        private float _overlayOpacity = 0f;
         private bool _isAnimatingButton = false;
         private string _originalButtonText = "Sign In";
         private Timer _buttonAnimationTimer;
