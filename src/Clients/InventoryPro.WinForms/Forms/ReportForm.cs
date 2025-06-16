@@ -520,130 +520,152 @@ namespace InventoryPro.WinForms.Forms
             var pnlControls = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 200,
+                Height = 220,
                 BackColor = Color.FromArgb(248, 248, 248),
-                Padding = new Padding(10)
+                Padding = new Padding(15)
             };
 
-            // Title
+            // Main title with subtitle
             var lblTitle = new Label
             {
-                Text = "Custom Report Builder",
-                Location = new Point(10, 10),
-                Size = new Size(200, 25),
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.FromArgb(41, 128, 185)
+                Text = "Advanced Report Generator",
+                Location = new Point(15, 10),
+                Size = new Size(280, 28),
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.FromArgb(44, 62, 80)
+            };
+
+            var lblSubtitle = new Label
+            {
+                Text = "Create comprehensive business intelligence reports with customizable parameters",
+                Location = new Point(15, 38),
+                Size = new Size(600, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(127, 140, 141)
             };
 
             // Date range selection
             var lblDateRange = new Label
             {
-                Text = "Date Range:",
-                Location = new Point(10, 45),
-                Size = new Size(80, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                Text = "Reporting Period:",
+                Location = new Point(15, 65),
+                Size = new Size(110, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
             var dtpCustomStart = new DateTimePicker
             {
                 Name = "dtpCustomStart",
-                Location = new Point(100, 42),
-                Size = new Size(120, 25),
+                Location = new Point(130, 62),
+                Size = new Size(130, 25),
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now.AddMonths(-1)
             };
 
             var lblTo = new Label
             {
-                Text = "to",
-                Location = new Point(230, 45),
-                Size = new Size(25, 25)
+                Text = "through",
+                Location = new Point(270, 65),
+                Size = new Size(50, 25),
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(127, 140, 141)
             };
 
             var dtpCustomEnd = new DateTimePicker
             {
                 Name = "dtpCustomEnd",
-                Location = new Point(265, 42),
-                Size = new Size(120, 25),
+                Location = new Point(325, 62),
+                Size = new Size(130, 25),
                 Format = DateTimePickerFormat.Short,
                 Value = DateTime.Now
             };
 
-            // Report title
+            // Report configuration
             var lblReportTitle = new Label
             {
-                Text = "Report Title:",
-                Location = new Point(400, 45),
-                Size = new Size(80, 25)
+                Text = "Report Name:",
+                Location = new Point(470, 65),
+                Size = new Size(90, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
             var txtReportTitle = new TextBox
             {
                 Name = "txtReportTitle",
-                Location = new Point(490, 42),
-                Size = new Size(200, 25),
-                Text = "Custom Sales Report"
+                Location = new Point(565, 62),
+                Size = new Size(220, 25),
+                Text = "Executive Business Intelligence Report",
+                Font = new Font("Segoe UI", 9)
             };
 
-            // Report sections (checkboxes)
+            // Report modules selection
             var grpSections = new GroupBox
             {
-                Text = "Include Sections",
-                Location = new Point(10, 75),
-                Size = new Size(300, 110),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                Text = "Business Intelligence Modules",
+                Location = new Point(15, 95),
+                Size = new Size(320, 115),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
             var chkDailySales = new CheckBox
             {
                 Name = "chkDailySales",
-                Text = "Daily Sales Trend",
-                Location = new Point(10, 20),
-                Size = new Size(140, 20),
-                Checked = true
+                Text = "Sales Performance Analytics",
+                Location = new Point(12, 25),
+                Size = new Size(180, 20),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
             };
 
             var chkTopProducts = new CheckBox
             {
                 Name = "chkTopProducts",
-                Text = "Top Products",
-                Location = new Point(150, 20),
-                Size = new Size(100, 20),
-                Checked = true
+                Text = "Product Performance Matrix",
+                Location = new Point(12, 45),
+                Size = new Size(180, 20),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
             };
 
             var chkTopCustomers = new CheckBox
             {
                 Name = "chkTopCustomers",
-                Text = "Top Customers",
-                Location = new Point(10, 45),
-                Size = new Size(140, 20),
-                Checked = true
+                Text = "Customer Value Analysis",
+                Location = new Point(12, 65),
+                Size = new Size(180, 20),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
             };
 
             var chkSalesByCategory = new CheckBox
             {
                 Name = "chkSalesByCategory",
-                Text = "Sales by Category",
-                Location = new Point(150, 45),
-                Size = new Size(120, 20),
-                Checked = true
+                Text = "Category Revenue Breakdown",
+                Location = new Point(12, 85),
+                Size = new Size(180, 20),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
             };
 
             var chkInventoryStatus = new CheckBox
             {
                 Name = "chkInventoryStatus",
-                Text = "Inventory Status",
-                Location = new Point(10, 70),
-                Size = new Size(140, 20)
+                Text = "Inventory Health Assessment",
+                Location = new Point(200, 25),
+                Size = new Size(180, 20),
+                Font = new Font("Segoe UI", 9)
             };
 
             var chkFinancialSummary = new CheckBox
             {
                 Name = "chkFinancialSummary",
-                Text = "Financial Summary",
-                Location = new Point(150, 70),
-                Size = new Size(120, 20)
+                Text = "Financial Performance Summary",
+                Location = new Point(200, 45),
+                Size = new Size(180, 20),
+                Font = new Font("Segoe UI", 9)
             };
 
             grpSections.Controls.AddRange(new Control[] {
@@ -651,131 +673,161 @@ namespace InventoryPro.WinForms.Forms
                 chkSalesByCategory, chkInventoryStatus, chkFinancialSummary
             });
 
-            // Format and generate controls
+            // Export and generation controls
             var grpGenerate = new GroupBox
             {
-                Text = "Generate Report",
-                Location = new Point(320, 75),
-                Size = new Size(250, 110),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                Text = "Export & Delivery Options",
+                Location = new Point(345, 95),
+                Size = new Size(265, 115),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
             var lblFormat = new Label
             {
-                Text = "Format:",
-                Location = new Point(10, 25),
-                Size = new Size(50, 25)
+                Text = "Output Format:",
+                Location = new Point(12, 25),
+                Size = new Size(90, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
 
             var cboCustomFormat = new ComboBox
             {
                 Name = "cboCustomFormat",
-                Location = new Point(70, 22),
-                Size = new Size(80, 25),
+                Location = new Point(105, 22),
+                Size = new Size(140, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Items = { "View", "PDF", "Excel" }
+                Items = { "Interactive Preview", "PDF Document", "Excel Workbook" },
+                Font = new Font("Segoe UI", 9)
             };
             cboCustomFormat.SelectedIndex = 0;
 
             var btnGenerateCustom = new Button
             {
                 Name = "btnGenerateCustom",
-                Text = "Generate Custom Report",
-                Location = new Point(10, 55),
-                Size = new Size(200, 35),
-                BackColor = Color.FromArgb(46, 204, 113),
+                Text = "🚀 Generate Executive Report",
+                Location = new Point(12, 55),
+                Size = new Size(235, 40),
+                BackColor = Color.FromArgb(39, 174, 96),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold)
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter
             };
             btnGenerateCustom.FlatAppearance.BorderSize = 0;
+            btnGenerateCustom.FlatAppearance.MouseOverBackColor = Color.FromArgb(46, 204, 113);
             btnGenerateCustom.Click += BtnGenerateCustom_Click;
 
             grpGenerate.Controls.AddRange(new Control[] {
                 lblFormat, cboCustomFormat, btnGenerateCustom
             });
 
-            // Advanced filters group
+            // Advanced analytics filters
             var grpFilters = new GroupBox
             {
-                Text = "Advanced Filters",
-                Location = new Point(580, 75),
-                Size = new Size(300, 110),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+                Text = "Advanced Analytics Filters",
+                Location = new Point(620, 95),
+                Size = new Size(315, 115),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 73, 94)
             };
 
             var lblMinAmount = new Label
             {
-                Text = "Min Sales:",
-                Location = new Point(10, 25),
-                Size = new Size(60, 20)
+                Text = "Revenue Range:",
+                Location = new Point(12, 25),
+                Size = new Size(95, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
 
             var txtMinAmount = new TextBox
             {
                 Name = "txtMinAmount",
-                Location = new Point(80, 22),
+                Location = new Point(115, 22),
                 Size = new Size(80, 25),
-                PlaceholderText = "0.00"
+                PlaceholderText = "Minimum",
+                Font = new Font("Segoe UI", 9)
             };
 
-            var lblMaxAmount = new Label
+            var lblTo2 = new Label
             {
-                Text = "Max Sales:",
-                Location = new Point(170, 25),
-                Size = new Size(60, 20)
+                Text = "to",
+                Location = new Point(205, 25),
+                Size = new Size(20, 20),
+                Font = new Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(127, 140, 141)
             };
 
             var txtMaxAmount = new TextBox
             {
                 Name = "txtMaxAmount",
-                Location = new Point(240, 22),
-                Size = new Size(50, 25),
-                PlaceholderText = "No limit"
+                Location = new Point(230, 22),
+                Size = new Size(75, 25),
+                PlaceholderText = "Maximum",
+                Font = new Font("Segoe UI", 9)
             };
 
             var lblPaymentMethod = new Label
             {
-                Text = "Payment:",
-                Location = new Point(10, 55),
-                Size = new Size(60, 20)
+                Text = "Payment Channel:",
+                Location = new Point(12, 55),
+                Size = new Size(95, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
 
             var cboPaymentMethod = new ComboBox
             {
                 Name = "cboPaymentMethod",
-                Location = new Point(80, 52),
-                Size = new Size(100, 25),
+                Location = new Point(115, 52),
+                Size = new Size(120, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Items = { "All", "Cash", "Card", "Bank Transfer" }
+                Items = { "All Channels", "Cash Transactions", "Card Payments", "Bank Transfers" },
+                Font = new Font("Segoe UI", 9)
             };
             cboPaymentMethod.SelectedIndex = 0;
 
+            var lblNote = new Label
+            {
+                Text = "Leave fields empty for comprehensive analysis",
+                Location = new Point(12, 85),
+                Size = new Size(290, 15),
+                Font = new Font("Segoe UI", 8, FontStyle.Italic),
+                ForeColor = Color.FromArgb(149, 165, 166)
+            };
+
             grpFilters.Controls.AddRange(new Control[] {
-                lblMinAmount, txtMinAmount, lblMaxAmount, txtMaxAmount,
-                lblPaymentMethod, cboPaymentMethod
+                lblMinAmount, txtMinAmount, lblTo2, txtMaxAmount,
+                lblPaymentMethod, cboPaymentMethod, lblNote
             });
 
             pnlControls.Controls.AddRange(new Control[] {
-                lblTitle, lblDateRange, dtpCustomStart, lblTo, dtpCustomEnd,
+                lblTitle, lblSubtitle, lblDateRange, dtpCustomStart, lblTo, dtpCustomEnd,
                 lblReportTitle, txtReportTitle, grpSections, grpGenerate, grpFilters
             });
 
-            // Results area
+            // Results dashboard area
             var pnlResults = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.White
+                BackColor = Color.FromArgb(253, 254, 255),
+                Padding = new Padding(20)
             };
 
             var lblResults = new Label
             {
                 Name = "lblCustomResults",
-                Text = "Custom report results will appear here after generation.",
+                Text = "📊 Executive Business Intelligence Dashboard\n\n" +
+                       "Your comprehensive business analytics report will be displayed here upon generation.\n" +
+                       "Select your desired modules and parameters above, then click Generate Executive Report " +
+                       "to create professional insights tailored to your business requirements.\n\n" +
+                       "• Interactive Preview: View results directly in this interface\n" +
+                       "• PDF Document: Professional formatted report for presentations\n" +
+                       "• Excel Workbook: Detailed data analysis with charts and pivot tables",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 12),
-                ForeColor = Color.Gray
+                Font = new Font("Segoe UI", 11),
+                ForeColor = Color.FromArgb(108, 117, 125),
+                Padding = new Padding(40)
             };
 
             pnlResults.Controls.Add(lblResults);
@@ -1037,27 +1089,35 @@ namespace InventoryPro.WinForms.Forms
                     SelectedCustomers = new List<int>()
                 };
 
-                lblCustomResults.Text = "Generating custom report...";
-                lblCustomResults.ForeColor = Color.Blue;
+                lblCustomResults.Text = "🔄 Processing Business Intelligence Analytics...\n\nGenerating comprehensive executive report with your selected parameters.";
+                lblCustomResults.ForeColor = Color.FromArgb(52, 152, 219);
 
-                if (cboCustomFormat.Text != "View")
+                if (cboCustomFormat.Text != "Interactive Preview")
                 {
-                    // Generate and download file
+                    // Generate and export professional document
                     var response = await _apiService.GenerateCustomReportAsync(parameters);
                     
                     if (response.Success && response.Data != null)
                     {
-                        var extension = cboCustomFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
-                        var fileName = $"{txtReportTitle.Text}_{DateTime.Now:yyyyMMdd}{extension}";
+                        var extension = cboCustomFormat.Text.Contains("PDF") ? ".pdf" : ".xlsx";
+                        var fileName = $"{txtReportTitle.Text.Replace(" ", "_")}_{DateTime.Now:yyyyMMdd_HHmm}{extension}";
                         var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
                         
                         await File.WriteAllBytesAsync(filePath, response.Data);
                         
-                        lblCustomResults.Text = $"Custom report exported successfully!\nSaved to: {filePath}";
-                        lblCustomResults.ForeColor = Color.Green;
+                        lblCustomResults.Text = $"✅ Executive Report Successfully Generated\n\n" +
+                                              $"Document Type: {cboCustomFormat.Text}\n" +
+                                              $"File Location: {Path.GetFileName(filePath)}\n" +
+                                              $"Export Path: Desktop\n\n" +
+                                              "Your professional business intelligence report is ready for distribution.";
+                        lblCustomResults.ForeColor = Color.FromArgb(39, 174, 96);
                         
-                        var result = MessageBox.Show($"Custom report generated successfully!\n\nFile saved to:\n{filePath}\n\nWould you like to open the file?",
-                            "Export Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        var result = MessageBox.Show($"Executive Business Intelligence Report Generated Successfully!\n\n" +
+                                                   $"Document: {cboCustomFormat.Text}\n" +
+                                                   $"File: {fileName}\n" +
+                                                   $"Location: Desktop\n\n" +
+                                                   "Would you like to open the report now?",
+                            "Report Generation Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                         
                         if (result == DialogResult.Yes)
                         {
@@ -1066,34 +1126,41 @@ namespace InventoryPro.WinForms.Forms
                     }
                     else
                     {
-                        lblCustomResults.Text = $"Error generating custom report: {response.Message}";
-                        lblCustomResults.ForeColor = Color.Red;
-                        MessageBox.Show($"Error generating custom report: {response.Message}",
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        lblCustomResults.Text = $"❌ Report Generation Failed\n\nError Details: {response.Message}\n\n" +
+                                              "Please verify your parameters and try again. Contact system administrator if the issue persists.";
+                        lblCustomResults.ForeColor = Color.FromArgb(231, 76, 60);
+                        MessageBox.Show($"Report Generation Error\n\nUnable to generate executive report: {response.Message}\n\n" +
+                                      "Please check your connection and parameters, then try again.",
+                            "Generation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
                 else
                 {
-                    // Display in UI
-                    lblCustomResults.Text = "Custom report generated successfully!\n\n" +
-                                          $"Report Title: {txtReportTitle.Text}\n" +
-                                          $"Period: {dtpCustomStart.Value:yyyy-MM-dd} to {dtpCustomEnd.Value:yyyy-MM-dd}\n" +
-                                          $"Sections included: {GetIncludedSections(chkDailySales, chkTopProducts, chkTopCustomers, chkSalesByCategory, chkInventoryStatus, chkFinancialSummary)}\n\n" +
-                                          "Note: This is a preview. Use PDF or Excel format for detailed reports with charts and full data.";
-                    lblCustomResults.ForeColor = Color.Green;
+                    // Display interactive preview
+                    lblCustomResults.Text = "✅ Executive Business Intelligence Report - Interactive Preview\n\n" +
+                                          $"📋 Report: {txtReportTitle.Text}\n" +
+                                          $"📅 Analysis Period: {dtpCustomStart.Value:MMM dd, yyyy} through {dtpCustomEnd.Value:MMM dd, yyyy}\n" +
+                                          $"📊 Analytics Modules: {GetIncludedSections(chkDailySales, chkTopProducts, chkTopCustomers, chkSalesByCategory, chkInventoryStatus, chkFinancialSummary)}\n\n" +
+                                          "🔍 Preview Mode Active\n" +
+                                          "For comprehensive analysis with interactive charts, detailed data tables, and export capabilities, " +
+                                          "select PDF Document or Excel Workbook format to generate professional-grade business intelligence reports.";
+                    lblCustomResults.ForeColor = Color.FromArgb(39, 174, 96);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating custom report");
+                _logger.LogError(ex, "Error generating executive business intelligence report");
                 var lblCustomResults = tabCustom.Controls.Find("lblCustomResults", true).FirstOrDefault() as Label;
                 if (lblCustomResults != null)
                 {
-                    lblCustomResults.Text = "Error generating custom report.";
-                    lblCustomResults.ForeColor = Color.Red;
+                    lblCustomResults.Text = "❌ System Error - Report Generation Failed\n\n" +
+                                          "An unexpected error occurred while processing your business intelligence request.\n" +
+                                          "Please contact your system administrator or try again later.";
+                    lblCustomResults.ForeColor = Color.FromArgb(231, 76, 60);
                 }
-                MessageBox.Show("Error generating custom report.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Executive Report Generation Error\n\n" +
+                              "An unexpected system error has occurred. Please contact your system administrator for assistance.",
+                    "System Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1101,14 +1168,14 @@ namespace InventoryPro.WinForms.Forms
         {
             var sections = new List<string>();
             
-            if (checkBoxes[0]?.Checked == true) sections.Add("Daily Sales");
-            if (checkBoxes[1]?.Checked == true) sections.Add("Top Products");
-            if (checkBoxes[2]?.Checked == true) sections.Add("Top Customers");
-            if (checkBoxes[3]?.Checked == true) sections.Add("Sales by Category");
-            if (checkBoxes[4]?.Checked == true) sections.Add("Inventory Status");
-            if (checkBoxes[5]?.Checked == true) sections.Add("Financial Summary");
+            if (checkBoxes[0]?.Checked == true) sections.Add("Sales Performance Analytics");
+            if (checkBoxes[1]?.Checked == true) sections.Add("Product Performance Matrix");
+            if (checkBoxes[2]?.Checked == true) sections.Add("Customer Value Analysis");
+            if (checkBoxes[3]?.Checked == true) sections.Add("Category Revenue Breakdown");
+            if (checkBoxes[4]?.Checked == true) sections.Add("Inventory Health Assessment");
+            if (checkBoxes[5]?.Checked == true) sections.Add("Financial Performance Summary");
             
-            return sections.Any() ? string.Join(", ", sections) : "None";
+            return sections.Any() ? string.Join(", ", sections) : "No modules selected";
         }
 
         #endregion

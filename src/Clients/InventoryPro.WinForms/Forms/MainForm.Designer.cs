@@ -15,332 +15,596 @@
         /// </summary>
         private void InitializeComponent()
             {
-            // Main form components - REDESIGNED TO ELIMINATE DUPLICATION
-            this.menuStrip1 = new MenuStrip();
-            this.menuFile = new ToolStripMenuItem();
-            this.menuNew = new ToolStripMenuItem();
-            this.menuImport = new ToolStripMenuItem();
-            this.menuExport = new ToolStripMenuItem();
-            this.menuSeparator1 = new ToolStripSeparator();
-            this.menuExit = new ToolStripMenuItem();
-            this.menuView = new ToolStripMenuItem();
-            this.menuDashboard = new ToolStripMenuItem();
-            this.menuFullScreen = new ToolStripMenuItem();
-            this.menuReports = new ToolStripMenuItem();
-            this.menuSalesReports = new ToolStripMenuItem();
-            this.menuInventoryReports = new ToolStripMenuItem();
-            this.menuFinancialReports = new ToolStripMenuItem();
-            this.menuCustomReports = new ToolStripMenuItem();
-            this.menuTools = new ToolStripMenuItem();
-            this.menuSettings = new ToolStripMenuItem();
-            this.menuBackup = new ToolStripMenuItem();
-            this.menuWindow = new ToolStripMenuItem();
-            this.menuMinimize = new ToolStripMenuItem();
-            this.menuHelp = new ToolStripMenuItem();
-            this.menuAbout = new ToolStripMenuItem();
-
-            // Toolbar - UNIQUE QUICK ACTIONS ONLY
-            this.toolStrip1 = new ToolStrip();
-            this.btnProducts = new ToolStripButton();
-            this.btnCustomers = new ToolStripButton();
-            this.btnSales = new ToolStripButton();
-            this.btnReports = new ToolStripButton();
-            this.toolStripSeparator1 = new ToolStripSeparator();
-            this.btnNewSale = new ToolStripButton();
-            this.btnAddProduct = new ToolStripButton();
-            this.toolStripSeparator2 = new ToolStripSeparator();
-            this.btnRefresh = new ToolStripButton();
-            this.btnLogout = new ToolStripButton();
-
-            // Status bar
-            this.statusStrip1 = new StatusStrip();
-            this.lblStatus = new ToolStripStatusLabel();
-            this.lblCurrentUser = new ToolStripStatusLabel();
-            this.lblUserRole = new ToolStripStatusLabel();
-            this.lblLastLogin = new ToolStripStatusLabel();
-
-            // Dashboard panels
-            this.pnlDashboard = new Panel();
-            this.pnlStats = new Panel();
-            this.pnlActivities = new Panel();
-            this.pnlAlerts = new Panel();
-
-            // Statistics labels
-            this.lblTotalProducts = new Label();
-            this.lblLowStockProducts = new Label();
-            this.lblOutOfStockProducts = new Label();
-            this.lblInventoryValue = new Label();
-            this.lblTodaySales = new Label();
-            this.lblMonthSales = new Label();
-            this.lblYearSales = new Label();
-            this.lblTodayOrders = new Label();
-            this.lblTotalCustomers = new Label();
-            this.lblNewCustomers = new Label();
-
-            // Activity and alert lists
-            this.lstRecentActivities = new ListBox();
-            this.lstLowStockAlerts = new ListView();
-
-            // Context menus
-            this.dashboardContextMenu = new ContextMenuStrip();
-            this.statsContextMenu = new ContextMenuStrip();
-            this.alertsContextMenu = new ContextMenuStrip();
-            this.activitiesContextMenu = new ContextMenuStrip();
-
-            this.SuspendLayout();
-
-            #region Menu Strip Configuration - SYSTEM LEVEL OPERATIONS
-            // menuStrip1 - Traditional Windows application menu
-            this.menuStrip1.Items.AddRange(new ToolStripItem[] {
-                this.menuFile,
-                this.menuView,
-                this.menuReports,
-                this.menuTools,
-                this.menuWindow,
-                this.menuHelp});
-            this.menuStrip1.Location = new Point(0, 0);
-            this.menuStrip1.Size = new Size(1200, 24);
-
-            // File Menu
-            this.menuFile.Text = "&File";
-            this.menuFile.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuNew,
-                this.menuImport,
-                this.menuExport,
-                this.menuSeparator1,
-                this.menuExit});
-
-            this.menuNew.Text = "&New...";
-            this.menuNew.ShortcutKeys = Keys.Control | Keys.N;
-            this.menuNew.Click += this.MenuNew_Click;
-
-            this.menuImport.Text = "&Import Data...";
-            this.menuImport.Click += this.MenuImport_Click;
-
-            this.menuExport.Text = "&Export Data...";
-            this.menuExport.Click += this.MenuExport_Click;
-
-            this.menuExit.Text = "E&xit";
-            this.menuExit.ShortcutKeys = Keys.Alt | Keys.F4;
-            this.menuExit.Click += this.MenuExit_Click;
-
-            // View Menu
-            this.menuView.Text = "&View";
-            this.menuView.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuDashboard,
-                this.menuFullScreen});
-
-            this.menuDashboard.Text = "&Dashboard";
-            this.menuDashboard.ShortcutKeys = Keys.F1;
-            this.menuDashboard.Click += this.MenuDashboard_Click;
-
-            this.menuFullScreen.Text = "&Full Screen";
-            this.menuFullScreen.ShortcutKeys = Keys.F11;
-            this.menuFullScreen.Click += this.MenuFullScreen_Click;
-
-            // Reports Menu
-            this.menuReports.Text = "&Reports";
-            this.menuReports.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuSalesReports,
-                this.menuInventoryReports,
-                this.menuFinancialReports,
-                this.menuCustomReports});
-
-            this.menuSalesReports.Text = "&Sales Reports";
-            this.menuSalesReports.Click += this.MenuSalesReports_Click;
-
-            this.menuInventoryReports.Text = "&Inventory Reports";
-            this.menuInventoryReports.Click += this.MenuInventoryReports_Click;
-
-            this.menuFinancialReports.Text = "&Financial Reports";
-            this.menuFinancialReports.Click += this.MenuFinancialReports_Click;
-
-            this.menuCustomReports.Text = "&Custom Reports";
-            this.menuCustomReports.Click += this.MenuCustomReports_Click;
-
-            // Tools Menu
-            this.menuTools.Text = "&Tools";
-            this.menuTools.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuSettings,
-                this.menuBackup});
-
-            this.menuSettings.Text = "&Settings...";
-            this.menuSettings.Click += this.MenuSettings_Click;
-
-            this.menuBackup.Text = "&Backup Database...";
-            this.menuBackup.Click += this.MenuBackup_Click;
-
-            // Window Menu
-            this.menuWindow.Text = "&Window";
-            this.menuWindow.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuMinimize});
-
-            this.menuMinimize.Text = "&Minimize";
-            this.menuMinimize.Click += this.MenuMinimize_Click;
-
-            // Help Menu
-            this.menuHelp.Text = "&Help";
-            this.menuHelp.DropDownItems.AddRange(new ToolStripItem[] {
-                this.menuAbout});
-
-            this.menuAbout.Text = "&About InventoryPro...";
-            this.menuAbout.Click += this.MenuAbout_Click;
-            #endregion
-
-            #region Toolbar Configuration - QUICK ACTIONS ONLY
-            // toolStrip1 - Quick access to most-used operations
-            this.toolStrip1.Items.AddRange(new ToolStripItem[] {
-                this.btnProducts,
-                this.btnCustomers,
-                this.btnSales,
-                this.btnReports,
-                this.toolStripSeparator1,
-                this.btnNewSale,
-                this.btnAddProduct,
-                this.toolStripSeparator2,
-                this.btnRefresh,
-                this.btnLogout});
-            this.toolStrip1.Location = new Point(0, 24);
-            this.toolStrip1.Size = new Size(1200, 25);
-            this.toolStrip1.ImageScalingSize = new Size(16, 16);
-
-            // Navigation buttons - Core modules
-            this.btnProducts.Text = "📦 Products";
-            this.btnProducts.ToolTipText = "Manage product inventory";
-            this.btnProducts.Click += this.BtnProducts_Click;
-
-            this.btnCustomers.Text = "👥 Customers";
-            this.btnCustomers.ToolTipText = "Manage customer database";
-            this.btnCustomers.Click += this.BtnCustomers_Click;
-
-            this.btnSales.Text = "💰 Sales";
-            this.btnSales.ToolTipText = "View and manage sales";
-            this.btnSales.Click += this.BtnSales_Click;
-
-            this.btnReports.Text = "📊 Reports";
-            this.btnReports.ToolTipText = "Generate business reports";
-            this.btnReports.Click += this.BtnReports_Click;
-
-            // Quick action buttons - Enhanced productivity
-            this.btnNewSale.Text = "🛒 New Sale";
-            this.btnNewSale.ToolTipText = "Start a new sale transaction";
-            this.btnNewSale.Click += this.BtnNewSale_Click;
-
-            this.btnAddProduct.Text = "➕ Add Product";
-            this.btnAddProduct.ToolTipText = "Quickly add a new product";
-            this.btnAddProduct.Click += this.BtnAddProduct_Click;
-
-            // System actions
-            this.btnRefresh.Text = "🔄 Refresh";
-            this.btnRefresh.ToolTipText = "Refresh dashboard data (F5)";
-            this.btnRefresh.Click += this.BtnRefresh_Click;
-
-            this.btnLogout.Text = "🚪 Logout";
-            this.btnLogout.ToolTipText = "Logout and return to login screen";
-            this.btnLogout.Click += this.BtnLogout_Click;
-            #endregion
-
-            #region Status Bar Configuration
+            components = new System.ComponentModel.Container();
+            menuStrip1 = new MenuStrip();
+            menuFile = new ToolStripMenuItem();
+            menuNew = new ToolStripMenuItem();
+            menuImport = new ToolStripMenuItem();
+            menuExport = new ToolStripMenuItem();
+            menuSeparator1 = new ToolStripSeparator();
+            menuExit = new ToolStripMenuItem();
+            menuView = new ToolStripMenuItem();
+            menuDashboard = new ToolStripMenuItem();
+            menuFullScreen = new ToolStripMenuItem();
+            menuReports = new ToolStripMenuItem();
+            menuSalesReports = new ToolStripMenuItem();
+            menuInventoryReports = new ToolStripMenuItem();
+            menuFinancialReports = new ToolStripMenuItem();
+            menuCustomReports = new ToolStripMenuItem();
+            menuTools = new ToolStripMenuItem();
+            menuSettings = new ToolStripMenuItem();
+            menuBackup = new ToolStripMenuItem();
+            menuWindow = new ToolStripMenuItem();
+            menuMinimize = new ToolStripMenuItem();
+            menuHelp = new ToolStripMenuItem();
+            menuAbout = new ToolStripMenuItem();
+            toolStrip1 = new ToolStrip();
+            btnProducts = new ToolStripButton();
+            btnCustomers = new ToolStripButton();
+            btnSales = new ToolStripButton();
+            btnReports = new ToolStripButton();
+            toolStripSeparator1 = new ToolStripSeparator();
+            btnNewSale = new ToolStripButton();
+            btnAddProduct = new ToolStripButton();
+            toolStripSeparator2 = new ToolStripSeparator();
+            btnRefresh = new ToolStripButton();
+            btnLogout = new ToolStripButton();
+            statusStrip1 = new StatusStrip();
+            lblStatus = new ToolStripStatusLabel();
+            lblCurrentUser = new ToolStripStatusLabel();
+            lblUserRole = new ToolStripStatusLabel();
+            lblLastLogin = new ToolStripStatusLabel();
+            pnlDashboard = new Panel();
+            pnlStats = new Panel();
+            lblTotalProducts = new Label();
+            lblLowStockProducts = new Label();
+            lblOutOfStockProducts = new Label();
+            lblInventoryValue = new Label();
+            lblTodaySales = new Label();
+            lblTodayOrders = new Label();
+            lblTotalCustomers = new Label();
+            lblMonthSales = new Label();
+            lblYearSales = new Label();
+            lblNewCustomers = new Label();
+            pnlActivities = new Panel();
+            lstRecentActivities = new ListBox();
+            pnlAlerts = new Panel();
+            lstLowStockAlerts = new ListView();
+            dashboardContextMenu = new ContextMenuStrip(components);
+            statsContextMenu = new ContextMenuStrip(components);
+            alertsContextMenu = new ContextMenuStrip(components);
+            activitiesContextMenu = new ContextMenuStrip(components);
+            menuStrip1.SuspendLayout();
+            toolStrip1.SuspendLayout();
+            statusStrip1.SuspendLayout();
+            pnlDashboard.SuspendLayout();
+            pnlStats.SuspendLayout();
+            pnlActivities.SuspendLayout();
+            pnlAlerts.SuspendLayout();
+            SuspendLayout();
+            // 
+            // menuStrip1
+            // 
+            menuStrip1.ImageScalingSize = new Size(20, 20);
+            menuStrip1.Items.AddRange(new ToolStripItem[] { menuFile, menuView, menuReports, menuTools, menuWindow, menuHelp });
+            menuStrip1.Location = new Point(0, 0);
+            menuStrip1.Name = "menuStrip1";
+            menuStrip1.Padding = new Padding(7, 3, 0, 3);
+            menuStrip1.Size = new Size(1371, 30);
+            menuStrip1.TabIndex = 7;
+            // 
+            // menuFile
+            // 
+            menuFile.DropDownItems.AddRange(new ToolStripItem[] { menuNew, menuImport, menuExport, menuSeparator1, menuExit });
+            menuFile.Name = "menuFile";
+            menuFile.Size = new Size(46, 24);
+            menuFile.Text = "&File";
+            // 
+            // menuNew
+            // 
+            menuNew.Name = "menuNew";
+            menuNew.ShortcutKeys = Keys.Control | Keys.N;
+            menuNew.Size = new Size(184, 26);
+            menuNew.Text = "&New...";
+            menuNew.Click += MenuNew_Click;
+            // 
+            // menuImport
+            // 
+            menuImport.Name = "menuImport";
+            menuImport.Size = new Size(184, 26);
+            menuImport.Text = "&Import Data...";
+            menuImport.Click += MenuImport_Click;
+            // 
+            // menuExport
+            // 
+            menuExport.Name = "menuExport";
+            menuExport.Size = new Size(184, 26);
+            menuExport.Text = "&Export Data...";
+            menuExport.Click += MenuExport_Click;
+            // 
+            // menuSeparator1
+            // 
+            menuSeparator1.Name = "menuSeparator1";
+            menuSeparator1.Size = new Size(181, 6);
+            // 
+            // menuExit
+            // 
+            menuExit.Name = "menuExit";
+            menuExit.ShortcutKeys = Keys.Alt | Keys.F4;
+            menuExit.Size = new Size(184, 26);
+            menuExit.Text = "E&xit";
+            menuExit.Click += MenuExit_Click;
+            // 
+            // menuView
+            // 
+            menuView.DropDownItems.AddRange(new ToolStripItem[] { menuDashboard, menuFullScreen });
+            menuView.Name = "menuView";
+            menuView.Size = new Size(55, 24);
+            menuView.Text = "&View";
+            // 
+            // menuDashboard
+            // 
+            menuDashboard.Name = "menuDashboard";
+            menuDashboard.ShortcutKeys = Keys.F1;
+            menuDashboard.Size = new Size(195, 26);
+            menuDashboard.Text = "&Dashboard";
+            menuDashboard.Click += MenuDashboard_Click;
+            // 
+            // menuFullScreen
+            // 
+            menuFullScreen.Name = "menuFullScreen";
+            menuFullScreen.ShortcutKeys = Keys.F11;
+            menuFullScreen.Size = new Size(195, 26);
+            menuFullScreen.Text = "&Full Screen";
+            menuFullScreen.Click += MenuFullScreen_Click;
+            // 
+            // menuReports
+            // 
+            menuReports.DropDownItems.AddRange(new ToolStripItem[] { menuSalesReports, menuInventoryReports, menuFinancialReports, menuCustomReports });
+            menuReports.Name = "menuReports";
+            menuReports.Size = new Size(74, 24);
+            menuReports.Text = "&Reports";
+            // 
+            // menuSalesReports
+            // 
+            menuSalesReports.Name = "menuSalesReports";
+            menuSalesReports.Size = new Size(208, 26);
+            menuSalesReports.Text = "&Sales Reports";
+            menuSalesReports.Click += MenuSalesReports_Click;
+            // 
+            // menuInventoryReports
+            // 
+            menuInventoryReports.Name = "menuInventoryReports";
+            menuInventoryReports.Size = new Size(208, 26);
+            menuInventoryReports.Text = "&Inventory Reports";
+            menuInventoryReports.Click += MenuInventoryReports_Click;
+            // 
+            // menuFinancialReports
+            // 
+            menuFinancialReports.Name = "menuFinancialReports";
+            menuFinancialReports.Size = new Size(208, 26);
+            menuFinancialReports.Text = "&Financial Reports";
+            menuFinancialReports.Click += MenuFinancialReports_Click;
+            // 
+            // menuCustomReports
+            // 
+            menuCustomReports.Name = "menuCustomReports";
+            menuCustomReports.Size = new Size(208, 26);
+            menuCustomReports.Text = "&Custom Reports";
+            menuCustomReports.Click += MenuCustomReports_Click;
+            // 
+            // menuTools
+            // 
+            menuTools.DropDownItems.AddRange(new ToolStripItem[] { menuSettings, menuBackup });
+            menuTools.Name = "menuTools";
+            menuTools.Size = new Size(58, 24);
+            menuTools.Text = "&Tools";
+            // 
+            // menuSettings
+            // 
+            menuSettings.Name = "menuSettings";
+            menuSettings.Size = new Size(216, 26);
+            menuSettings.Text = "&Settings...";
+            menuSettings.Click += MenuSettings_Click;
+            // 
+            // menuBackup
+            // 
+            menuBackup.Name = "menuBackup";
+            menuBackup.Size = new Size(216, 26);
+            menuBackup.Text = "&Backup Database...";
+            menuBackup.Click += MenuBackup_Click;
+            // 
+            // menuWindow
+            // 
+            menuWindow.DropDownItems.AddRange(new ToolStripItem[] { menuMinimize });
+            menuWindow.Name = "menuWindow";
+            menuWindow.Size = new Size(78, 24);
+            menuWindow.Text = "&Window";
+            // 
+            // menuMinimize
+            // 
+            menuMinimize.Name = "menuMinimize";
+            menuMinimize.Size = new Size(153, 26);
+            menuMinimize.Text = "&Minimize";
+            menuMinimize.Click += MenuMinimize_Click;
+            // 
+            // menuHelp
+            // 
+            menuHelp.DropDownItems.AddRange(new ToolStripItem[] { menuAbout });
+            menuHelp.Name = "menuHelp";
+            menuHelp.Size = new Size(55, 24);
+            menuHelp.Text = "&Help";
+            // 
+            // menuAbout
+            // 
+            menuAbout.Name = "menuAbout";
+            menuAbout.Size = new Size(229, 26);
+            menuAbout.Text = "&About InventoryPro...";
+            menuAbout.Click += MenuAbout_Click;
+            // 
+            // toolStrip1
+            // 
+            toolStrip1.Items.AddRange(new ToolStripItem[] { btnProducts, btnCustomers, btnSales, btnReports, toolStripSeparator1, btnNewSale, btnAddProduct, toolStripSeparator2, btnRefresh, btnLogout });
+            toolStrip1.Location = new Point(0, 30);
+            toolStrip1.Name = "toolStrip1";
+            toolStrip1.Size = new Size(1371, 27);
+            toolStrip1.TabIndex = 5;
+            // 
+            // btnProducts
+            // 
+            btnProducts.Name = "btnProducts";
+            btnProducts.Size = new Size(95, 24);
+            btnProducts.Text = "📦 Products";
+            btnProducts.ToolTipText = "Manage product inventory";
+            btnProducts.Click += BtnProducts_Click;
+            // 
+            // btnCustomers
+            // 
+            btnCustomers.Name = "btnCustomers";
+            btnCustomers.Size = new Size(107, 24);
+            btnCustomers.Text = "👥 Customers";
+            btnCustomers.ToolTipText = "Manage customer database";
+            btnCustomers.Click += BtnCustomers_Click;
+            // 
+            // btnSales
+            // 
+            btnSales.Name = "btnSales";
+            btnSales.Size = new Size(72, 24);
+            btnSales.Text = "💰 Sales";
+            btnSales.ToolTipText = "View and manage sales";
+            btnSales.Click += BtnSales_Click;
+            // 
+            // btnReports
+            // 
+            btnReports.Name = "btnReports";
+            btnReports.Size = new Size(89, 24);
+            btnReports.Text = "📊 Reports";
+            btnReports.ToolTipText = "Generate business reports";
+            btnReports.Click += BtnReports_Click;
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(6, 27);
+            // 
+            // btnNewSale
+            // 
+            btnNewSale.Name = "btnNewSale";
+            btnNewSale.Size = new Size(100, 24);
+            btnNewSale.Text = "\U0001f6d2 New Sale";
+            btnNewSale.ToolTipText = "Start a new sale transaction";
+            btnNewSale.Click += BtnNewSale_Click;
+            // 
+            // btnAddProduct
+            // 
+            btnAddProduct.Name = "btnAddProduct";
+            btnAddProduct.Size = new Size(121, 24);
+            btnAddProduct.Text = "➕ Add Product";
+            btnAddProduct.ToolTipText = "Quickly add a new product";
+            btnAddProduct.Click += BtnAddProduct_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(6, 27);
+            // 
+            // btnRefresh
+            // 
+            btnRefresh.Name = "btnRefresh";
+            btnRefresh.Size = new Size(87, 24);
+            btnRefresh.Text = "🔄 Refresh";
+            btnRefresh.ToolTipText = "Refresh dashboard data (F5)";
+            btnRefresh.Click += BtnRefresh_Click;
+            // 
+            // btnLogout
+            // 
+            btnLogout.Name = "btnLogout";
+            btnLogout.Size = new Size(85, 24);
+            btnLogout.Text = "🚪 Logout";
+            btnLogout.ToolTipText = "Logout and return to login screen";
+            btnLogout.Click += BtnLogout_Click;
+            // 
             // statusStrip1
-            this.statusStrip1.Items.AddRange(new ToolStripItem[] {
-                this.lblStatus,
-                this.lblCurrentUser,
-                this.lblUserRole,
-                this.lblLastLogin});
-            this.statusStrip1.Location = new Point(0, 700);
-            this.statusStrip1.Size = new Size(1200, 22);
-
-            this.lblStatus.Text = "Ready";
-            this.lblCurrentUser.Text = "Not logged in";
-            this.lblUserRole.Text = "";
-            this.lblLastLogin.Text = "";
-            #endregion
-
-            #region Dashboard Panels
-            // Main dashboard panel
-            this.pnlDashboard.Dock = DockStyle.Fill;
-            this.pnlDashboard.Location = new Point(0, 49);
-            this.pnlDashboard.Size = new Size(1200, 651);
-
-            // Statistics panel
-            this.pnlStats.Location = new Point(10, 10);
-            this.pnlStats.Size = new Size(1180, 200);
-            this.pnlStats.BorderStyle = BorderStyle.FixedSingle;
-
-            // Activities panel
-            this.pnlActivities.Location = new Point(10, 220);
-            this.pnlActivities.Size = new Size(580, 400);
-            this.pnlActivities.BorderStyle = BorderStyle.FixedSingle;
-
-            // Alerts panel
-            this.pnlAlerts.Location = new Point(600, 220);
-            this.pnlAlerts.Size = new Size(590, 400);
-            this.pnlAlerts.BorderStyle = BorderStyle.FixedSingle;
-
-            // Add panels to dashboard
-            this.pnlDashboard.Controls.Add(this.pnlStats);
-            this.pnlDashboard.Controls.Add(this.pnlActivities);
-            this.pnlDashboard.Controls.Add(this.pnlAlerts);
-            #endregion
-
-            #region Statistics Labels
-            // Configure statistics labels (simplified for brevity)
-            this.lblTotalProducts.Location = new Point(20, 20);
-            this.lblTotalProducts.Size = new Size(100, 30);
-            this.lblTotalProducts.Text = "Total Products: 0";
-
-            this.lblLowStockProducts.Location = new Point(140, 20);
-            this.lblLowStockProducts.Size = new Size(100, 30);
-            this.lblLowStockProducts.Text = "Low Stock: 0";
-
-            // Add more statistics labels...
-            this.pnlStats.Controls.Add(this.lblTotalProducts);
-            this.pnlStats.Controls.Add(this.lblLowStockProducts);
-            // Add other labels...
-            #endregion
-
-            #region Activity and Alert Lists
-            // Recent activities list
-            this.lstRecentActivities.Location = new Point(10, 30);
-            this.lstRecentActivities.Size = new Size(560, 360);
-            this.pnlActivities.Controls.Add(this.lstRecentActivities);
-
-            // Low stock alerts list
-            this.lstLowStockAlerts.Location = new Point(10, 30);
-            this.lstLowStockAlerts.Size = new Size(570, 360);
-            this.lstLowStockAlerts.View = View.Details;
-            this.lstLowStockAlerts.FullRowSelect = true;
-            this.lstLowStockAlerts.GridLines = true;
-            this.lstLowStockAlerts.Columns.Add("Product", 200);
-            this.lstLowStockAlerts.Columns.Add("SKU", 100);
-            this.lstLowStockAlerts.Columns.Add("Stock", 80);
-            this.lstLowStockAlerts.Columns.Add("Min Stock", 80);
-            this.lstLowStockAlerts.DoubleClick += this.LstLowStockAlerts_DoubleClick;
-            this.pnlAlerts.Controls.Add(this.lstLowStockAlerts);
-            #endregion
-
-            #region Context Menu Configuration
-            this.InitializeContextMenus();
-            #endregion
-
-            #region Form Configuration
+            // 
+            statusStrip1.ImageScalingSize = new Size(20, 20);
+            statusStrip1.Items.AddRange(new ToolStripItem[] { lblStatus, lblCurrentUser, lblUserRole, lblLastLogin });
+            statusStrip1.Location = new Point(0, 937);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Padding = new Padding(1, 0, 16, 0);
+            statusStrip1.Size = new Size(1371, 26);
+            statusStrip1.TabIndex = 6;
+            // 
+            // lblStatus
+            // 
+            lblStatus.Name = "lblStatus";
+            lblStatus.Size = new Size(50, 20);
+            lblStatus.Text = "Ready";
+            // 
+            // lblCurrentUser
+            // 
+            lblCurrentUser.Name = "lblCurrentUser";
+            lblCurrentUser.Size = new Size(102, 20);
+            lblCurrentUser.Text = "Not logged in";
+            // 
+            // lblUserRole
+            // 
+            lblUserRole.Name = "lblUserRole";
+            lblUserRole.Size = new Size(0, 20);
+            // 
+            // lblLastLogin
+            // 
+            lblLastLogin.Name = "lblLastLogin";
+            lblLastLogin.Size = new Size(0, 20);
+            // 
+            // pnlDashboard
+            // 
+            pnlDashboard.BackColor = Color.FromArgb(248, 249, 250);
+            pnlDashboard.Controls.Add(pnlStats);
+            pnlDashboard.Controls.Add(pnlActivities);
+            pnlDashboard.Controls.Add(pnlAlerts);
+            pnlDashboard.Dock = DockStyle.Fill;
+            pnlDashboard.Location = new Point(0, 57);
+            pnlDashboard.Margin = new Padding(3, 4, 3, 4);
+            pnlDashboard.Name = "pnlDashboard";
+            pnlDashboard.Padding = new Padding(23, 27, 23, 27);
+            pnlDashboard.Size = new Size(1371, 880);
+            pnlDashboard.TabIndex = 4;
+            // 
+            // pnlStats
+            // 
+            pnlStats.BackColor = Color.Transparent;
+            pnlStats.Controls.Add(lblTotalProducts);
+            pnlStats.Controls.Add(lblLowStockProducts);
+            pnlStats.Controls.Add(lblOutOfStockProducts);
+            pnlStats.Controls.Add(lblInventoryValue);
+            pnlStats.Controls.Add(lblTodaySales);
+            pnlStats.Controls.Add(lblTodayOrders);
+            pnlStats.Controls.Add(lblTotalCustomers);
+            pnlStats.Controls.Add(lblMonthSales);
+            pnlStats.Controls.Add(lblYearSales);
+            pnlStats.Controls.Add(lblNewCustomers);
+            pnlStats.Location = new Point(23, 27);
+            pnlStats.Margin = new Padding(0, 0, 0, 27);
+            pnlStats.Name = "pnlStats";
+            pnlStats.Size = new Size(1326, 347);
+            pnlStats.TabIndex = 0;
+            // 
+            // lblTotalProducts
+            // 
+            lblTotalProducts.BackColor = Color.White;
+            lblTotalProducts.BorderStyle = BorderStyle.FixedSingle;
+            lblTotalProducts.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblTotalProducts.ForeColor = Color.FromArgb(75, 85, 99);
+            lblTotalProducts.Location = new Point(29, 80);
+            lblTotalProducts.Name = "lblTotalProducts";
+            lblTotalProducts.Size = new Size(205, 106);
+            lblTotalProducts.TabIndex = 0;
+            lblTotalProducts.Text = "📦\nN/A\nProducts";
+            lblTotalProducts.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblLowStockProducts
+            // 
+            lblLowStockProducts.BackColor = Color.White;
+            lblLowStockProducts.BorderStyle = BorderStyle.FixedSingle;
+            lblLowStockProducts.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblLowStockProducts.ForeColor = Color.FromArgb(251, 146, 60);
+            lblLowStockProducts.Location = new Point(257, 80);
+            lblLowStockProducts.Name = "lblLowStockProducts";
+            lblLowStockProducts.Size = new Size(205, 106);
+            lblLowStockProducts.TabIndex = 1;
+            lblLowStockProducts.Text = "⚠️\nN/A\nLow Stock";
+            lblLowStockProducts.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblOutOfStockProducts
+            // 
+            lblOutOfStockProducts.BackColor = Color.White;
+            lblOutOfStockProducts.BorderStyle = BorderStyle.FixedSingle;
+            lblOutOfStockProducts.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblOutOfStockProducts.ForeColor = Color.FromArgb(239, 68, 68);
+            lblOutOfStockProducts.Location = new Point(485, 80);
+            lblOutOfStockProducts.Name = "lblOutOfStockProducts";
+            lblOutOfStockProducts.Size = new Size(205, 106);
+            lblOutOfStockProducts.TabIndex = 2;
+            lblOutOfStockProducts.Text = "❌\nN/A\nOut of Stock";
+            lblOutOfStockProducts.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblInventoryValue
+            // 
+            lblInventoryValue.BackColor = Color.White;
+            lblInventoryValue.BorderStyle = BorderStyle.FixedSingle;
+            lblInventoryValue.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblInventoryValue.ForeColor = Color.FromArgb(34, 197, 94);
+            lblInventoryValue.Location = new Point(713, 80);
+            lblInventoryValue.Name = "lblInventoryValue";
+            lblInventoryValue.Size = new Size(205, 106);
+            lblInventoryValue.TabIndex = 3;
+            lblInventoryValue.Text = "💰\nN/A\nTotal Value";
+            lblInventoryValue.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblTodaySales
+            // 
+            lblTodaySales.BackColor = Color.White;
+            lblTodaySales.BorderStyle = BorderStyle.FixedSingle;
+            lblTodaySales.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblTodaySales.ForeColor = Color.FromArgb(59, 130, 246);
+            lblTodaySales.Location = new Point(29, 209);
+            lblTodaySales.Name = "lblTodaySales";
+            lblTodaySales.Size = new Size(205, 106);
+            lblTodaySales.TabIndex = 4;
+            lblTodaySales.Text = "💵\nN/A\nToday's Sales";
+            lblTodaySales.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblTodayOrders
+            // 
+            lblTodayOrders.BackColor = Color.White;
+            lblTodayOrders.BorderStyle = BorderStyle.FixedSingle;
+            lblTodayOrders.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblTodayOrders.ForeColor = Color.FromArgb(75, 85, 99);
+            lblTodayOrders.Location = new Point(257, 209);
+            lblTodayOrders.Name = "lblTodayOrders";
+            lblTodayOrders.Size = new Size(205, 106);
+            lblTodayOrders.TabIndex = 5;
+            lblTodayOrders.Text = "🛒\nN/A\nToday's Orders";
+            lblTodayOrders.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblTotalCustomers
+            // 
+            lblTotalCustomers.BackColor = Color.White;
+            lblTotalCustomers.BorderStyle = BorderStyle.FixedSingle;
+            lblTotalCustomers.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            lblTotalCustomers.ForeColor = Color.FromArgb(168, 85, 247);
+            lblTotalCustomers.Location = new Point(485, 209);
+            lblTotalCustomers.Name = "lblTotalCustomers";
+            lblTotalCustomers.Size = new Size(205, 106);
+            lblTotalCustomers.TabIndex = 6;
+            lblTotalCustomers.Text = "👥\nN/A\nCustomers";
+            lblTotalCustomers.TextAlign = ContentAlignment.MiddleCenter;
+            // 
+            // lblMonthSales
+            // 
+            lblMonthSales.Location = new Point(0, 0);
+            lblMonthSales.Name = "lblMonthSales";
+            lblMonthSales.Size = new Size(114, 31);
+            lblMonthSales.TabIndex = 7;
+            lblMonthSales.Visible = false;
+            // 
+            // lblYearSales
+            // 
+            lblYearSales.Location = new Point(0, 0);
+            lblYearSales.Name = "lblYearSales";
+            lblYearSales.Size = new Size(114, 31);
+            lblYearSales.TabIndex = 8;
+            lblYearSales.Visible = false;
+            // 
+            // lblNewCustomers
+            // 
+            lblNewCustomers.Location = new Point(0, 0);
+            lblNewCustomers.Name = "lblNewCustomers";
+            lblNewCustomers.Size = new Size(114, 31);
+            lblNewCustomers.TabIndex = 9;
+            lblNewCustomers.Visible = false;
+            // 
+            // pnlActivities
+            // 
+            pnlActivities.BackColor = Color.Transparent;
+            pnlActivities.Controls.Add(lstRecentActivities);
+            pnlActivities.Location = new Point(23, 386);
+            pnlActivities.Margin = new Padding(0, 0, 11, 0);
+            pnlActivities.Name = "pnlActivities";
+            pnlActivities.Size = new Size(646, 428);
+            pnlActivities.TabIndex = 1;
+            // 
+            // lstRecentActivities
+            // 
+            lstRecentActivities.BackColor = Color.White;
+            lstRecentActivities.BorderStyle = BorderStyle.None;
+            lstRecentActivities.Font = new Font("Segoe UI", 10F);
+            lstRecentActivities.ForeColor = Color.FromArgb(75, 85, 99);
+            lstRecentActivities.Location = new Point(17, 67);
+            lstRecentActivities.Margin = new Padding(3, 4, 3, 4);
+            lstRecentActivities.Name = "lstRecentActivities";
+            lstRecentActivities.Size = new Size(611, 368);
+            lstRecentActivities.TabIndex = 0;
+            // 
+            // pnlAlerts
+            // 
+            pnlAlerts.BackColor = Color.Transparent;
+            pnlAlerts.Controls.Add(lstLowStockAlerts);
+            pnlAlerts.Location = new Point(691, 386);
+            pnlAlerts.Margin = new Padding(11, 0, 0, 0);
+            pnlAlerts.Name = "pnlAlerts";
+            pnlAlerts.Size = new Size(657, 428);
+            pnlAlerts.TabIndex = 2;
+            // 
+            // lstLowStockAlerts
+            // 
+            lstLowStockAlerts.BackColor = Color.White;
+            lstLowStockAlerts.BorderStyle = BorderStyle.None;
+            lstLowStockAlerts.Font = new Font("Segoe UI", 10F);
+            lstLowStockAlerts.ForeColor = Color.FromArgb(75, 85, 99);
+            lstLowStockAlerts.FullRowSelect = true;
+            lstLowStockAlerts.HeaderStyle = ColumnHeaderStyle.Nonclickable;
+            lstLowStockAlerts.Location = new Point(17, 67);
+            lstLowStockAlerts.Margin = new Padding(3, 4, 3, 4);
+            lstLowStockAlerts.Name = "lstLowStockAlerts";
+            lstLowStockAlerts.Size = new Size(623, 380);
+            lstLowStockAlerts.TabIndex = 0;
+            lstLowStockAlerts.UseCompatibleStateImageBehavior = false;
+            lstLowStockAlerts.View = View.Details;
+            lstLowStockAlerts.DoubleClick += LstLowStockAlerts_DoubleClick;
+            // 
+            // dashboardContextMenu
+            // 
+            dashboardContextMenu.ImageScalingSize = new Size(20, 20);
+            dashboardContextMenu.Name = "dashboardContextMenu";
+            dashboardContextMenu.Size = new Size(61, 4);
+            // 
+            // statsContextMenu
+            // 
+            statsContextMenu.ImageScalingSize = new Size(20, 20);
+            statsContextMenu.Name = "statsContextMenu";
+            statsContextMenu.Size = new Size(61, 4);
+            // 
+            // alertsContextMenu
+            // 
+            alertsContextMenu.ImageScalingSize = new Size(20, 20);
+            alertsContextMenu.Name = "alertsContextMenu";
+            alertsContextMenu.Size = new Size(61, 4);
+            // 
+            // activitiesContextMenu
+            // 
+            activitiesContextMenu.ImageScalingSize = new Size(20, 20);
+            activitiesContextMenu.Name = "activitiesContextMenu";
+            activitiesContextMenu.Size = new Size(61, 4);
+            // 
             // MainForm
-            this.AutoScaleDimensions = new SizeF(7F, 15F);
-            this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(1200, 722);
-            this.Controls.Add(this.pnlDashboard);
-            this.Controls.Add(this.toolStrip1);
-            this.Controls.Add(this.statusStrip1);
-            this.Controls.Add(this.menuStrip1);
-            this.MainMenuStrip = this.menuStrip1;
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.Text = "InventoryPro - Dashboard";
-            this.WindowState = FormWindowState.Maximized;
-            this.FormClosing += this.MainForm_FormClosing;
-            #endregion
-
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            // 
+            AutoScaleDimensions = new SizeF(8F, 20F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(1371, 963);
+            Controls.Add(pnlDashboard);
+            Controls.Add(toolStrip1);
+            Controls.Add(statusStrip1);
+            Controls.Add(menuStrip1);
+            MainMenuStrip = menuStrip1;
+            Margin = new Padding(3, 4, 3, 4);
+            Name = "MainForm";
+            StartPosition = FormStartPosition.CenterScreen;
+            Text = "InventoryPro - Dashboard";
+            WindowState = FormWindowState.Maximized;
+            FormClosing += MainForm_FormClosing;
+            menuStrip1.ResumeLayout(false);
+            menuStrip1.PerformLayout();
+            toolStrip1.ResumeLayout(false);
+            toolStrip1.PerformLayout();
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
+            pnlDashboard.ResumeLayout(false);
+            pnlStats.ResumeLayout(false);
+            pnlActivities.ResumeLayout(false);
+            pnlAlerts.ResumeLayout(false);
+            ResumeLayout(false);
+            PerformLayout();
             }
 
         #endregion

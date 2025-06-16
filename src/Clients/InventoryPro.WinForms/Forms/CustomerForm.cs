@@ -37,6 +37,10 @@ namespace InventoryPro.WinForms.Forms
 
         // Data
         private List<CustomerDto> _customers = new();
+        private List<CustomerDto> _allCustomers = new();
+        
+        // Search timer for debouncing
+        private System.Windows.Forms.Timer _searchTimer;
 
         public CustomerForm(ILogger<CustomerForm> logger, IApiService apiService)
         {
@@ -60,6 +64,11 @@ namespace InventoryPro.WinForms.Forms
             lblStatus = new ToolStripStatusLabel();
             lblRecordCount = new ToolStripStatusLabel();
 
+            // Initialize search timer
+            _searchTimer = new System.Windows.Forms.Timer();
+            _searchTimer.Interval = 500; // 500ms delay
+            _searchTimer.Tick += SearchTimer_Tick;
+
             InitializeComponent();
             InitializeAsync();
         }
@@ -75,25 +84,28 @@ namespace InventoryPro.WinForms.Forms
 
             btnAdd = new ToolStripButton
             {
-                Text = "Add Customer",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Shield.ToBitmap()
+                Text = "➕ Add Customer",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69)
             };
             btnAdd.Click += BtnAdd_Click;
 
             btnEdit = new ToolStripButton
             {
-                Text = "Edit",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Shield.ToBitmap()
+                Text = "✏️ Edit",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(0, 123, 255)
             };
             btnEdit.Click += BtnEdit_Click;
 
             btnDelete = new ToolStripButton
             {
-                Text = "Delete",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Warning.ToBitmap()
+                Text = "🗑️ Delete",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 53, 69)
             };
             btnDelete.Click += BtnDelete_Click;
 
@@ -101,25 +113,28 @@ namespace InventoryPro.WinForms.Forms
 
             btnViewPurchases = new ToolStripButton
             {
-                Text = "View Purchases",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Information.ToBitmap()
+                Text = "📊 View Purchases",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(102, 16, 242)
             };
             btnViewPurchases.Click += BtnViewPurchases_Click;
 
             btnRefresh = new ToolStripButton
             {
-                Text = "Refresh",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Shield.ToBitmap()
+                Text = "🔄 Refresh",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(108, 117, 125)
             };
             btnRefresh.Click += BtnRefresh_Click;
 
             btnExport = new ToolStripButton
             {
-                Text = "Export",
-                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
-                Image = SystemIcons.Shield.ToBitmap()
+                Text = "📤 Export",
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(23, 162, 184)
             };
             btnExport.Click += BtnExport_Click;
 
@@ -132,43 +147,55 @@ namespace InventoryPro.WinForms.Forms
             var pnlSearch = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
-                Padding = new Padding(10),
-                BackColor = Color.WhiteSmoke
+                Height = 60,
+                Padding = new Padding(15),
+                BackColor = Color.FromArgb(248, 249, 250)
             };
 
             var lblSearch = new Label
             {
                 Text = "Search:",
-                Location = new Point(10, 15),
-                Size = new Size(50, 25)
+                Location = new Point(15, 20),
+                Size = new Size(70, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtSearch = new TextBox
             {
-                Location = new Point(70, 12),
-                Size = new Size(300, 25),
-                PlaceholderText = "Search by name, email, or phone..."
+                Location = new Point(90, 17),
+                Size = new Size(350, 25),
+                PlaceholderText = "Search by name, email, or phone...",
+                Font = new Font("Segoe UI", 10)
             };
+            txtSearch.TextChanged += TxtSearch_TextChanged;
 
             btnSearch = new Button
             {
-                Text = "Search",
-                Location = new Point(380, 11),
-                Size = new Size(75, 27),
-                BackColor = Color.FromArgb(41, 128, 185),
+                Text = "🔍 Search",
+                Location = new Point(455, 16),
+                Size = new Size(100, 28),
+                BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
             btnSearch.FlatAppearance.BorderSize = 0;
+            btnSearch.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 105, 217);
             btnSearch.Click += BtnSearch_Click;
 
             btnClear = new Button
             {
-                Text = "Clear",
-                Location = new Point(465, 11),
-                Size = new Size(75, 27)
+                Text = "🔄 Clear",
+                Location = new Point(565, 16),
+                Size = new Size(90, 28),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
+            btnClear.FlatAppearance.BorderSize = 0;
+            btnClear.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
             btnClear.Click += BtnClear_Click;
 
             pnlSearch.Controls.AddRange(new Control[] { lblSearch, txtSearch, btnSearch, btnClear });
@@ -183,9 +210,40 @@ namespace InventoryPro.WinForms.Forms
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
+                EnableHeadersVisualStyles = false,
+                RowHeadersVisible = false,
+                Font = new Font("Segoe UI", 9),
+                RowTemplate = { Height = 35 },
+                ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(52, 58, 64),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    SelectionBackColor = Color.FromArgb(52, 58, 64),
+                    Padding = new Padding(10, 8, 10, 8)
+                },
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.White,
+                    ForeColor = Color.FromArgb(33, 37, 41),
+                    SelectionBackColor = Color.FromArgb(0, 123, 255),
+                    SelectionForeColor = Color.White,
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(10, 5, 10, 5)
+                },
                 AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
                 {
-                    BackColor = Color.FromArgb(248, 248, 248)
+                    BackColor = Color.FromArgb(248, 249, 250),
+                    ForeColor = Color.FromArgb(33, 37, 41),
+                    SelectionBackColor = Color.FromArgb(0, 123, 255),
+                    SelectionForeColor = Color.White,
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(10, 5, 10, 5)
                 }
             };
             dgvCustomers.DoubleClick += DgvCustomers_DoubleClick;
@@ -217,16 +275,15 @@ namespace InventoryPro.WinForms.Forms
                 var parameters = new PaginationParameters
                 {
                     PageNumber = 1,
-                    PageSize = 100,
-                    SearchTerm = txtSearch.Text
+                    PageSize = 1000, // Load more records for better filtering
+                    SearchTerm = ""
                 };
 
                 var response = await _apiService.GetCustomersAsync(parameters);
                 if (response.Success && response.Data != null)
                 {
-                    _customers = response.Data.Items;
-                    UpdateGrid();
-                    lblRecordCount.Text = $"{_customers.Count} records";
+                    _allCustomers = response.Data.Items;
+                    FilterAndUpdateGrid();
                     lblStatus.Text = "Ready";
                 }
                 else
@@ -243,6 +300,26 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
+        private void FilterAndUpdateGrid()
+        {
+            var filteredCustomers = _allCustomers.AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(txtSearch.Text))
+            {
+                var searchTerm = txtSearch.Text.ToLower();
+                filteredCustomers = filteredCustomers.Where(c => 
+                    c.Name.ToLower().Contains(searchTerm) ||
+                    c.Email.ToLower().Contains(searchTerm) ||
+                    c.Phone.ToLower().Contains(searchTerm) ||
+                    c.Address.ToLower().Contains(searchTerm));
+            }
+
+            _customers = filteredCustomers.ToList();
+            UpdateGrid();
+            lblRecordCount.Text = $"{_customers.Count} of {_allCustomers.Count} records";
+        }
+
         private void UpdateGrid()
         {
             dgvCustomers.DataSource = null;
@@ -254,53 +331,67 @@ namespace InventoryPro.WinForms.Forms
                 var idColumn = dgvCustomers.Columns["Id"];
                 if (idColumn != null)
                 {
-                    idColumn.Width = 50;
+                    idColumn.Width = 60;
+                    idColumn.HeaderText = "ID";
+                    idColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var nameColumn = dgvCustomers.Columns["Name"];
                 if (nameColumn != null)
                 {
-                    nameColumn.Width = 200;
+                    nameColumn.Width = 180;
+                    nameColumn.HeaderText = "👤 Customer Name";
                 }
 
                 var emailColumn = dgvCustomers.Columns["Email"];
                 if (emailColumn != null)
                 {
-                    emailColumn.Width = 200;
+                    emailColumn.Width = 220;
+                    emailColumn.HeaderText = "📧 Email Address";
                 }
 
                 var phoneColumn = dgvCustomers.Columns["Phone"];
                 if (phoneColumn != null)
                 {
-                    phoneColumn.Width = 120;
+                    phoneColumn.Width = 130;
+                    phoneColumn.HeaderText = "📞 Phone";
                 }
 
                 var addressColumn = dgvCustomers.Columns["Address"];
                 if (addressColumn != null)
                 {
-                    addressColumn.Width = 250;
+                    addressColumn.Width = 200;
+                    addressColumn.HeaderText = "🏠 Address";
                 }
 
                 var totalPurchasesColumn = dgvCustomers.Columns["TotalPurchases"];
                 if (totalPurchasesColumn != null)
                 {
                     totalPurchasesColumn.DefaultCellStyle.Format = "C2";
-                    totalPurchasesColumn.HeaderText = "Total Purchases";
+                    totalPurchasesColumn.HeaderText = "💰 Total Purchases";
+                    totalPurchasesColumn.Width = 140;
+                    totalPurchasesColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    totalPurchasesColumn.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
+                    totalPurchasesColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
                 }
 
                 var orderCountColumn = dgvCustomers.Columns["OrderCount"];
                 if (orderCountColumn != null)
                 {
-                    orderCountColumn.HeaderText = "Orders";
+                    orderCountColumn.HeaderText = "🛒 Orders";
+                    orderCountColumn.Width = 80;
+                    orderCountColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
                 var lastOrderDateColumn = dgvCustomers.Columns["LastOrderDate"];
                 if (lastOrderDateColumn != null)
                 {
-                    lastOrderDateColumn.HeaderText = "Last Order";
-                    lastOrderDateColumn.DefaultCellStyle.Format = "MM/dd/yyyy";
+                    lastOrderDateColumn.HeaderText = "📅 Last Order";
+                    lastOrderDateColumn.DefaultCellStyle.Format = "MMM dd, yyyy";
+                    lastOrderDateColumn.Width = 120;
                 }
 
+                // Hide unnecessary columns
                 var createdAtColumn = dgvCustomers.Columns["CreatedAt"];
                 if (createdAtColumn != null)
                 {
@@ -327,7 +418,7 @@ namespace InventoryPro.WinForms.Forms
                         if (response.Success)
                         {
                             await LoadCustomersAsync();
-                            MessageBox.Show("Customer created successfully.",
+                            MessageBox.Show("✅ Customer created successfully!",
                                 "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else
@@ -369,7 +460,7 @@ namespace InventoryPro.WinForms.Forms
                         if (response.Success)
                         {
                             await LoadCustomersAsync();
-                            MessageBox.Show("Customer updated successfully.",
+                            MessageBox.Show("✅ Customer updated successfully!",
                                 "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else
@@ -414,7 +505,7 @@ namespace InventoryPro.WinForms.Forms
                     if (response.Success)
                     {
                         await LoadCustomersAsync();
-                        MessageBox.Show("Customer deleted successfully.",
+                        MessageBox.Show("✅ Customer deleted successfully!",
                             "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     else
@@ -445,11 +536,11 @@ namespace InventoryPro.WinForms.Forms
             if (selectedCustomer == null) return;
 
             // TODO: Open a form to show customer purchase history
-            MessageBox.Show($"Purchase history for {selectedCustomer.Name}:\n\n" +
-                $"Total Purchases: {selectedCustomer.TotalPurchases:C}\n" +
-                $"Order Count: {selectedCustomer.OrderCount}\n" +
-                $"Last Order: {selectedCustomer.LastOrderDate?.ToString("MM/dd/yyyy") ?? "N/A"}",
-                "Customer Purchases", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show($"📊 Purchase History for {selectedCustomer.Name}\n\n" +
+                $"💰 Total Purchases: {selectedCustomer.TotalPurchases:C}\n" +
+                $"🛒 Order Count: {selectedCustomer.OrderCount}\n" +
+                $"📅 Last Order: {selectedCustomer.LastOrderDate?.ToString("MMM dd, yyyy") ?? "No orders yet"}",
+                "Customer Purchase Analytics", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private async void BtnRefresh_Click(object? sender, EventArgs e)
@@ -463,15 +554,31 @@ namespace InventoryPro.WinForms.Forms
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private async void BtnSearch_Click(object? sender, EventArgs e)
+        private void BtnSearch_Click(object? sender, EventArgs e)
         {
-            await LoadCustomersAsync();
+            FilterAndUpdateGrid();
         }
 
-        private async void BtnClear_Click(object? sender, EventArgs e)
+        private void BtnClear_Click(object? sender, EventArgs e)
         {
             txtSearch.Clear();
-            await LoadCustomersAsync();
+            FilterAndUpdateGrid();
+        }
+
+        private void TxtSearch_TextChanged(object? sender, EventArgs e)
+        {
+            // Reset and start the timer for debounced search
+            _searchTimer.Stop();
+            _searchTimer.Start();
+        }
+
+        private void SearchTimer_Tick(object? sender, EventArgs e)
+        {
+            _searchTimer.Stop();
+            if (_allCustomers.Any()) // Only filter if we have loaded customers
+            {
+                FilterAndUpdateGrid();
+            }
         }
 
         private void DgvCustomers_DoubleClick(object? sender, EventArgs e)
@@ -509,86 +616,111 @@ namespace InventoryPro.WinForms.Forms
 
         private void InitializeComponent(CustomerDto? existingCustomer)
         {
-            this.Text = existingCustomer == null ? "Add Customer" : "Edit Customer";
-            this.Size = new Size(450, 400);
+            this.Text = existingCustomer == null ? "➕ Add New Customer" : "✏️ Edit Customer";
+            this.Size = new Size(480, 420);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
+            this.BackColor = Color.FromArgb(248, 249, 250);
 
             var lblName = new Label
             {
-                Text = "Name:",
-                Location = new Point(20, 20),
-                Size = new Size(100, 25)
+                Text = "👤 Customer Name:",
+                Location = new Point(25, 25),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtName = new TextBox
             {
-                Location = new Point(20, 45),
-                Size = new Size(390, 25)
+                Location = new Point(25, 50),
+                Size = new Size(410, 25),
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.White
             };
 
             var lblEmail = new Label
             {
-                Text = "Email:",
-                Location = new Point(20, 80),
-                Size = new Size(100, 25)
+                Text = "📧 Email Address:",
+                Location = new Point(25, 90),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtEmail = new TextBox
             {
-                Location = new Point(20, 105),
-                Size = new Size(390, 25)
+                Location = new Point(25, 115),
+                Size = new Size(410, 25),
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.White
             };
 
             var lblPhone = new Label
             {
-                Text = "Phone:",
-                Location = new Point(20, 140),
-                Size = new Size(100, 25)
+                Text = "📞 Phone Number:",
+                Location = new Point(25, 155),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtPhone = new TextBox
             {
-                Location = new Point(20, 165),
-                Size = new Size(390, 25)
+                Location = new Point(25, 180),
+                Size = new Size(410, 25),
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.White
             };
 
             var lblAddress = new Label
             {
-                Text = "Address:",
-                Location = new Point(20, 200),
-                Size = new Size(100, 25)
+                Text = "🏠 Address:",
+                Location = new Point(25, 220),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtAddress = new TextBox
             {
-                Location = new Point(20, 225),
-                Size = new Size(390, 60),
-                Multiline = true
+                Location = new Point(25, 245),
+                Size = new Size(410, 60),
+                Multiline = true,
+                Font = new Font("Segoe UI", 10),
+                BackColor = Color.White
             };
 
             btnOK = new Button
             {
-                Text = "OK",
-                Location = new Point(255, 310),
-                Size = new Size(75, 30),
+                Text = "✅ Save Customer",
+                Location = new Point(265, 330),
+                Size = new Size(120, 35),
                 DialogResult = DialogResult.OK,
-                BackColor = Color.FromArgb(41, 128, 185),
+                BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
             btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 142, 58);
             btnOK.Click += BtnOK_Click;
 
             btnCancel = new Button
             {
-                Text = "Cancel",
-                Location = new Point(335, 310),
-                Size = new Size(75, 30),
-                DialogResult = DialogResult.Cancel
+                Text = "❌ Cancel",
+                Location = new Point(395, 330),
+                Size = new Size(90, 35),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
+            btnCancel.FlatAppearance.BorderSize = 0;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
 
             this.Controls.AddRange(new Control[] {
                 lblName, txtName, lblEmail, txtEmail,

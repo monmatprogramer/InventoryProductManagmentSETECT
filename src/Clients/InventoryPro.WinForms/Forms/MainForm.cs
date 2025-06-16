@@ -1,15 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
 using InventoryPro.WinForms.Services;
 using InventoryPro.Shared.DTOs;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
+using Timer = System.Windows.Forms.Timer;
 
 namespace InventoryPro.WinForms.Forms
-{
+    {
     /// <summary>
     /// Main dashboard form for the InventoryPro application
     /// This is the central hub that provides navigation to all other features
     /// </summary>
     public partial class MainForm : Form
-    {
+        {
         private readonly ILogger<MainForm> _logger;
         private readonly IAuthService _authService;
         private readonly IApiService _apiService;
@@ -19,6 +22,25 @@ namespace InventoryPro.WinForms.Forms
         private DateTime _lastDataRefresh = DateTime.MinValue;
         private readonly TimeSpan _cacheTimeout = TimeSpan.FromMinutes(5);
 
+        // Modern UI colors and styling
+        private readonly Color _primaryBlue = Color.FromArgb(59, 130, 246);
+        private readonly Color _primaryBlueHover = Color.FromArgb(37, 99, 235);
+        private readonly Color _backgroundGray = Color.FromArgb(248, 249, 250);
+        private readonly Color _cardBackground = Color.White;
+        private readonly Color _textGray = Color.FromArgb(75, 85, 99);
+        private readonly Color _lightGray = Color.FromArgb(156, 163, 175);
+        private readonly Color _borderGray = Color.FromArgb(229, 231, 235);
+        private readonly Color _successGreen = Color.FromArgb(34, 197, 94);
+        private readonly Color _warningOrange = Color.FromArgb(251, 146, 60);
+        private readonly Color _errorRed = Color.FromArgb(239, 68, 68);
+        private readonly Color _gradientStart = Color.FromArgb(45, 108, 175);
+        private readonly Color _gradientEnd = Color.FromArgb(79, 172, 254);
+
+        // Animation variables
+        private Timer? _animationTimer;
+        private float _animationProgress = 0f;
+        private bool _animationDirection = true;
+
         // Child forms for different modules
         private ProductForm? _productForm;
         private CustomerForm? _customerForm;
@@ -26,52 +48,55 @@ namespace InventoryPro.WinForms.Forms
         private ReportForm? _reportForm;
 
         public MainForm(ILogger<MainForm> logger, IAuthService authService, IApiService apiService)
-        {
+            {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
             try
-            {
+                {
                 InitializeComponent();
+
+                // Apply modern styling
+                ApplyModernStyling();
 
                 this.Load += MainForm_Load;
                 this.Shown += MainForm_Shown;
 
                 _logger.LogInformation("MainForm initialized successfully");
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error initializing MainForm");
                 throw;
+                }
             }
-        }
 
         /// <summary>
         /// Handles the form Shown event
         /// </summary>
         private void MainForm_Shown(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 this.Activate();
                 this.BringToFront();
                 this.Focus();
                 _logger.LogInformation("MainForm shown and activated");
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error during MainForm Shown");
+                }
             }
-        }
 
         /// <summary>
         /// Handles the form Load event
         /// </summary>
         private async void MainForm_Load(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 _logger.LogInformation("MainForm Load event started");
 
                 // Show a loading message or progress indicator
@@ -83,37 +108,37 @@ namespace InventoryPro.WinForms.Forms
                 var retryCount = 0;
 
                 while (retryCount < maxRetries && !_isInitialized)
-                {
-                    try
                     {
+                    try
+                        {
                         await InitializeFormAsync();
                         _isInitialized = true;
                         break;
-                    }
+                        }
                     catch (Exception initEx)
-                    {
+                        {
                         retryCount++;
                         _logger.LogWarning(initEx, "Initialization attempt {RetryCount} failed", retryCount);
 
                         if (retryCount >= maxRetries)
-                        {
+                            {
                             throw;
-                        }
+                            }
 
                         // Wait a bit before retrying
                         await Task.Delay(1000);
+                        }
                     }
-                }
 
                 if (!_isInitialized)
-                {
+                    {
                     throw new InvalidOperationException("Failed to initialize MainForm after multiple attempts");
-                }
+                    }
 
                 _logger.LogInformation("MainForm Load event completed successfully");
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error during MainForm Load");
 
                 // Show error but don't close the form immediately
@@ -127,35 +152,35 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxIcon.Error);
 
                 if (result == DialogResult.Retry)
-                {
+                    {
                     // Retry initialization
                     MainForm_Load(sender, e);
-                }
+                    }
                 else
-                {
+                    {
                     // User chose to cancel, close the form
                     this.Close();
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Initializes the form with user data and dashboard statistics
         /// </summary>
         private async Task InitializeFormAsync()
-        {
-            try
             {
+            try
+                {
                 _logger.LogInformation("Starting MainForm initialization");
 
                 // Try to load current user information with retries
                 _currentUser = await GetCurrentUserWithRetryAsync();
 
                 if (_currentUser == null)
-                {
+                    {
                     _logger.LogError("User information not found during MainForm initialization");
                     throw new InvalidOperationException("User information not found. Please login again.");
-                }
+                    }
 
                 _logger.LogInformation("User loaded: {Username}", _currentUser.Username);
 
@@ -164,73 +189,73 @@ namespace InventoryPro.WinForms.Forms
 
                 // Load dashboard statistics (with fallback)
                 try
-                {
+                    {
                     await LoadDashboardStatsAsync();
-                }
+                    }
                 catch (Exception ex)
-                {
+                    {
                     _logger.LogWarning(ex, "Failed to load dashboard stats, using defaults");
                     // Continue with default/empty dashboard stats
                     lblStatus.Text = "Dashboard data unavailable";
-                }
+                    }
 
                 _logger.LogInformation("MainForm initialized successfully for user: {Username}", _currentUser.Username);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error initializing MainForm");
                 throw;
+                }
             }
-        }
 
         /// <summary>
         /// Gets current user with retry logic
         /// </summary>
         private async Task<UserDto?> GetCurrentUserWithRetryAsync()
-        {
+            {
             var maxRetries = 3;
             var delay = 500; // milliseconds
 
             for (int i = 0; i < maxRetries; i++)
-            {
-                try
                 {
+                try
+                    {
                     var user = await _authService.GetCurrentUserAsync();
                     if (user != null)
-                    {
+                        {
                         _logger.LogInformation("Successfully retrieved user on attempt {Attempt}", i + 1);
                         return user;
-                    }
+                        }
 
                     _logger.LogWarning("GetCurrentUserAsync returned null on attempt {Attempt}", i + 1);
 
                     // If it's not the last attempt, wait before retrying
                     if (i < maxRetries - 1)
-                    {
+                        {
                         await Task.Delay(delay);
                         delay *= 2; // Exponential backoff
+                        }
                     }
-                }
                 catch (Exception ex)
-                {
+                    {
                     _logger.LogWarning(ex, "Error getting current user on attempt {Attempt}", i + 1);
 
                     if (i < maxRetries - 1)
-                    {
+                        {
                         await Task.Delay(delay);
                         delay *= 2;
+                        }
                     }
                 }
-            }
 
             return null;
-        }
+            }
 
         /// <summary>
         /// Updates the user interface with current user information
         /// </summary>
         private void UpdateUserInterface()
-        {
+            {
             if (_currentUser == null) return;
 
             // Update status bar with user information
@@ -246,18 +271,18 @@ namespace InventoryPro.WinForms.Forms
 
             // Refresh context menus with user role information
             if (IsHandleCreated)
-            {
+                {
                 InitializeContextMenus();
-            }
+                }
 
             lblStatus.Text = "Ready";
-        }
+            }
 
         /// <summary>
         /// Updates menu items visibility based on user role
         /// </summary>
         private void UpdateMenuItemsByRole(string userRole)
-        {
+            {
             // Admin users get access to all features
             bool isAdmin = userRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
             bool isManager = userRole.Equals("Manager", StringComparison.OrdinalIgnoreCase) || isAdmin;
@@ -282,26 +307,26 @@ namespace InventoryPro.WinForms.Forms
             menuTools.Enabled = isManager; // Settings and backup for managers/admins
             menuWindow.Enabled = true;
             menuHelp.Enabled = true;
-        }
+            }
 
         /// <summary>
         /// Loads dashboard statistics from the API with caching
         /// </summary>
         private async Task LoadDashboardStatsAsync(bool forceRefresh = false)
-        {
-            try
             {
+            try
+                {
                 // Check if we need to refresh based on cache timeout
                 var shouldRefresh = forceRefresh ||
                     _dashboardStats == null ||
                     (DateTime.Now - _lastDataRefresh) > _cacheTimeout;
 
                 if (!shouldRefresh)
-                {
+                    {
                     _logger.LogDebug("Using cached dashboard data");
                     lblStatus.Text = "Dashboard loaded from cache";
                     return;
-                }
+                    }
 
                 lblStatus.Text = "Loading dashboard statistics...";
 
@@ -310,7 +335,7 @@ namespace InventoryPro.WinForms.Forms
 
                 var response = await _apiService.GetDashboardStatsAsync();
                 if (response.Success && response.Data != null)
-                {
+                    {
                     _dashboardStats = response.Data;
                     _lastDataRefresh = DateTime.Now;
 
@@ -320,188 +345,242 @@ namespace InventoryPro.WinForms.Forms
 
                     lblStatus.Text = "Dashboard loaded successfully";
                     _logger.LogInformation("Dashboard stats loaded successfully");
-                }
+                    }
                 else
-                {
+                    {
                     var errorMsg = $"Failed to load dashboard stats. Status: {response.StatusCode}, Message: {response.Message}";
                     _logger.LogWarning(errorMsg);
                     lblStatus.Text = "Dashboard data unavailable";
 
                     // Set default values only if we don't have cached data
                     if (_dashboardStats == null)
-                    {
+                        {
                         SetDefaultDashboardValues();
+                        }
                     }
                 }
-            }
             catch (TaskCanceledException)
-            {
+                {
                 _logger.LogWarning("Dashboard stats request timed out");
                 lblStatus.Text = "Request timed out";
                 if (_dashboardStats == null)
-                {
+                    {
                     SetDefaultDashboardValues();
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error loading dashboard statistics");
                 lblStatus.Text = "Error loading dashboard statistics";
 
                 // Set default values only if we don't have cached data
                 if (_dashboardStats == null)
-                {
+                    {
                     SetDefaultDashboardValues();
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Sets default dashboard values when API is unavailable
         /// </summary>
         private void SetDefaultDashboardValues()
-        {
-            lblTotalProducts.Text = "Products: N/A";
-            lblLowStockProducts.Text = "Low Stock: N/A";
-            lblInventoryValue.Text = "Value: N/A";
-            lblTodaySales.Text = "Today: N/A";
-            lblTotalCustomers.Text = "Customers: N/A";
-        }
+            {
+            lblTotalProducts.Text = "📦\nN/A\nProducts";
+            lblLowStockProducts.Text = "⚠️\nN/A\nLow Stock";
+            lblOutOfStockProducts.Text = "❌\nN/A\nOut of Stock";
+            lblInventoryValue.Text = "💰\nN/A\nTotal Value";
+            lblTodaySales.Text = "💵\nN/A\nToday's Sales";
+            lblTodayOrders.Text = "🛒\nN/A\nToday's Orders";
+            lblTotalCustomers.Text = "👥\nN/A\nCustomers";
+            }
 
         /// <summary>
         /// Updates the dashboard summary cards with current statistics
         /// </summary>
         private void UpdateDashboardCards()
-        {
+            {
             if (_dashboardStats == null) return;
 
             // Suspend layout updates for better performance
             this.SuspendLayout();
 
             try
-            {
-                // Product statistics with better formatting and context
-                lblTotalProducts.Text = $"{_dashboardStats.TotalProducts:N0} Items";
-                lblLowStockProducts.Text = $"{_dashboardStats.LowStockProducts:N0} Alerts";
-                lblOutOfStockProducts.Text = $"{_dashboardStats.OutOfStockProducts:N0} Out";
-                lblInventoryValue.Text = $"${_dashboardStats.TotalInventoryValue:N2}";
-
-                // Sales statistics with better context
-                lblTodaySales.Text = $"${_dashboardStats.TodaySales:N2}";
-                lblMonthSales.Text = $"${_dashboardStats.MonthSales:N2}";
-                lblYearSales.Text = $"${_dashboardStats.YearSales:N2}";
-                lblTodayOrders.Text = $"{_dashboardStats.TodayOrders:N0} Orders";
-
-                // Customer statistics with better context
-                lblTotalCustomers.Text = $"{_dashboardStats.TotalCustomers:N0} Total";
-                lblNewCustomers.Text = $"{_dashboardStats.NewCustomersThisMonth:N0} New";
-
-                // Update status based on data availability
-                if (_dashboardStats.TodaySales > 0 || _dashboardStats.TodayOrders > 0)
                 {
-                    lblStatus.Text = $"Active • {_dashboardStats.TodayOrders} sales today";
-                    lblStatus.ForeColor = Color.Green;
+                // Product statistics with modern formatting and icons
+                lblTotalProducts.Text = $"📦\n{_dashboardStats.TotalProducts:N0}\nProducts";
+                lblLowStockProducts.Text = $"⚠️\n{_dashboardStats.LowStockProducts:N0}\nLow Stock";
+                lblOutOfStockProducts.Text = $"❌\n{_dashboardStats.OutOfStockProducts:N0}\nOut of Stock";
+                lblInventoryValue.Text = $"💰\n${_dashboardStats.TotalInventoryValue:N0}\nTotal Value";
+
+                // Sales statistics with icons and context
+                lblTodaySales.Text = $"💵\n${_dashboardStats.TodaySales:N2}\nToday's Sales";
+                lblTodayOrders.Text = $"🛒\n{_dashboardStats.TodayOrders:N0}\nToday's Orders";
+                lblTotalCustomers.Text = $"👥\n{_dashboardStats.TotalCustomers:N0}\nCustomers";
+
+                // Hidden labels for detailed view
+                lblMonthSales.Text = $"Month: ${_dashboardStats.MonthSales:N2}";
+                lblYearSales.Text = $"Year: ${_dashboardStats.YearSales:N2}";
+                lblNewCustomers.Text = $"New: {_dashboardStats.NewCustomersThisMonth:N0}";
+
+                // Apply dynamic colors based on values
+                ApplyDynamicCardColors();
+
+                // Update status with modern styling
+                UpdateStatusWithStyle();
                 }
-                else if (_dashboardStats.TotalProducts > 0)
-                {
-                    lblStatus.Text = $"Ready • {_dashboardStats.TotalProducts} products in inventory";
-                    lblStatus.ForeColor = Color.Blue;
-                }
-                else
-                {
-                    lblStatus.Text = "No data available";
-                    lblStatus.ForeColor = Color.Orange;
-                }
-            }
             finally
-            {
+                {
                 this.ResumeLayout(true);
+                }
             }
-        }
+
+        /// <summary>
+        /// Applies dynamic colors to cards based on their values
+        /// </summary>
+        private void ApplyDynamicCardColors()
+            {
+            if (_dashboardStats == null) return;
+
+            // Color low stock items based on severity
+            if (_dashboardStats.LowStockProducts > 0)
+                {
+                lblLowStockProducts.ForeColor = _dashboardStats.LowStockProducts > 10 ? _errorRed : _warningOrange;
+                }
+
+            // Color out of stock items
+            if (_dashboardStats.OutOfStockProducts > 0)
+                {
+                lblOutOfStockProducts.ForeColor = _errorRed;
+                lblOutOfStockProducts.BackColor = Color.FromArgb(254, 242, 242);
+                }
+
+            // Highlight positive sales
+            if (_dashboardStats.TodaySales > 0)
+                {
+                lblTodaySales.ForeColor = _successGreen;
+                lblTodaySales.BackColor = Color.FromArgb(240, 253, 244);
+                }
+
+            // Show inventory value in different colors based on amount
+            var valueColor = _dashboardStats.TotalInventoryValue > 100000 ? _successGreen :
+                           _dashboardStats.TotalInventoryValue > 50000 ? _primaryBlue : _textGray;
+            lblInventoryValue.ForeColor = valueColor;
+            }
+
+        /// <summary>
+        /// Updates the status bar with modern styling and contextual information
+        /// </summary>
+        private void UpdateStatusWithStyle()
+            {
+            if (_dashboardStats == null) return;
+
+            var statusText = "";
+            var statusColor = _textGray;
+
+            if (_dashboardStats.TodaySales > 0 || _dashboardStats.TodayOrders > 0)
+                {
+                statusText = $"🟢 Active • {_dashboardStats.TodayOrders} orders • ${_dashboardStats.TodaySales:N2} revenue today";
+                statusColor = _successGreen;
+                }
+            else if (_dashboardStats.TotalProducts > 0)
+                {
+                statusText = $"🔵 Ready • {_dashboardStats.TotalProducts} products in inventory • {_dashboardStats.TotalCustomers} customers";
+                statusColor = _primaryBlue;
+                }
+            else
+                {
+                statusText = "⚪ No data available • Click refresh to load dashboard data";
+                statusColor = _warningOrange;
+                }
+
+            lblStatus.Text = statusText;
+            lblStatus.ForeColor = statusColor;
+            }
 
         /// <summary>
         /// Updates the recent activities list
         /// </summary>
         private void UpdateRecentActivities()
-        {
+            {
             if (_dashboardStats == null) return;
 
             lstRecentActivities.BeginUpdate();
             try
-            {
-                lstRecentActivities.Items.Clear();
-                
-                if (_dashboardStats.RecentActivities.Any())
                 {
+                lstRecentActivities.Items.Clear();
+
+                if (_dashboardStats.RecentActivities.Any())
+                    {
                     // Add activities with timestamps if available
                     foreach (var activity in _dashboardStats.RecentActivities.Take(10))
-                    {
+                        {
                         var listItem = new ListViewItem(DateTime.Now.ToString("HH:mm"));
                         listItem.SubItems.Add(activity);
                         lstRecentActivities.Items.Add(listItem);
+                        }
                     }
-                }
                 else
-                {
+                    {
                     // Show helpful message when no activities
                     var listItem = new ListViewItem("--:--");
                     listItem.SubItems.Add("No recent activities. Start by adding products or making sales.");
                     listItem.ForeColor = Color.Gray;
                     lstRecentActivities.Items.Add(listItem);
+                    }
+                }
+            finally
+                {
+                lstRecentActivities.EndUpdate();
                 }
             }
-            finally
-            {
-                lstRecentActivities.EndUpdate();
-            }
-        }
 
         /// <summary>
         /// Updates the low stock alerts list
         /// </summary>
         private void UpdateLowStockAlerts()
-        {
+            {
             if (_dashboardStats == null) return;
 
             lstLowStockAlerts.BeginUpdate();
             try
-            {
-                lstLowStockAlerts.Items.Clear();
-                
-                if (_dashboardStats.LowStockAlerts.Any())
                 {
-                    foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                lstLowStockAlerts.Items.Clear();
+
+                if (_dashboardStats.LowStockAlerts.Any())
                     {
+                    foreach (var product in _dashboardStats.LowStockAlerts.Take(10))
+                        {
                         var item = new ListViewItem(product.Name);
                         item.SubItems.Add(product.SKU);
                         item.SubItems.Add($"{product.Stock:N0}");
                         item.SubItems.Add($"{product.MinStock:N0}");
-                        
+
                         // Add status indicator
                         var stockLevel = product.Stock;
                         var minStock = product.MinStock;
-                        var status = stockLevel == 0 ? "OUT OF STOCK" : 
+                        var status = stockLevel == 0 ? "OUT OF STOCK" :
                                    stockLevel <= minStock ? "LOW STOCK" : "OK";
                         item.SubItems.Add(status);
-                        
+
                         // Color coding based on stock level
                         if (stockLevel == 0)
-                        {
+                            {
                             item.BackColor = Color.LightCoral;
                             item.ForeColor = Color.DarkRed;
-                        }
+                            }
                         else if (stockLevel <= minStock)
-                        {
+                            {
                             item.BackColor = Color.LightYellow;
                             item.ForeColor = Color.DarkOrange;
-                        }
-                        
+                            }
+
                         item.Tag = product;
                         lstLowStockAlerts.Items.Add(item);
+                        }
                     }
-                }
                 else
-                {
+                    {
                     // Show message when no low stock alerts
                     var item = new ListViewItem("No low stock alerts");
                     item.SubItems.Add("--");
@@ -510,13 +589,13 @@ namespace InventoryPro.WinForms.Forms
                     item.SubItems.Add("All Good!");
                     item.ForeColor = Color.Green;
                     lstLowStockAlerts.Items.Add(item);
+                    }
+                }
+            finally
+                {
+                lstLowStockAlerts.EndUpdate();
                 }
             }
-            finally
-            {
-                lstLowStockAlerts.EndUpdate();
-            }
-        }
 
         #region Event Handlers
 
@@ -524,198 +603,198 @@ namespace InventoryPro.WinForms.Forms
         /// Opens the Products management form
         /// </summary>
         private void BtnProducts_Click(object sender, EventArgs e)
-        {
-            try
             {
-                if (_productForm == null || _productForm.IsDisposed)
+            try
                 {
+                if (_productForm == null || _productForm.IsDisposed)
+                    {
                     _productForm = Program.GetRequiredService<ProductForm>();
                     _productForm.ProductDataChanged += OnProductDataChanged;
-                }
+                    }
                 _productForm.ShowDialog();
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Products form");
                 MessageBox.Show("Error opening Products form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles product data changes to refresh dashboard
         /// </summary>
         private async void OnProductDataChanged(object? sender, EventArgs e)
-        {
+            {
             await RefreshDashboardAsync();
-        }
+            }
 
         /// <summary>
         /// Opens the Customers management form
         /// </summary>
         private void BtnCustomers_Click(object sender, EventArgs e)
-        {
+            {
             try
-            {
-                if (_customerForm == null || _customerForm.IsDisposed)
                 {
+                if (_customerForm == null || _customerForm.IsDisposed)
+                    {
                     _customerForm = Program.GetRequiredService<CustomerForm>();
-                }
+                    }
                 _customerForm.ShowDialog();
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Customers form");
                 MessageBox.Show("Error opening Customers form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Opens the Sales management form with options
         /// </summary>
         private void BtnSales_Click(object sender, EventArgs e)
-        {
-            try
             {
-                var contextMenu = new ContextMenuStrip();
-                
-                var posItem = new ToolStripMenuItem("Point of Sale (POS)")
+            try
                 {
+                var contextMenu = new ContextMenuStrip();
+
+                var posItem = new ToolStripMenuItem("Point of Sale (POS)")
+                    {
                     Font = new Font("Segoe UI", 10, FontStyle.Bold),
                     Image = null // You can add an icon here
-                };
+                    };
                 posItem.Click += (s, args) => OpenPOSForm();
-                
+
                 var detailsItem = new ToolStripMenuItem("Sales History & Details")
-                {
+                    {
                     Font = new Font("Segoe UI", 10),
                     Image = null // You can add an icon here
-                };
+                    };
                 detailsItem.Click += (s, args) => OpenSalesDetailsForm();
-                
+
                 contextMenu.Items.AddRange(new ToolStripItem[] { posItem, detailsItem });
-                
+
                 // Show context menu at button location
                 if (sender is Control button)
-                {
+                    {
                     contextMenu.Show(button, new Point(0, button.Height));
-                }
+                    }
                 else
-                {
+                    {
                     // Fallback: just open POS
                     OpenPOSForm();
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Sales menu");
                 MessageBox.Show("Error opening Sales menu", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Opens the Point of Sale form
         /// </summary>
         private void OpenPOSForm()
-        {
-            try
             {
-                if (_salesForm == null || _salesForm.IsDisposed)
+            try
                 {
+                if (_salesForm == null || _salesForm.IsDisposed)
+                    {
                     _salesForm = Program.GetRequiredService<SalesForm>();
                     _salesForm.SalesDataChanged += OnSalesDataChanged;
-                }
+                    }
                 _salesForm.ShowDialog();
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening POS form");
                 MessageBox.Show("Error opening POS form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles sales data changes to refresh dashboard
         /// </summary>
         private async void OnSalesDataChanged(object? sender, EventArgs e)
-        {
+            {
             await RefreshDashboardAsync();
-        }
+            }
 
         /// <summary>
         /// Opens the Sales Details and History form
         /// </summary>
         private void OpenSalesDetailsForm()
-        {
-            try
             {
+            try
+                {
                 using var salesDetailsForm = Program.GetRequiredService<SalesDetailsForm>();
                 salesDetailsForm.ShowDialog();
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Sales Details form");
                 MessageBox.Show("Error opening Sales Details form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Opens the Reports form
         /// </summary>
         private void BtnReports_Click(object sender, EventArgs e)
-        {
+            {
             try
-            {
-                if (_reportForm == null || _reportForm.IsDisposed)
                 {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
                     _reportForm = Program.GetRequiredService<ReportForm>();
-                }
+                    }
                 _reportForm.ShowDialog();
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Reports form");
                 MessageBox.Show("Error opening Reports form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Refreshes the dashboard data
         /// </summary>
         private async void BtnRefresh_Click(object sender, EventArgs e)
-        {
+            {
             try
-            {
+                {
                 await LoadDashboardStatsAsync(forceRefresh: true);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error refreshing dashboard");
                 MessageBox.Show("Error refreshing dashboard", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Public method to refresh dashboard stats from external forms
         /// </summary>
         public async Task RefreshDashboardAsync()
-        {
+            {
             try
-            {
+                {
                 await LoadDashboardStatsAsync(forceRefresh: true);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error refreshing dashboard from external call");
+                }
             }
-        }
 
         /// <summary>
         /// Logs out the current user
         /// </summary>
         private async void BtnLogout_Click(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 var result = MessageBox.Show(
                     "Are you sure you want to logout?",
                     "Confirm Logout",
@@ -723,27 +802,27 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxIcon.Question);
 
                 if (result == DialogResult.Yes)
-                {
+                    {
                     await _authService.ClearTokenAsync();
                     _logger.LogInformation("User logged out successfully");
                     this.Close(); // This will return to the login form via Program.cs
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error during logout");
                 MessageBox.Show("Error during logout", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles form closing event
         /// </summary>
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
-        {
+            {
             // Only confirm exit if user manually closes the form (not programmatic close)
             if (e.CloseReason == CloseReason.UserClosing)
-            {
+                {
                 var result = MessageBox.Show(
                     "Are you sure you want to exit the application?",
                     "Confirm Exit",
@@ -751,27 +830,27 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxIcon.Question);
 
                 if (result == DialogResult.No)
-                {
+                    {
                     e.Cancel = true;
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Handles double-click on low stock alerts to open product details
         /// </summary>
         private void LstLowStockAlerts_DoubleClick(object sender, EventArgs e)
-        {
-            if (lstLowStockAlerts.SelectedItems.Count > 0)
             {
+            if (lstLowStockAlerts.SelectedItems.Count > 0)
+                {
                 var selectedItem = lstLowStockAlerts.SelectedItems[0];
                 if (selectedItem.Tag is ProductDto product)
-                {
+                    {
                     // Open product form with selected product
                     BtnProducts_Click(sender, e);
+                    }
                 }
             }
-        }
 
         #endregion
 
@@ -793,19 +872,19 @@ namespace InventoryPro.WinForms.Forms
         };
 
         private enum ContextMenuPriority
-        {
+            {
             Navigation = 1, // Main navigation (menu/toolbar) takes precedence
             Context = 2,    // Context menus for specific actions
             Hidden = 3      // Actions that should be hidden to avoid duplication
-        }
+            }
 
         /// <summary>
         /// Initializes context menus for different sections of the dashboard with deduplication
         /// </summary>
         private void InitializeContextMenus()
-        {
-            try
             {
+            try
+                {
                 // Clear existing menus to prevent duplication
                 ClearExistingContextMenus();
 
@@ -815,41 +894,41 @@ namespace InventoryPro.WinForms.Forms
                 InitializeActivitiesContextMenu();
                 AssignContextMenus();
                 _logger.LogInformation("Context menus initialized successfully with deduplication");
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error initializing context menus");
+                }
             }
-        }
 
         /// <summary>
         /// Clears existing context menus to prevent duplication
         /// </summary>
         private void ClearExistingContextMenus()
-        {
+            {
             dashboardContextMenu?.Items?.Clear();
             statsContextMenu?.Items?.Clear();
             alertsContextMenu?.Items?.Clear();
             activitiesContextMenu?.Items?.Clear();
-        }
+            }
 
         /// <summary>
         /// Initializes the main dashboard context menu with smart deduplication
         /// </summary>
         private void InitializeDashboardContextMenu()
-        {
+            {
             // Only add items that aren't better served by navigation
             if (ShouldIncludeAction("refresh", ContextMenuPriority.Context))
-            {
+                {
                 var refreshItem = new ToolStripMenuItem("🔄 Refresh Dashboard", null, OnRefreshDashboard);
                 refreshItem.ShortcutKeys = Keys.F5;
                 refreshItem.ShowShortcutKeys = true;
                 refreshItem.ToolTipText = "Refresh dashboard data (F5)";
                 dashboardContextMenu.Items.Add(refreshItem);
-            }
+                }
 
             if (ShouldIncludeAction("export", ContextMenuPriority.Context))
-            {
+                {
                 if (dashboardContextMenu.Items.Count > 0)
                     dashboardContextMenu.Items.Add(new ToolStripSeparator());
 
@@ -857,37 +936,37 @@ namespace InventoryPro.WinForms.Forms
                 exportItem.Enabled = _dashboardStats != null;
                 exportItem.ToolTipText = "Export dashboard data to clipboard";
                 dashboardContextMenu.Items.Add(exportItem);
-            }
+                }
 
             // Add context-specific help
             if (dashboardContextMenu.Items.Count > 0)
-            {
+                {
                 dashboardContextMenu.Items.Add(new ToolStripSeparator());
                 var helpItem = new ToolStripMenuItem("❓ Dashboard Help", null, OnDashboardHelp);
                 helpItem.ToolTipText = "Show dashboard help information";
                 dashboardContextMenu.Items.Add(helpItem);
+                }
             }
-        }
 
         /// <summary>
         /// Initializes the statistics panel context menu with deduplication
         /// </summary>
         private void InitializeStatsContextMenu()
-        {
+            {
             // Don't duplicate main navigation items - focus on context-specific actions
 
             // Quick Add Product (context-specific action)
             if (ShouldIncludeAction("add", ContextMenuPriority.Context) &&
                 _currentUser != null && IsManagerOrAdmin(_currentUser.Role))
-            {
+                {
                 var addProductItem = new ToolStripMenuItem("➕ Quick Add Product", null, OnAddProduct);
                 addProductItem.ToolTipText = "Quickly add a new product";
                 statsContextMenu.Items.Add(addProductItem);
-            }
+                }
 
             // Export Product Statistics
             if (ShouldIncludeAction("export", ContextMenuPriority.Context))
-            {
+                {
                 if (statsContextMenu.Items.Count > 0)
                     statsContextMenu.Items.Add(new ToolStripSeparator());
 
@@ -895,62 +974,62 @@ namespace InventoryPro.WinForms.Forms
                 exportStatsItem.ToolTipText = "Export product statistics";
                 exportStatsItem.Enabled = _dashboardStats != null;
                 statsContextMenu.Items.Add(exportStatsItem);
-            }
+                }
 
             // Product Statistics Settings
             if (statsContextMenu.Items.Count > 0)
-            {
+                {
                 statsContextMenu.Items.Add(new ToolStripSeparator());
                 var settingsItem = new ToolStripMenuItem("⚙️ Stats Settings", null, OnStatsSettings);
                 settingsItem.ToolTipText = "Configure product statistics display";
                 statsContextMenu.Items.Add(settingsItem);
-            }
+                }
 
             // Note: Removed "View Products" and "Product Reports" as they duplicate main navigation
-        }
+            }
 
         /// <summary>
         /// Determines if an action should be included based on priority and current context
         /// </summary>
         private bool ShouldIncludeAction(string action, ContextMenuPriority requestedPriority)
-        {
+            {
             if (!_menuActionPriorities.TryGetValue(action, out var assignedPriority))
                 return true; // Unknown actions are allowed
 
             return assignedPriority == requestedPriority;
-        }
+            }
 
         /// <summary>
         /// Checks if user is manager or admin
         /// </summary>
         private bool IsManagerOrAdmin(string role)
-        {
+            {
             return role.Equals("Manager", StringComparison.OrdinalIgnoreCase) ||
                    role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
-        }
+            }
 
         /// <summary>
         /// Initializes the low stock alerts context menu with smart selection awareness
         /// </summary>
         private void InitializeAlertsContextMenu()
-        {
+            {
             // These are all context-specific actions that don't duplicate navigation
 
             // View Selected Product Details
             if (ShouldIncludeAction("view", ContextMenuPriority.Context))
-            {
+                {
                 var viewProductItem = new ToolStripMenuItem("👁️ View Product Details", null, OnViewSelectedProduct);
                 viewProductItem.ToolTipText = "View details for selected product";
                 alertsContextMenu.Items.Add(viewProductItem);
-            }
+                }
 
             // Quick Stock Update
             if (ShouldIncludeAction("update", ContextMenuPriority.Context))
-            {
+                {
                 var updateStockItem = new ToolStripMenuItem("📝 Quick Stock Update", null, OnUpdateSelectedStock);
                 updateStockItem.ToolTipText = "Quickly update stock for selected product";
                 alertsContextMenu.Items.Add(updateStockItem);
-            }
+                }
 
             // Reorder Product
             var reorderItem = new ToolStripMenuItem("🔄 Reorder Product", null, OnReorderProduct);
@@ -964,26 +1043,26 @@ namespace InventoryPro.WinForms.Forms
             var alertSettingsItem = new ToolStripMenuItem("🔔 Alert Thresholds", null, OnAlertSettings);
             alertSettingsItem.ToolTipText = "Configure low stock alert thresholds";
             alertsContextMenu.Items.Add(alertSettingsItem);
-        }
+            }
 
         /// <summary>
         /// Initializes the activities panel context menu with focus on quick actions
         /// </summary>
         private void InitializeActivitiesContextMenu()
-        {
+            {
             // Focus on quick actions that enhance productivity
 
             // Quick New Sale (enhanced over navigation)
             if (ShouldIncludeAction("add", ContextMenuPriority.Context))
-            {
+                {
                 var newSaleItem = new ToolStripMenuItem("💰 Quick Sale", null, OnNewSale);
                 newSaleItem.ToolTipText = "Start a new sale transaction";
                 activitiesContextMenu.Items.Add(newSaleItem);
-            }
+                }
 
             // Export Recent Activities
             if (ShouldIncludeAction("export", ContextMenuPriority.Context))
-            {
+                {
                 if (activitiesContextMenu.Items.Count > 0)
                     activitiesContextMenu.Items.Add(new ToolStripSeparator());
 
@@ -991,7 +1070,7 @@ namespace InventoryPro.WinForms.Forms
                 exportActivitiesItem.ToolTipText = "Export recent activities list";
                 exportActivitiesItem.Enabled = _dashboardStats?.RecentActivities?.Any() == true;
                 activitiesContextMenu.Items.Add(exportActivitiesItem);
-            }
+                }
 
             // Filter Activities
             var filterItem = new ToolStripMenuItem("🔍 Filter Activities", null, OnFilterActivities);
@@ -1006,13 +1085,13 @@ namespace InventoryPro.WinForms.Forms
             activitiesContextMenu.Items.Add(settingsItem);
 
             // Note: Removed "View Sales" and "Sales Reports" to avoid duplication with navigation
-        }
+            }
 
         /// <summary>
         /// Assigns context menus to appropriate controls
         /// </summary>
         private void AssignContextMenus()
-        {
+            {
             // Assign dashboard context menu to main dashboard panel
             pnlDashboard.ContextMenuStrip = dashboardContextMenu;
 
@@ -1031,7 +1110,7 @@ namespace InventoryPro.WinForms.Forms
             alertsContextMenu.Opening += AlertsContextMenu_Opening;
             statsContextMenu.Opening += StatsContextMenu_Opening;
             activitiesContextMenu.Opening += ActivitiesContextMenu_Opening;
-        }
+            }
 
         #endregion
 
@@ -1041,30 +1120,30 @@ namespace InventoryPro.WinForms.Forms
         /// Handles refresh dashboard context menu click
         /// </summary>
         private async void OnRefreshDashboard(object? sender, EventArgs e)
-        {
+            {
             try
-            {
+                {
                 await LoadDashboardStatsAsync(forceRefresh: true);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error refreshing dashboard from context menu");
                 MessageBox.Show("Error refreshing dashboard", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles export dashboard context menu click
         /// </summary>
         private void OnExportDashboard(object? sender, EventArgs e)
-        {
-            try
             {
-                if (_dashboardStats == null)
+            try
                 {
+                if (_dashboardStats == null)
+                    {
                     MessageBox.Show("No dashboard data available to export", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
-                }
+                    }
 
                 // Simple text export for now
                 var exportData = $"InventoryPro Dashboard Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
@@ -1078,172 +1157,172 @@ namespace InventoryPro.WinForms.Forms
 
                 Clipboard.SetText(exportData);
                 MessageBox.Show("Dashboard data copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error exporting dashboard");
                 MessageBox.Show("Error exporting dashboard data", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles add product context menu click
         /// </summary>
         private void OnAddProduct(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 // Open products form in add mode
                 BtnProducts_Click(sender ?? this, e);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening add product");
                 MessageBox.Show("Error opening product form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles view selected product from alerts context menu
         /// </summary>
         private void OnViewSelectedProduct(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 if (lstLowStockAlerts.SelectedItems.Count > 0 &&
                     lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
-                {
+                    {
                     // Open products form and navigate to selected product
                     BtnProducts_Click(sender ?? this, e);
-                }
+                    }
                 else
-                {
+                    {
                     MessageBox.Show("Please select a product from the list", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error viewing selected product");
                 MessageBox.Show("Error viewing product details", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles update stock for selected product
         /// </summary>
         private void OnUpdateSelectedStock(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 if (lstLowStockAlerts.SelectedItems.Count > 0 &&
                     lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
-                {
+                    {
                     // Simple stock update dialog using a basic input form
                     string result = ShowInputDialog($"Update stock for {product.Name}\nCurrent Stock: {product.Stock}", "Update Stock", product.Stock.ToString());
 
                     if (!string.IsNullOrEmpty(result) && int.TryParse(result, out int newStock))
-                    {
+                        {
                         // TODO: Implement stock update API call
                         MessageBox.Show($"Stock updated to {newStock} for {product.Name}", "Stock Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                else
+                    {
+                    MessageBox.Show("Please select a product from the list", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                 }
-                else
-                {
-                    MessageBox.Show("Please select a product from the list", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error updating stock");
                 MessageBox.Show("Error updating stock", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles alert settings context menu click
         /// </summary>
         private void OnAlertSettings(object? sender, EventArgs e)
-        {
+            {
             try
-            {
+                {
                 MessageBox.Show("Alert settings functionality will be implemented in a future update", "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening alert settings");
+                }
             }
-        }
 
         /// <summary>
         /// Handles new sale context menu click
         /// </summary>
         private void OnNewSale(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 // Open sales form
                 BtnSales_Click(sender ?? this, e);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening new sale");
                 MessageBox.Show("Error opening sales form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Updates alerts context menu based on selection
         /// </summary>
         private void AlertsContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
-        {
+            {
             var hasSelection = lstLowStockAlerts.SelectedItems.Count > 0;
 
             // Update menu items based on selection
             foreach (ToolStripMenuItem item in alertsContextMenu.Items.OfType<ToolStripMenuItem>())
-            {
-                if (item.Text?.Contains("View Product") == true || item.Text?.Contains("Update Stock") == true)
                 {
+                if (item.Text?.Contains("View Product") == true || item.Text?.Contains("Update Stock") == true)
+                    {
                     item.Enabled = hasSelection;
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Updates stats context menu based on user role
         /// </summary>
         private void StatsContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
-        {
+            {
             // Update role-based items
             foreach (ToolStripMenuItem item in statsContextMenu.Items.OfType<ToolStripMenuItem>())
-            {
-                if (item.Text?.Contains("Add New") == true || item.Text?.Contains("Reports") == true)
                 {
+                if (item.Text?.Contains("Add New") == true || item.Text?.Contains("Reports") == true)
+                    {
                     item.Enabled = _currentUser != null && (_currentUser.Role.Equals("Manager", StringComparison.OrdinalIgnoreCase) ||
                         _currentUser.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Updates activities context menu based on user role and data availability
         /// </summary>
         private void ActivitiesContextMenu_Opening(object? sender, System.ComponentModel.CancelEventArgs e)
-        {
+            {
             // Update data-dependent items
             foreach (ToolStripMenuItem item in activitiesContextMenu.Items.OfType<ToolStripMenuItem>())
-            {
-                if (item.Text?.Contains("Export Activities") == true)
                 {
+                if (item.Text?.Contains("Export Activities") == true)
+                    {
                     item.Enabled = _dashboardStats?.RecentActivities?.Any() == true;
+                    }
                 }
             }
-        }
 
         /// <summary>
         /// Handles dashboard help context menu click
         /// </summary>
         private void OnDashboardHelp(object? sender, EventArgs e)
-        {
+            {
             var helpMessage = "Dashboard Help:\n\n" +
                 "• Product statistics show current inventory status\n" +
                 "• Low stock alerts help manage reordering\n" +
@@ -1252,20 +1331,20 @@ namespace InventoryPro.WinForms.Forms
                 "• Press F5 to refresh data";
 
             MessageBox.Show(helpMessage, "Dashboard Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles export product stats context menu click
         /// </summary>
         private void OnExportProductStats(object? sender, EventArgs e)
-        {
-            try
             {
-                if (_dashboardStats == null)
+            try
                 {
+                if (_dashboardStats == null)
+                    {
                     MessageBox.Show("No product statistics available", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
-                }
+                    }
 
                 var statsData = $"Product Statistics Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
                     $"Total Products: {_dashboardStats.TotalProducts:N0}\n" +
@@ -1275,33 +1354,33 @@ namespace InventoryPro.WinForms.Forms
 
                 Clipboard.SetText(statsData);
                 MessageBox.Show("Product statistics copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error exporting product statistics");
                 MessageBox.Show("Error exporting product statistics", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles stats settings context menu click
         /// </summary>
         private void OnStatsSettings(object? sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Product statistics display settings will be available in a future update",
                 "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles reorder product context menu click
         /// </summary>
         private void OnReorderProduct(object? sender, EventArgs e)
-        {
-            try
             {
+            try
+                {
                 if (lstLowStockAlerts.SelectedItems.Count > 0 &&
                     lstLowStockAlerts.SelectedItems[0].Tag is ProductDto product)
-                {
+                    {
                     var result = MessageBox.Show(
                         $"Create reorder request for {product.Name}?\n\nCurrent Stock: {product.Stock}\nMinimum Stock: {product.MinStock}",
                         "Reorder Product",
@@ -1309,76 +1388,76 @@ namespace InventoryPro.WinForms.Forms
                         MessageBoxIcon.Question);
 
                     if (result == DialogResult.Yes)
-                    {
+                        {
                         // TODO: Implement reorder functionality
                         MessageBox.Show($"Reorder request created for {product.Name}",
                             "Reorder Created", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
                     }
-                }
                 else
-                {
+                    {
                     MessageBox.Show("Please select a product from the alerts list",
                         "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error creating reorder request");
                 MessageBox.Show("Error creating reorder request", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles export activities context menu click
         /// </summary>
         private void OnExportActivities(object? sender, EventArgs e)
-        {
-            try
             {
-                if (_dashboardStats?.RecentActivities?.Any() != true)
+            try
                 {
+                if (_dashboardStats?.RecentActivities?.Any() != true)
+                    {
                     MessageBox.Show("No activities available to export", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
-                }
+                    }
 
                 var activitiesData = $"Recent Activities Export - {DateTime.Now:yyyy-MM-dd HH:mm}\n\n" +
                     string.Join("\n", _dashboardStats.RecentActivities.Take(20));
 
                 Clipboard.SetText(activitiesData);
                 MessageBox.Show("Activities copied to clipboard", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error exporting activities");
                 MessageBox.Show("Error exporting activities", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles filter activities context menu click
         /// </summary>
         private void OnFilterActivities(object? sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Activity filtering will be available in a future update",
                 "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles activity settings context menu click
         /// </summary>
         private void OnActivitySettings(object? sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Activity display settings will be available in a future update",
                 "Feature Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Shows a simple input dialog
         /// </summary>
         private string ShowInputDialog(string text, string caption, string defaultValue = "")
-        {
-            Form prompt = new Form()
             {
+            Form prompt = new Form()
+                {
                 Width = 400,
                 Height = 180,
                 Text = caption,
@@ -1386,7 +1465,7 @@ namespace InventoryPro.WinForms.Forms
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
                 MinimizeBox = false
-            };
+                };
 
             Label textLabel = new Label() { Left = 10, Top = 10, Width = 360, Height = 40, Text = text };
             TextBox textBox = new TextBox() { Left = 10, Top = 55, Width = 360, Text = defaultValue };
@@ -1401,7 +1480,7 @@ namespace InventoryPro.WinForms.Forms
             prompt.CancelButton = cancel;
 
             return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : string.Empty;
-        }
+            }
 
         #endregion
 
@@ -1411,205 +1490,255 @@ namespace InventoryPro.WinForms.Forms
         /// Handles New menu item click
         /// </summary>
         private void MenuNew_Click(object sender, EventArgs e)
-        {
+            {
             // Show submenu or dialog for creating new items
             MessageBox.Show("Create new item functionality", "New", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles Import menu item click
         /// </summary>
         private void MenuImport_Click(object sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Import data functionality", "Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles Export menu item click
         /// </summary>
         private void MenuExport_Click(object sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Export data functionality", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles Exit menu item click
         /// </summary>
         private void MenuExit_Click(object sender, EventArgs e)
-        {
+            {
             this.Close();
-        }
+            }
 
         /// <summary>
         /// Handles Dashboard menu item click
         /// </summary>
         private void MenuDashboard_Click(object sender, EventArgs e)
-        {
+            {
             // Already on dashboard, could refresh
             BtnRefresh_Click(sender, e);
-        }
+            }
 
         /// <summary>
         /// Handles Full Screen menu item click
         /// </summary>
         private void MenuFullScreen_Click(object sender, EventArgs e)
-        {
+            {
             this.WindowState = this.WindowState == FormWindowState.Maximized ? FormWindowState.Normal : FormWindowState.Maximized;
-        }
+            }
 
         /// <summary>
         /// Handles Settings menu item click
         /// </summary>
         private void MenuSettings_Click(object sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Settings functionality", "Settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles Backup menu item click
         /// </summary>
         private void MenuBackup_Click(object sender, EventArgs e)
-        {
+            {
             MessageBox.Show("Backup database functionality", "Backup", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles Minimize menu item click
         /// </summary>
         private void MenuMinimize_Click(object sender, EventArgs e)
-        {
+            {
             this.WindowState = FormWindowState.Minimized;
-        }
+            }
 
         /// <summary>
         /// Handles About menu item click
         /// </summary>
         private void MenuAbout_Click(object sender, EventArgs e)
-        {
+            {
             MessageBox.Show("InventoryPro v1.0\nInventory Management System", "About", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+            }
 
         /// <summary>
         /// Handles New Sale button click
         /// </summary>
         private void BtnNewSale_Click(object sender, EventArgs e)
-        {
+            {
             // Open sales form in new sale mode
             BtnSales_Click(sender, e);
-        }
+            }
 
         /// <summary>
         /// Handles Add Product button click
         /// </summary>
         private void BtnAddProduct_Click(object sender, EventArgs e)
-        {
+            {
             // Open products form in add mode
             BtnProducts_Click(sender, e);
-        }
+            }
 
         /// <summary>
         /// Handles Sales Reports menu item click
         /// </summary>
         private void MenuSalesReports_Click(object sender, EventArgs e)
-        {
-            try
             {
-                if (_reportForm == null || _reportForm.IsDisposed)
+            try
                 {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
                     _reportForm = Program.GetRequiredService<ReportForm>();
-                }
+                    }
                 _reportForm.Show();
                 _reportForm.BringToFront();
                 // Switch to Sales Reports tab
                 if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
-                {
+                    {
                     tabControl.SelectedIndex = 0; // Sales Reports tab
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Sales Reports");
                 MessageBox.Show("Error opening Sales Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles Inventory Reports menu item click
         /// </summary>
         private void MenuInventoryReports_Click(object sender, EventArgs e)
-        {
-            try
             {
-                if (_reportForm == null || _reportForm.IsDisposed)
+            try
                 {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
                     _reportForm = Program.GetRequiredService<ReportForm>();
-                }
+                    }
                 _reportForm.Show();
                 _reportForm.BringToFront();
                 // Switch to Inventory Reports tab
                 if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
-                {
+                    {
                     tabControl.SelectedIndex = 1; // Inventory Reports tab
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Inventory Reports");
                 MessageBox.Show("Error opening Inventory Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles Financial Reports menu item click
         /// </summary>
         private void MenuFinancialReports_Click(object sender, EventArgs e)
-        {
-            try
             {
-                if (_reportForm == null || _reportForm.IsDisposed)
+            try
                 {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
                     _reportForm = Program.GetRequiredService<ReportForm>();
-                }
+                    }
                 _reportForm.Show();
                 _reportForm.BringToFront();
                 // Switch to Financial Reports tab
                 if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
-                {
+                    {
                     tabControl.SelectedIndex = 2; // Financial Reports tab
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Financial Reports");
                 MessageBox.Show("Error opening Financial Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
 
         /// <summary>
         /// Handles Custom Reports menu item click
         /// </summary>
         private void MenuCustomReports_Click(object sender, EventArgs e)
-        {
-            try
             {
-                if (_reportForm == null || _reportForm.IsDisposed)
+            try
                 {
+                if (_reportForm == null || _reportForm.IsDisposed)
+                    {
                     _reportForm = Program.GetRequiredService<ReportForm>();
-                }
+                    }
                 _reportForm.Show();
                 _reportForm.BringToFront();
                 // Switch to Custom Reports tab
                 if (_reportForm.Controls.Find("tabControl", true).FirstOrDefault() is TabControl tabControl)
-                {
+                    {
                     tabControl.SelectedIndex = 3; // Custom Reports tab
+                    }
                 }
-            }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error opening Custom Reports");
                 MessageBox.Show("Error opening Custom Reports", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
-        }
+
+        #endregion
+
+        #region Modern Styling Methods
+
+        /// <summary>
+        /// Applies modern styling to the main form
+        /// </summary>
+        private void ApplyModernStyling()
+            {
+            try
+                {
+                // Set form background to modern gray
+                this.BackColor = _backgroundGray;
+
+                // Enable double buffering for smooth rendering
+                this.SetStyle(ControlStyles.AllPaintingInWmPaint |
+                             ControlStyles.UserPaint |
+                             ControlStyles.DoubleBuffer, true);
+
+                // Apply basic styling to panels
+                pnlDashboard.BackColor = _backgroundGray;
+                pnlStats.BackColor = Color.Transparent;
+                pnlActivities.BackColor = Color.Transparent;
+                pnlAlerts.BackColor = Color.Transparent;
+
+                // Style list controls
+                lstRecentActivities.BackColor = _cardBackground;
+                lstRecentActivities.Font = new Font("Segoe UI", 10F);
+                lstRecentActivities.ForeColor = _textGray;
+
+                lstLowStockAlerts.BackColor = _cardBackground;
+                lstLowStockAlerts.Font = new Font("Segoe UI", 10F);
+                lstLowStockAlerts.ForeColor = _textGray;
+
+                // Configure columns for low stock alerts
+                lstLowStockAlerts.Columns.Clear();
+                lstLowStockAlerts.Columns.Add("Product", 180);
+                lstLowStockAlerts.Columns.Add("SKU", 100);
+                lstLowStockAlerts.Columns.Add("Stock", 70);
+                lstLowStockAlerts.Columns.Add("Min", 70);
+                lstLowStockAlerts.Columns.Add("Status", 100);
+
+                _logger.LogDebug("Modern styling applied to MainForm");
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error applying modern styling");
+                }
+            }
 
         #endregion
 
@@ -1617,16 +1746,64 @@ namespace InventoryPro.WinForms.Forms
         /// Cleanup resources when form is disposed
         /// </summary>
         protected override void Dispose(bool disposing)
-        {
-            if (disposing)
             {
+            if (disposing)
+                {
+                _animationTimer?.Stop();
+                _animationTimer?.Dispose();
                 _productForm?.Dispose();
                 _customerForm?.Dispose();
                 _salesForm?.Dispose();
                 _reportForm?.Dispose();
                 components?.Dispose();
-            }
+                }
             base.Dispose(disposing);
+            }
         }
+
+    /// <summary>
+    /// Extension methods for enhanced graphics operations
+    /// </summary>
+    public static class GraphicsExtensions
+        {
+        /// <summary>
+        /// Fills a rounded rectangle
+        /// </summary>
+        public static void FillRoundedRectangle(this Graphics graphics, Brush brush, Rectangle bounds, int cornerRadius)
+            {
+            using (var path = CreateRoundedRectanglePath(bounds, cornerRadius))
+                {
+                graphics.FillPath(brush, path);
+                }
+            }
+
+        /// <summary>
+        /// Draws a rounded rectangle outline
+        /// </summary>
+        public static void DrawRoundedRectangle(this Graphics graphics, Pen pen, Rectangle bounds, int cornerRadius)
+            {
+            using (var path = CreateRoundedRectanglePath(bounds, cornerRadius))
+                {
+                graphics.DrawPath(pen, path);
+                }
+            }
+
+        /// <summary>
+        /// Creates a rounded rectangle path
+        /// </summary>
+        private static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int cornerRadius)
+            {
+            var path = new GraphicsPath();
+            var diameter = cornerRadius * 2;
+
+            path.AddArc(bounds.X, bounds.Y, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Y, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+
+            return path;
+            }
+        }
+
     }
-}

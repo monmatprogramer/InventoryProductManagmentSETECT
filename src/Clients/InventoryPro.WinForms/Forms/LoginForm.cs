@@ -4,18 +4,19 @@ using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Drawing.Text;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
 namespace InventoryPro.WinForms.Forms
-    {
+{
     /// <summary>
     /// Modern, professional login form for InventoryPro application
     /// Features: Gradient backgrounds, smooth animations, modern UI elements,
     /// enhanced security, and professional user experience
     /// </summary>
     public partial class LoginForm : Form
-        {
+    {
         #region Private Fields
 
         private readonly ILogger<LoginForm> _logger;
@@ -27,6 +28,13 @@ namespace InventoryPro.WinForms.Forms
         private bool _passwordVisible = false;
         private float _animationProgress = 0f;
         private bool _animationDirection = true;
+        private float _buttonAnimationProgress = 0f;
+        private float _loadingSpinnerAngle = 0f;
+        private float _overlayOpacity = 0f;
+        private bool _isAnimatingButton = false;
+        private string _originalButtonText = "Sign In";
+        private Timer _buttonAnimationTimer;
+        private Timer _spinnerTimer;
 
         // Colors for modern theme
         private readonly Color _primaryBlue = Color.FromArgb(59, 130, 246);
@@ -47,8 +55,8 @@ namespace InventoryPro.WinForms.Forms
         /// <param name="logger">Logger service for tracking application events</param>
         /// <param name="authService">Authentication service for user validation</param>
         /// <param name="apiService">API service for backend communication</param>
-        public LoginForm(ILogger<LoginForm> logger, IAuthService authService, IApiService apiService)
-            {
+        public                                                                                                                                                              LoginForm(ILogger<LoginForm> logger, IAuthService authService, IApiService apiService)
+        {
             // Validate dependencies - throw exception if any are null
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
@@ -63,14 +71,19 @@ namespace InventoryPro.WinForms.Forms
             // Set up modern styling
             ApplyModernStyling();
 
+            // Initialize animation timers
+            _buttonAnimationTimer = new Timer(); // Ensure non-null initialization
+            _spinnerTimer = new Timer();         // Ensure non-null initialization
+            InitializeAnimationTimers();
+
             _logger.LogInformation("LoginForm initialized successfully");
-            }
+        }
 
         /// <summary>
         /// Configures additional form properties, events, and initial state
         /// </summary>
         private void ConfigureForm()
-            {
+        {
             // Enable form to receive key events before controls
             this.KeyPreview = true;
 
@@ -94,13 +107,13 @@ namespace InventoryPro.WinForms.Forms
 
             // Load saved user preferences
             LoadSavedCredentials();
-            }
+        }
 
         /// <summary>
         /// Applies modern styling to all form elements
         /// </summary>
         private void ApplyModernStyling()
-            {
+        {
             // Enable anti-aliasing for smoother text rendering
             this.SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
 
@@ -111,7 +124,23 @@ namespace InventoryPro.WinForms.Forms
             ConfigureInputStyling();
 
             _logger.LogDebug("Modern styling applied to LoginForm");
-            }
+        }
+
+        /// <summary>
+        /// Initializes animation timers for smooth UI transitions
+        /// </summary>
+        private void InitializeAnimationTimers()
+        {
+            // Button animation timer for smooth loading transitions
+            _buttonAnimationTimer.Interval = 16; // 60 FPS
+            _buttonAnimationTimer.Tick += ButtonAnimationTimer_Tick;
+
+            // Spinner timer for loading indicator
+            _spinnerTimer.Interval = 16; // 60 FPS  
+            _spinnerTimer.Tick += SpinnerTimer_Tick;
+
+            _logger.LogDebug("Animation timers initialized");
+        }
 
         #endregion
 
@@ -122,7 +151,7 @@ namespace InventoryPro.WinForms.Forms
         /// This gives the form a modern, professional appearance
         /// </summary>
         private void PnlLeftPanel_Paint(object? sender, PaintEventArgs e)
-            {
+        {
             if (sender is not Panel panel) return;
 
             // Create a linear gradient from top-left to bottom-right
@@ -137,19 +166,19 @@ namespace InventoryPro.WinForms.Forms
 
             // Add subtle animation effect
             if (_animationProgress > 0)
-                {
+            {
                 using var overlayBrush = new SolidBrush(
                     Color.FromArgb((int)(30 * _animationProgress), Color.White));
                 e.Graphics.FillRectangle(overlayBrush, panel.ClientRectangle);
-                }
             }
+        }
 
         /// <summary>
         /// Paints a subtle shadow effect around the login container
         /// This creates depth and makes the login form stand out
         /// </summary>
         private void PnlLoginContainer_Paint(object? sender, PaintEventArgs e)
-            {
+        {
             if (sender is not Panel panel) return;
 
             // Create shadow effect
@@ -172,33 +201,60 @@ namespace InventoryPro.WinForms.Forms
             // Draw border
             using var borderPen = new Pen(_borderGray, 1);
             e.Graphics.DrawRectangle(borderPen, containerRect);
-            }
+        }
 
         /// <summary>
-        /// Custom painting for input containers to create modern bordered fields
+        /// Enhanced custom painting for input containers with smooth transitions
         /// </summary>
         private void InputContainer_Paint(object? sender, PaintEventArgs e)
-            {
+        {
             if (sender is not Panel panel) return;
 
             var rect = new Rectangle(0, 0, panel.Width - 1, panel.Height - 1);
-            var borderColor = panel.Focused || panel.ContainsFocus ? _primaryBlue : _borderGray;
-            var borderWidth = panel.Focused || panel.ContainsFocus ? 2 : 1;
+            var isFocused = panel.Focused || panel.ContainsFocus;
 
-            // Draw background
-            using var backgroundBrush = new SolidBrush(_backgroundGray);
-            e.Graphics.FillRectangle(backgroundBrush, panel.ClientRectangle);
+            // Smooth color transitions
+            var borderColor = isFocused ? _primaryBlue : _borderGray;
+            var borderWidth = isFocused ? 2 : 1;
+            var backgroundColorBase = _backgroundGray;
 
-            // Draw border with rounded corners
+            // Enhanced background with subtle gradient when focused
+            if (isFocused)
+            {
+                using var gradientBrush = new LinearGradientBrush(
+                    panel.ClientRectangle,
+                    Color.FromArgb(250, 251, 252),
+                    backgroundColorBase,
+                    LinearGradientMode.Vertical);
+                e.Graphics.FillRectangle(gradientBrush, panel.ClientRectangle);
+            }
+            else
+            {
+                using var backgroundBrush = new SolidBrush(backgroundColorBase);
+                e.Graphics.FillRectangle(backgroundBrush, panel.ClientRectangle);
+            }
+
+            // Enable anti-aliasing for smoother borders
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Draw border with rounded corners and enhanced styling
             using var borderPen = new Pen(borderColor, borderWidth);
             DrawRoundedRectangle(e.Graphics, borderPen, rect, 8);
+
+            // Add subtle inner glow when focused
+            if (isFocused)
+            {
+                var innerRect = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
+                using var glowPen = new Pen(Color.FromArgb(50, _primaryBlue), 1);
+                DrawRoundedRectangle(e.Graphics, glowPen, innerRect, 7);
             }
+        }
 
         /// <summary>
         /// Custom logo painting - creates a modern app icon
         /// </summary>
         private void PicLogo_Paint(object? sender, PaintEventArgs e)
-            {
+        {
             if (sender is not PictureBox pic) return;
 
             var rect = pic.ClientRectangle;
@@ -221,33 +277,146 @@ namespace InventoryPro.WinForms.Forms
             e.Graphics.DrawLine(detailPen, centerX - 10, centerY - 10, centerX + 10, centerY - 10);
             e.Graphics.DrawLine(detailPen, centerX - 10, centerY, centerX + 10, centerY);
             e.Graphics.DrawLine(detailPen, centerX - 10, centerY + 10, centerX + 10, centerY + 10);
-            }
+        }
 
         /// <summary>
-        /// Custom button painting for modern gradient buttons
+        /// Custom button painting for modern gradient buttons with smooth loading animation
         /// </summary>
         private void BtnLogin_Paint(object? sender, PaintEventArgs e)
-            {
+        {
             if (sender is not Button button) return;
 
             var rect = button.ClientRectangle;
-            var isHovered = button.ClientRectangle.Contains(button.PointToClient(Cursor.Position));
-            var buttonColor = isHovered ? _primaryBlueHover : _primaryBlue;
+            var isHovered = button.ClientRectangle.Contains(button.PointToClient(Cursor.Position)) && button.Enabled;
 
-            // Create gradient brush for button
+            // Enhanced color logic for different states
+            Color buttonColor;
+            if (!button.Enabled && _isLoggingIn)
+            {
+                // Loading state - slightly darker blue
+                buttonColor = Color.FromArgb(
+                    Math.Max(0, _primaryBlue.R - 10), 
+                    Math.Max(0, _primaryBlue.G - 10), 
+                    Math.Max(0, _primaryBlue.B - 10));
+            }
+            else if (isHovered)
+            {
+                buttonColor = _primaryBlueHover;
+            }
+            else
+            {
+                buttonColor = _primaryBlue;
+            }
+
+            // Enable anti-aliasing for smoother graphics
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            // Create gradient brush for button with enhanced gradient
             using var gradientBrush = new LinearGradientBrush(
-                rect, buttonColor, Color.FromArgb(buttonColor.R - 20, buttonColor.G - 20, buttonColor.B - 20),
+                rect,
+                buttonColor,
+                Color.FromArgb(
+                    Math.Max(0, buttonColor.R - 25), 
+                    Math.Max(0, buttonColor.G - 25), 
+                    Math.Max(0, buttonColor.B - 25)),
                 LinearGradientMode.Vertical);
+
+            // Add color blend for more sophisticated gradient
+            var blend = new ColorBlend();
+            blend.Colors = new[] {
+                Color.FromArgb(
+                    Math.Min(255, buttonColor.R + 15), 
+                    Math.Min(255, buttonColor.G + 15), 
+                    Math.Min(255, buttonColor.B + 15)),
+                buttonColor,
+                Color.FromArgb(
+                    Math.Max(0, buttonColor.R - 25), 
+                    Math.Max(0, buttonColor.G - 25), 
+                    Math.Max(0, buttonColor.B - 25))
+                };
+            blend.Positions = new[] { 0.0f, 0.5f, 1.0f };
+            gradientBrush.InterpolationColors = blend;
 
             // Fill button with rounded corners
             using var path = CreateRoundedPath(rect, 8);
             e.Graphics.FillPath(gradientBrush, path);
 
-            // Draw text
-            var textColor = button.Enabled ? Color.White : Color.Gray;
-            TextRenderer.DrawText(e.Graphics, button.Text, button.Font, rect, textColor,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            // Add subtle border
+            using var borderPen = new Pen(Color.FromArgb(30, Color.White), 1);
+            e.Graphics.DrawPath(borderPen, path);
+
+            // Draw loading overlay if in loading state
+            if (_isLoggingIn && _overlayOpacity > 0)
+            {
+                using var overlayBrush = new SolidBrush(Color.FromArgb((int)(_overlayOpacity * 255), Color.White));
+                e.Graphics.FillPath(overlayBrush, path);
             }
+
+            // Draw loading spinner or text
+            if (_isLoggingIn)
+            {
+                DrawLoadingSpinner(e.Graphics, rect);
+                DrawLoadingText(e.Graphics, rect, button.Font);
+            }
+            else
+            {
+                // Draw normal button text with smooth transitions
+                var textColor = button.Enabled ? Color.White : Color.Gray;
+                var textRect = new Rectangle(rect.X, rect.Y, rect.Width, rect.Height);
+
+                TextRenderer.DrawText(e.Graphics, button.Text, button.Font, textRect, textColor,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        /// <summary>
+        /// Draws a smooth loading spinner on the button
+        /// </summary>
+        private void DrawLoadingSpinner(Graphics graphics, Rectangle rect)
+        {
+            var centerX = rect.X + 30; // Position spinner to the left of text
+            var centerY = rect.Y + rect.Height / 2;
+            var radius = 8;
+
+            // Enable anti-aliasing for smooth spinner
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Draw spinner arcs with varying opacity for smooth rotation effect
+            for (int i = 0; i < 12; i++)
+            {
+                var angle = (_loadingSpinnerAngle + i * 30) % 360;
+                var opacity = (int)(255 * (1.0f - (i / 12.0f))); // Fade effect
+
+                using var pen = new Pen(Color.FromArgb(opacity, Color.White), 2);
+
+                var startAngle = angle;
+                var endX = centerX + (int)(radius * Math.Cos(startAngle * Math.PI / 180));
+                var endY = centerY + (int)(radius * Math.Sin(startAngle * Math.PI / 180));
+                var startX = centerX + (int)((radius - 4) * Math.Cos(startAngle * Math.PI / 180));
+                var startY = centerY + (int)((radius - 4) * Math.Sin(startAngle * Math.PI / 180));
+
+                graphics.DrawLine(pen, startX, startY, endX, endY);
+            }
+        }
+
+        /// <summary>
+        /// Draws loading text with smooth transitions
+        /// </summary>
+        private void DrawLoadingText(Graphics graphics, Rectangle rect, Font font)
+        {
+            var loadingText = "Signing In...";
+            var textRect = new Rectangle(rect.X + 50, rect.Y, rect.Width - 50, rect.Height); // Make room for spinner
+
+            // Calculate text opacity for smooth fade effect
+            var textOpacity = _isAnimatingButton ? (int)(255 * EaseInOutSine(_buttonAnimationProgress)) : 255;
+            var textColor = Color.FromArgb(textOpacity, Color.White);
+
+            // Draw text with smooth rendering
+            graphics.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
+            TextRenderer.DrawText(graphics, loadingText, font, textRect, textColor,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+        }
 
         #endregion
 
@@ -257,7 +426,7 @@ namespace InventoryPro.WinForms.Forms
         /// Handles form load event - sets initial focus and prepares UI
         /// </summary>
         private void LoginForm_Load(object? sender, EventArgs e)
-            {
+        {
             // Set initial focus to appropriate field
             if (string.IsNullOrEmpty(txtUsername.Text))
                 txtUsername.Focus();
@@ -265,24 +434,24 @@ namespace InventoryPro.WinForms.Forms
                 txtPassword.Focus();
 
             _logger.LogDebug("LoginForm loaded and ready for user input");
-            }
+        }
 
         /// <summary>
         /// Handles form shown event - starts any initial animations
         /// </summary>
         private void LoginForm_Shown(object? sender, EventArgs e)
-            {
+        {
             // Start welcome animation
             StartWelcomeAnimation();
-            }
+        }
 
         /// <summary>
         /// Handles global key events for the form
         /// </summary>
         private void LoginForm_KeyDown(object? sender, KeyEventArgs e)
-            {
+        {
             switch (e.KeyCode)
-                {
+            {
                 case Keys.Enter when !_isLoggingIn:
                     e.Handled = true;
                     _ = PerformLoginAsync();
@@ -291,10 +460,10 @@ namespace InventoryPro.WinForms.Forms
                 case Keys.Escape:
                     e.Handled = true;
                     if (_isLoggingIn)
-                        {
+                    {
                         // Could implement login cancellation here
                         return;
-                        }
+                    }
                     this.DialogResult = DialogResult.Cancel;
                     this.Close();
                     break;
@@ -303,50 +472,50 @@ namespace InventoryPro.WinForms.Forms
                     e.Handled = true;
                     ShowHelpDialog();
                     break;
-                }
             }
+        }
 
         /// <summary>
         /// Handles key events for text boxes (Enter key navigation)
         /// </summary>
         private void TextBox_KeyDown(object? sender, KeyEventArgs e)
-            {
+        {
             if (e.KeyCode == Keys.Enter && !_isLoggingIn)
-                {
+            {
                 e.Handled = true;
 
                 if (sender == txtUsername && string.IsNullOrEmpty(txtPassword.Text))
-                    {
+                {
                     txtPassword.Focus();
-                    }
+                }
                 else
-                    {
+                {
                     _ = PerformLoginAsync();
-                    }
                 }
             }
+        }
 
         /// <summary>
         /// Handles text box focus events for modern styling
         /// </summary>
         private void TextBox_Enter(object? sender, EventArgs e)
-            {
+        {
             if (sender is TextBox textBox)
-                {
+            {
                 textBox.Parent?.Invalidate(); // Trigger repaint for focus styling
 
                 // Add subtle animation
                 AnimateControl(textBox.Parent, true);
-                }
             }
+        }
 
         /// <summary>
         /// Handles text box leave events
         /// </summary>
         private void TextBox_Leave(object? sender, EventArgs e)
-            {
+        {
             if (sender is TextBox textBox)
-                {
+            {
                 textBox.Parent?.Invalidate(); // Trigger repaint
 
                 // Validate field on leave
@@ -354,32 +523,32 @@ namespace InventoryPro.WinForms.Forms
 
                 // Remove focus animation
                 AnimateControl(textBox.Parent, false);
-                }
             }
+        }
 
         /// <summary>
         /// Handles login button click event
         /// </summary>
         private async void BtnLogin_Click(object? sender, EventArgs e)
-            {
+        {
             await PerformLoginAsync();
-            }
+        }
 
         /// <summary>
         /// Handles cancel button click event
         /// </summary>
         private void BtnCancel_Click(object? sender, EventArgs e)
-            {
+        {
             _logger.LogInformation("User cancelled login");
             this.DialogResult = DialogResult.Cancel;
             this.Close();
-            }
+        }
 
         /// <summary>
         /// Handles password visibility toggle
         /// </summary>
         private void BtnTogglePassword_Click(object? sender, EventArgs e)
-            {
+        {
             _passwordVisible = !_passwordVisible;
             txtPassword.UseSystemPasswordChar = !_passwordVisible;
 
@@ -391,61 +560,61 @@ namespace InventoryPro.WinForms.Forms
             txtPassword.Focus();
 
             _logger.LogDebug("Password visibility toggled: {Visible}", _passwordVisible);
-            }
+        }
 
         /// <summary>
         /// Handles forgot password link click
         /// </summary>
         private void LblForgotPassword_Click(object? sender, EventArgs e)
-            {
+        {
             ShowForgotPasswordDialog();
-            }
+        }
 
         /// <summary>
         /// Handles button mouse enter events for hover effects
         /// </summary>
         private void Button_MouseEnter(object? sender, EventArgs e)
-            {
+        {
             if (sender is Button button && button.Enabled)
-                {
+            {
                 button.Invalidate(); // Trigger repaint for hover effect
                 AnimateControl(button, true);
-                }
             }
+        }
 
         /// <summary>
         /// Handles button mouse leave events
         /// </summary>
         private void Button_MouseLeave(object? sender, EventArgs e)
-            {
+        {
             if (sender is Button button)
-                {
+            {
                 button.Invalidate(); // Trigger repaint
                 AnimateControl(button, false);
-                }
             }
+        }
 
         /// <summary>
         /// Handles link label mouse enter events
         /// </summary>
         private void LinkLabel_MouseEnter(object? sender, EventArgs e)
-            {
+        {
             if (sender is Label label)
-                {
+            {
                 label.ForeColor = _primaryBlueHover;
-                }
             }
+        }
 
         /// <summary>
         /// Handles link label mouse leave events
         /// </summary>
         private void LinkLabel_MouseLeave(object? sender, EventArgs e)
-            {
+        {
             if (sender is Label label)
-                {
+            {
                 label.ForeColor = _primaryBlue;
-                }
             }
+        }
 
         #endregion
 
@@ -458,7 +627,7 @@ namespace InventoryPro.WinForms.Forms
         /// Performs the login operation with comprehensive error handling
         /// </summary>
         private async Task PerformLoginAsync()
-            {
+        {
             // Prevent multiple login attempts
             if (_isLoggingIn) return;
 
@@ -466,17 +635,17 @@ namespace InventoryPro.WinForms.Forms
             if (!ValidateInput()) return;
 
             try
-                {
+            {
                 _isLoggingIn = true;
                 SetLoginState(true);
                 HideError();
 
                 var loginRequest = new LoginRequestDto
-                    {
+                {
                     Username = txtUsername.Text.Trim(),
                     Password = txtPassword.Text,
                     RememberMe = chkRememberMe.Checked
-                    };
+                };
 
                 _logger.LogInformation("Login attempt for user: {Username}", loginRequest.Username);
 
@@ -486,7 +655,7 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogInformation("Login response received: Success={Success}", response?.Success);
 
                 if (response?.Success == true && response.Data != null)
-                    {
+                {
                     // Verify that authentication data was stored properly
                     await Task.Delay(100); // Give a moment for the auth service to store data
 
@@ -497,7 +666,7 @@ namespace InventoryPro.WinForms.Forms
                         storedUser != null, !string.IsNullOrEmpty(storedToken));
 
                     if (storedUser != null && !string.IsNullOrEmpty(storedToken))
-                        {
+                    {
                         // Save credentials if remember me is checked
                         SaveCredentials();
 
@@ -513,16 +682,16 @@ namespace InventoryPro.WinForms.Forms
                         _logger.LogInformation("Setting DialogResult.OK and closing login form");
                         this.DialogResult = DialogResult.OK;
                         this.Hide();//Fix
-                        }
+                    }
                     else
-                        {
+                    {
                         _logger.LogError("Authentication data not properly stored");
                         ShowError("Authentication error. Please try again.");
                         ClearPasswordField();
-                        }
                     }
+                }
                 else
-                    {
+                {
                     // Handle login failure
                     var errorMessage = !string.IsNullOrEmpty(response?.Message)
                         ? response.Message
@@ -533,123 +702,123 @@ namespace InventoryPro.WinForms.Forms
 
                     _logger.LogWarning("Login failed for user: {Username} - {Error}",
                         loginRequest.Username, errorMessage);
-                    }
                 }
+            }
             catch (OperationCanceledException)
-                {
+            {
                 _logger.LogWarning("Login operation timed out");
                 ShowError("Login request timed out. Please check your connection and try again.");
                 ClearPasswordField();
-                }
+            }
             catch (Exception ex)
-                {
+            {
                 _logger.LogError(ex, "Unexpected error during login");
                 ShowError("An unexpected error occurred. Please try again or contact support.");
                 ClearPasswordField();
-                }
+            }
             finally
-                {
+            {
                 _isLoggingIn = false;
                 SetLoginState(false);
-                }
             }
+        }
 
         /// <summary>
         /// Validates user input with comprehensive checks
         /// </summary>
         private bool ValidateInput()
-            {
+        {
             HideError();
 
             // Validate username
             if (string.IsNullOrWhiteSpace(txtUsername.Text))
-                {
+            {
                 ShowError("Please enter your username.");
                 txtUsername.Focus();
                 return false;
-                }
+            }
 
             // Validate username format
             var username = txtUsername.Text.Trim();
             if (username.Length < 3)
-                {
+            {
                 ShowError("Username must be at least 3 characters long.");
                 txtUsername.Focus();
                 return false;
-                }
+            }
 
             if (username.Length > 50)
-                {
+            {
                 ShowError("Username cannot exceed 50 characters.");
                 txtUsername.Focus();
                 return false;
-                }
+            }
 
             // Check for valid username characters
             if (!IsValidUsername(username))
-                {
+            {
                 ShowError("Username contains invalid characters. Use only letters, numbers, and underscores.");
                 txtUsername.Focus();
                 return false;
-                }
+            }
 
             // Validate password
             if (string.IsNullOrWhiteSpace(txtPassword.Text))
-                {
+            {
                 ShowError("Please enter your password.");
                 txtPassword.Focus();
                 return false;
-                }
+            }
 
             if (txtPassword.Text.Length < 6)
-                {
+            {
                 ShowError("Password must be at least 6 characters long.");
                 txtPassword.Focus();
                 return false;
-                }
+            }
 
             if (txtPassword.Text.Length > 128)
-                {
+            {
                 ShowError("Password cannot exceed 128 characters.");
                 txtPassword.Focus();
                 return false;
-                }
+            }
 
             return true;
-            }
+        }
 
         /// <summary>
         /// Validates individual fields as user types
         /// </summary>
         private void ValidateField(TextBox textBox)
-            {
+        {
             if (textBox == txtUsername)
-                {
+            {
                 var username = textBox.Text.Trim();
                 if (!string.IsNullOrEmpty(username) && !IsValidUsername(username))
-                    {
+                {
                     ShowError("Username contains invalid characters.");
-                    }
                 }
             }
+        }
 
         /// <summary>
         /// Checks if username contains only valid characters
         /// </summary>
         private static bool IsValidUsername(string username)
-            {
+        {
             return username.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '.' || c == '-');
-            }
+        }
 
         #endregion
 
         #region UI State Management
 
         /// <summary>
-        /// Sets the login state (enables/disables controls during login)
+        /// Sets the login state with smooth animations (enables/disables controls during login)
         /// </summary>
         private void SetLoginState(bool isLoggingIn)
-            {
+        {
             // Update control states
             txtUsername.Enabled = !isLoggingIn;
             txtPassword.Enabled = !isLoggingIn;
@@ -659,43 +828,82 @@ namespace InventoryPro.WinForms.Forms
             lblForgotPassword.Enabled = !isLoggingIn;
 
             if (isLoggingIn)
-                {
-                btnLogin.Text = "Signing In...";
+            {
+                // Store original button text for restoration
+                _originalButtonText = btnLogin.Text;
+
+                // Disable button and change cursor
                 btnLogin.Enabled = false;
                 this.Cursor = Cursors.WaitCursor;
 
-                // Show progress indicator
+                // Start smooth button animation
+                _buttonAnimationProgress = 0f;
+                _isAnimatingButton = true;
+                _buttonAnimationTimer.Start();
+
+                // Start loading spinner
+                _loadingSpinnerAngle = 0f;
+                _spinnerTimer.Start();
+
+                // Show progress indicator with smooth fade
                 progressBar.Visible = true;
                 progressBar.Style = ProgressBarStyle.Marquee;
 
-                // Start animation
+                // Start background animation
                 animationTimer.Start();
-                }
+            }
             else
-                {
-                btnLogin.Text = "Sign In";
+            {
+                // Restore button text and enable
+                btnLogin.Text = _originalButtonText;
                 btnLogin.Enabled = true;
                 this.Cursor = Cursors.Default;
+
+                // Start fade out animation
+                _buttonAnimationProgress = 0f;
+                _isAnimatingButton = true;
+                _buttonAnimationTimer.Start();
+
+                // Stop loading spinner
+                _spinnerTimer.Stop();
+                _loadingSpinnerAngle = 0f;
 
                 // Hide progress indicator
                 progressBar.Visible = false;
                 progressBar.Style = ProgressBarStyle.Continuous;
 
-                // Stop animation
-                animationTimer.Stop();
-                _animationProgress = 0f;
-                }
+                // Continue background animation briefly for smooth transition
+                Task.Delay(300).ContinueWith(_ =>
+                {
+                    if (this.InvokeRequired)
+                    {
+                        this.Invoke(() =>
+                        {
+                            animationTimer.Stop();
+                            _animationProgress = 0f;
+                        });
+                    }
+                    else
+                    {
+                        animationTimer.Stop();
+                        _animationProgress = 0f;
+                    }
+                });
+            }
 
-            // Refresh affected controls
+            // Refresh affected controls with smooth invalidation
             btnLogin.Invalidate();
             pnlLeftPanel.Invalidate();
-            }
+
+            // Add subtle animation to the whole login container
+            AnimateLoginContainer(isLoggingIn);
+        }
 
         /// <summary>
         /// Shows an error message with modern styling
         /// </summary>
         private void ShowError(string message)
-            {
+        {
             lblError.Text = $"❌ {message}";
             lblError.ForeColor = _errorRed;
             lblError.Visible = true;
@@ -704,144 +912,344 @@ namespace InventoryPro.WinForms.Forms
             FlashErrorLabel();
 
             _logger.LogDebug("Error message displayed: {Message}", message);
-            }
+        }
 
         /// <summary>
         /// Shows a success message
         /// </summary>
         private void ShowSuccess(string message)
-            {
+        {
             lblError.Text = $"✅ {message}";
             lblError.ForeColor = _successGreen;
             lblError.Visible = true;
-            }
+        }
 
         /// <summary>
         /// Hides the error/success message
         /// </summary>
         private void HideError()
-            {
+        {
             lblError.Visible = false;
-            }
+        }
 
         /// <summary>
         /// Clears the password field for security
         /// </summary>
         private void ClearPasswordField()
-            {
+        {
             txtPassword.Clear();
             txtPassword.Focus();
-            }
+        }
 
         #endregion
 
         #region Animation Methods
 
         /// <summary>
-        /// Creates a subtle flash effect for the error label
+        /// Animates the login container for visual feedback
         /// </summary>
-        private async void FlashErrorLabel()
-            {
-            try
-                {
-                var originalColor = lblError.ForeColor;
-
-                // Flash sequence
-                for (int i = 0; i < 3; i++)
-                    {
-                    lblError.ForeColor = Color.FromArgb(255, 200, 200);
-                    await Task.Delay(100);
-                    lblError.ForeColor = originalColor;
-                    await Task.Delay(100);
-                    }
-                }
-            catch (Exception ex)
-                {
-                _logger.LogWarning(ex, "Error during flash animation");
-                }
-            }
-
-        /// <summary>
-        /// Starts the welcome animation when form is first shown
-        /// </summary>
-        private void StartWelcomeAnimation()
-            {
-            // Animate the login container sliding in
-            var originalLocation = pnlLoginContainer.Location;
-            pnlLoginContainer.Location = new Point(originalLocation.X + 50, originalLocation.Y);
-
+        private void AnimateLoginContainer(bool isLoggingIn)
+        {
             var timer = new Timer();
-            timer.Interval = 16; // ~60 FPS
+            timer.Interval = 16; // 60 FPS
             var steps = 0;
-            var maxSteps = 20;
+            var maxSteps = 15;
+            var originalLocation = pnlLoginContainer.Location;
 
             timer.Tick += (s, e) =>
             {
                 steps++;
                 var progress = (float)steps / maxSteps;
-                var easeProgress = EaseOutCubic(progress);
+                var easedProgress = EaseInOutQuart(progress);
 
-                var currentX = originalLocation.X + (int)((1 - easeProgress) * 50);
-                pnlLoginContainer.Location = new Point(currentX, originalLocation.Y);
+                if (isLoggingIn)
+                {
+                    // Subtle scale down effect for login state
+                    var offset = (int)(easedProgress * 2); // Very subtle movement
+                    pnlLoginContainer.Location = new Point(originalLocation.X + offset, originalLocation.Y);
+                }
+                else
+                {
+                    // Return to original position
+                    var offset = (int)((1 - easedProgress) * 2);
+                    pnlLoginContainer.Location = new Point(originalLocation.X + offset, originalLocation.Y);
+                }
 
                 if (steps >= maxSteps)
-                    {
+                {
                     timer.Stop();
                     timer.Dispose();
                     pnlLoginContainer.Location = originalLocation;
-                    }
+                }
             };
 
             timer.Start();
-            }
+        }
 
         /// <summary>
-        /// Animates a control with smooth transitions
+        /// Creates a smooth flash effect for the error label with improved animation
+        /// </summary>
+        private async void FlashErrorLabel()
+        {
+            try
+            {
+                var originalColor = lblError.ForeColor;
+                var steps = 20;
+
+                // Smooth fade animation instead of abrupt flash
+                for (int i = 0; i < steps; i++)
+                {
+                    var progress = (float)i / steps;
+                    var easedProgress = EaseInOutSine(progress);
+
+                    // Create smooth color transition
+                    var flashColor = Color.FromArgb(
+                        (int)(originalColor.R + (50 * (1 - easedProgress))),
+                        (int)(originalColor.G * easedProgress),
+                        (int)(originalColor.B * easedProgress)
+                    );
+
+                    lblError.ForeColor = flashColor;
+                    await Task.Delay(20);
+                }
+
+                lblError.ForeColor = originalColor;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error during flash animation");
+            }
+        }
+
+        /// <summary>
+        /// Starts the enhanced welcome animation when form is first shown
+        /// </summary>
+        private void StartWelcomeAnimation()
+        {
+            // Animate the login container sliding in with better easing
+            var originalLocation = pnlLoginContainer.Location;
+            pnlLoginContainer.Location = new Point(originalLocation.X + 80, originalLocation.Y);
+
+            var timer = new Timer();
+            timer.Interval = 16; // 60 FPS
+            var steps = 0;
+            var maxSteps = 30; // Longer animation for smoother effect
+
+            timer.Tick += (s, e) =>
+            {
+                steps++;
+                var progress = (float)steps / maxSteps;
+                var easeProgress = EaseOutElastic(progress); // More interesting easing
+
+                var currentX = originalLocation.X + (int)((1 - easeProgress) * 80);
+                pnlLoginContainer.Location = new Point(currentX, originalLocation.Y);
+
+                if (steps >= maxSteps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    pnlLoginContainer.Location = originalLocation;
+
+                    // Start subtle background animation after welcome animation
+                    animationTimer.Start();
+                }
+            };
+
+            timer.Start();
+        }
+
+        /// <summary>
+        /// Animates a control with smooth transitions and enhanced effects
         /// </summary>
         private void AnimateControl(Control? control, bool expand)
-            {
+        {
             if (control == null) return;
 
-            // Simple scale animation could be implemented here
-            // For now, just trigger repaints for color transitions
-            control.Invalidate();
-            }
+            // Create smooth scale and color transition animation
+            var timer = new Timer();
+            timer.Interval = 16; // 60 FPS
+            var steps = 0;
+            var maxSteps = 10; // Quick but smooth animation
+            var originalBounds = control.Bounds;
+
+            timer.Tick += (s, e) =>
+            {
+                steps++;
+                var progress = (float)steps / maxSteps;
+                var easedProgress = EaseInOutQuart(progress);
+
+                if (expand)
+                {
+                    // Subtle scale up effect for focus
+                    var scaleOffset = (int)(easedProgress * 1); // Very subtle 1px expansion
+                    control.Location = new Point(originalBounds.X - scaleOffset / 2, originalBounds.Y - scaleOffset / 2);
+                    control.Size = new Size(originalBounds.Width + scaleOffset, originalBounds.Height + scaleOffset);
+                }
+                else
+                {
+                    // Return to original size
+                    var scaleOffset = (int)((1 - easedProgress) * 1);
+                    control.Location = new Point(originalBounds.X - scaleOffset / 2, originalBounds.Y - scaleOffset / 2);
+                    control.Size = new Size(originalBounds.Width + scaleOffset, originalBounds.Height + scaleOffset);
+                }
+
+                // Trigger repaint for color transitions
+                control.Invalidate();
+
+                if (steps >= maxSteps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    control.Bounds = originalBounds; // Ensure we return to exact original bounds
+                }
+            };
+
+            timer.Start();
+        }
 
         /// <summary>
         /// Animation timer tick event for ongoing animations
         /// </summary>
         private void AnimationTimer_Tick(object? sender, EventArgs e)
-            {
+        {
             if (_animationDirection)
-                {
-                _animationProgress += 0.02f;
+            {
+                _animationProgress += 0.015f; // Slower, smoother animation
                 if (_animationProgress >= 1.0f)
-                    {
+                {
                     _animationProgress = 1.0f;
                     _animationDirection = false;
-                    }
                 }
+            }
             else
-                {
-                _animationProgress -= 0.02f;
+            {
+                _animationProgress -= 0.015f; // Slower, smoother animation
                 if (_animationProgress <= 0.0f)
-                    {
+                {
                     _animationProgress = 0.0f;
                     _animationDirection = true;
-                    }
                 }
+            }
+
+            // Apply easing for smoother transitions
+            var easedProgress = EaseInOutSine(_animationProgress);
 
             // Refresh animated elements
             pnlLeftPanel.Invalidate();
+        }
+
+        /// <summary>
+        /// Button animation timer for smooth loading transitions
+        /// </summary>
+        private void ButtonAnimationTimer_Tick(object? sender, EventArgs e)
+        {
+            if (_isAnimatingButton)
+            {
+                _buttonAnimationProgress += 0.08f; // Smooth button animation speed
+
+                if (_buttonAnimationProgress >= 1.0f)
+                {
+                    _buttonAnimationProgress = 1.0f;
+                    _buttonAnimationTimer.Stop();
+                    _isAnimatingButton = false;
+                }
+
+                // Apply easing to button animation
+                var easedProgress = EaseInOutQuart(_buttonAnimationProgress);
+
+                // Update overlay opacity for loading state
+                if (_isLoggingIn)
+                {
+                    _overlayOpacity = easedProgress * 0.3f; // Max 30% opacity
+                }
+                else
+                {
+                    _overlayOpacity = (1.0f - easedProgress) * 0.3f; // Fade out
+                }
+
+                // Refresh button
+                btnLogin.Invalidate();
             }
+        }
+
+        /// <summary>
+        /// Spinner animation timer for loading indicator
+        /// </summary>
+        private void SpinnerTimer_Tick(object? sender, EventArgs e)
+        {
+            if (_isLoggingIn)
+            {
+                _loadingSpinnerAngle += 8f; // Smooth spinner rotation
+                if (_loadingSpinnerAngle >= 360f)
+                {
+                    _loadingSpinnerAngle = 0f;
+                }
+
+                // Refresh button to show spinner
+                btnLogin.Invalidate();
+            }
+        }
 
         /// <summary>
         /// Easing function for smooth animations
         /// </summary>
         private static float EaseOutCubic(float t)
-            {
+        {
             return 1f - (float)Math.Pow(1 - t, 3);
+        }
+
+        /// <summary>
+        /// Advanced easing functions for smoother animations
+        /// </summary>
+        private static float EaseInOutQuart(float t)
+        {
+            return t < 0.5f ? 8f * t * t * t * t : 1f - (float)Math.Pow(-2f * t + 2f, 4f) / 2f;
+        }
+
+        private static float EaseInOutBack(float t)
+        {
+            const float c1 = 1.70158f;
+            const float c2 = c1 * 1.525f;
+
+            return t < 0.5f
+                ? (float)(Math.Pow(2f * t, 2f) * ((c2 + 1f) * 2f * t - c2)) / 2f
+                : (float)(Math.Pow(2f * t - 2f, 2f) * ((c2 + 1f) * (t * 2f - 2f) + c2) + 2f) / 2f;
+        }
+
+        private static float EaseOutElastic(float t)
+        {
+            const float c4 = (2f * (float)Math.PI) / 3f;
+
+            return t == 0f ? 0f : t == 1f ? 1f : (float)(Math.Pow(2f, -10f * t) * Math.Sin((t * 10f - 0.75f) * c4) + 1f);
+        }
+
+        private static float EaseInOutSine(float t)
+        {
+            return -(float)(Math.Cos(Math.PI * t) - 1f) / 2f;
+        }
+
+        private static float EaseOutBounce(float t)
+        {
+            const float n1 = 7.5625f;
+            const float d1 = 2.75f;
+
+            if (t < 1f / d1)
+            {
+                return n1 * t * t;
             }
+            else if (t < 2f / d1)
+            {
+                return n1 * (t -= 1.5f / d1) * t + 0.75f;
+            }
+            else if (t < 2.5f / d1)
+            {
+                return n1 * (t -= 2.25f / d1) * t + 0.9375f;
+            }
+            else
+            {
+                return n1 * (t -= 2.625f / d1) * t + 0.984375f;
+            }
+        }
 
         #endregion
 
@@ -851,52 +1259,52 @@ namespace InventoryPro.WinForms.Forms
         /// Loads saved user credentials and preferences
         /// </summary>
         private void LoadSavedCredentials()
-            {
+        {
             try
-                {
+            {
                 var savedUsername = Properties.Settings.Default.SavedUsername;
                 var rememberMe = Properties.Settings.Default.RememberMe;
 
                 if (rememberMe && !string.IsNullOrEmpty(savedUsername))
-                    {
+                {
                     txtUsername.Text = savedUsername;
                     chkRememberMe.Checked = true;
 
                     _logger.LogDebug("Loaded saved username: {Username}", savedUsername);
-                    }
-                }
-            catch (Exception ex)
-                {
-                _logger.LogWarning(ex, "Failed to load saved credentials");
                 }
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load saved credentials");
+            }
+        }
 
         /// <summary>
         /// Saves user credentials if remember me is checked
         /// </summary>
         private void SaveCredentials()
-            {
+        {
             try
-                {
+            {
                 if (chkRememberMe.Checked)
-                    {
+                {
                     Properties.Settings.Default.SavedUsername = txtUsername.Text.Trim();
                     Properties.Settings.Default.RememberMe = true;
-                    }
+                }
                 else
-                    {
+                {
                     Properties.Settings.Default.SavedUsername = string.Empty;
                     Properties.Settings.Default.RememberMe = false;
-                    }
+                }
 
                 Properties.Settings.Default.Save();
                 _logger.LogDebug("User preferences saved");
-                }
-            catch (Exception ex)
-                {
-                _logger.LogWarning(ex, "Failed to save user preferences");
-                }
             }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save user preferences");
+            }
+        }
 
         #endregion
 
@@ -906,7 +1314,7 @@ namespace InventoryPro.WinForms.Forms
         /// Configures modern styling for buttons
         /// </summary>
         private void ConfigureButtonStyling()
-            {
+        {
             // Configure login button
             btnLogin.FlatStyle = FlatStyle.Flat;
             btnLogin.FlatAppearance.BorderSize = 0;
@@ -919,27 +1327,27 @@ namespace InventoryPro.WinForms.Forms
             btnCancel.FlatAppearance.BorderColor = _borderGray;
             btnCancel.BackColor = Color.White;
             btnCancel.ForeColor = _textGray;
-            }
+        }
 
         /// <summary>
         /// Configures modern styling for input fields
         /// </summary>
         private void ConfigureInputStyling()
-            {
+        {
             // Configure text boxes
             foreach (var textBox in new[] { txtUsername, txtPassword })
-                {
+            {
                 textBox.BorderStyle = BorderStyle.None;
                 textBox.Font = new Font("Segoe UI", 11F);
                 textBox.BackColor = _backgroundGray;
-                }
             }
+        }
 
         /// <summary>
         /// Shows the forgot password dialog
         /// </summary>
         private void ShowForgotPasswordDialog()
-            {
+        {
             var message = "To reset your password, please contact your system administrator.\n\n" +
                          "Default credentials for testing:\n" +
                          "Username: admin\n" +
@@ -950,13 +1358,13 @@ namespace InventoryPro.WinForms.Forms
             MessageBox.Show(message, "Password Reset", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             _logger.LogInformation("User accessed forgot password dialog");
-            }
+        }
 
         /// <summary>
         /// Shows the help dialog
         /// </summary>
         private void ShowHelpDialog()
-            {
+        {
             var helpMessage = "InventoryPro Login Help\n\n" +
                              "• Enter your username and password\n" +
                              "• Check 'Remember me' to save your username\n" +
@@ -967,13 +1375,13 @@ namespace InventoryPro.WinForms.Forms
                              "For technical support, contact your system administrator.";
 
             MessageBox.Show(helpMessage, "Help", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
+        }
 
         /// <summary>
         /// Creates a rounded rectangle path for custom painting
         /// </summary>
         private static GraphicsPath CreateRoundedPath(Rectangle rect, int radius)
-            {
+        {
             var path = new GraphicsPath();
             var diameter = radius * 2;
 
@@ -984,26 +1392,26 @@ namespace InventoryPro.WinForms.Forms
             path.CloseFigure();
 
             return path;
-            }
+        }
 
         /// <summary>
         /// Draws a rounded rectangle
         /// </summary>
         private static void DrawRoundedRectangle(Graphics graphics, Pen pen, Rectangle rect, int radius)
-            {
+        {
             using var path = CreateRoundedPath(rect, radius);
             graphics.DrawPath(pen, path);
-            }
+        }
 
         /// <summary>
         /// Creates a custom application icon
         /// </summary>
         private Icon CreateApplicationIcon()
-            {
+        {
             // Create a simple icon programmatically
             var bitmap = new Bitmap(32, 32);
             using (var g = Graphics.FromImage(bitmap))
-                {
+            {
                 g.Clear(Color.Transparent);
                 using var brush = new SolidBrush(_primaryBlue);
                 g.FillEllipse(brush, 4, 4, 24, 24);
@@ -1012,10 +1420,10 @@ namespace InventoryPro.WinForms.Forms
                 g.DrawLine(pen, 12, 10, 20, 10);
                 g.DrawLine(pen, 12, 16, 20, 16);
                 g.DrawLine(pen, 12, 22, 20, 22);
-                }
+            }
 
             return Icon.FromHandle(bitmap.GetHicon());
-            }
+        }
 
         #endregion
 
@@ -1025,33 +1433,25 @@ namespace InventoryPro.WinForms.Forms
         /// Handles form closing event with proper cleanup
         /// </summary>
         protected override void OnFormClosing(FormClosingEventArgs e)
-            {
+        {
             // Prevent closing during login operation
             if (_isLoggingIn)
-                {
+            {
                 e.Cancel = true;
                 return;
-                }
+            }
 
-            // Stop any running animations
+            // Stop and dispose all animation timers
             animationTimer?.Stop();
+            _buttonAnimationTimer?.Stop();
+            _spinnerTimer?.Stop();
 
             _logger.LogInformation("LoginForm closing with result: {Result}", this.DialogResult);
 
             base.OnFormClosing(e);
-            }
+        }
 
-
-        //protected override void Dispose(bool disposing)
-        //    {
-        //    if (disposing)
-        //        {
-        //        animationTimer?.Dispose();
-        //        components?.Dispose();
-        //        }
-        //    base.Dispose(disposing);
-        //    }
 
         #endregion
-        }
     }
+}

@@ -47,7 +47,7 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
 		<!-- Validation -->
-		<PackageReference Include="FluentValidation" Version="11.8.0" />
+		<PackageReference Include="FluentValidation" Version="11.10.0" />
 
 		<!-- UI Components (Optional - for better UI) -->
 		<PackageReference Include="FontAwesome.Sharp" Version="6.6.0" />

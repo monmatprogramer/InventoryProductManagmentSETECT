@@ -1121,7 +1121,7 @@ namespace InventoryPro.WinForms.Forms
                         MessageBox.Show(userMessage, "Stock Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         
                         // Refresh product data automatically
-                        Task.Run(async () => 
+                        _ = Task.Run(async () => 
                             {
                             await LoadProductsAsync();
                             if (InvokeRequired)

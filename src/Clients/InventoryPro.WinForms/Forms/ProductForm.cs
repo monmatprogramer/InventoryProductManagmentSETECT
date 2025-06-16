@@ -40,6 +40,9 @@ namespace InventoryPro.WinForms.Forms
         // Data
         private List<ProductDto> _products = new();
         private List<CategoryDto> _categories = new();
+        
+        // Search timer for debouncing
+        private System.Windows.Forms.Timer _searchTimer;
 
         public ProductForm(ILogger<ProductForm> logger, IApiService apiService)
         {
@@ -62,6 +65,11 @@ namespace InventoryPro.WinForms.Forms
             btnExport = new ToolStripButton();
             lblStatus = new ToolStripStatusLabel();
             lblRecordCount = new ToolStripStatusLabel();
+
+            // Initialize search timer
+            _searchTimer = new System.Windows.Forms.Timer();
+            _searchTimer.Interval = 500; // 500ms delay
+            _searchTimer.Tick += SearchTimer_Tick;
 
             InitializeComponent();
             InitializeAsync();
@@ -121,52 +129,71 @@ namespace InventoryPro.WinForms.Forms
             var pnlSearch = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 50,
-                Padding = new Padding(10),
-                BackColor = Color.WhiteSmoke
+                Height = 55,
+                Padding = new Padding(15),
+                BackColor = Color.FromArgb(248, 249, 250)
             };
 
             var lblSearch = new Label
             {
                 Text = "Search:",
-                Location = new Point(10, 15),
-                Size = new Size(50, 25)
+                Location = new Point(15, 18),
+                Size = new Size(65, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             txtSearch = new TextBox
             {
-                Location = new Point(70, 12),
-                Size = new Size(200, 25)
+                Location = new Point(85, 15),
+                Size = new Size(200, 25),
+                PlaceholderText = "Search products...",
+                Font = new Font("Segoe UI", 9)
             };
+            txtSearch.TextChanged += TxtSearch_TextChanged;
 
             var lblCategory = new Label
             {
                 Text = "Category:",
-                Location = new Point(290, 15),
-                Size = new Size(60, 25)
+                Location = new Point(305, 18),
+                Size = new Size(75, 25),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
             };
 
             cboCategory = new ComboBox
             {
-                Location = new Point(360, 12),
+                Location = new Point(385, 15),
                 Size = new Size(150, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9)
             };
+            cboCategory.SelectedIndexChanged += CboCategory_SelectedIndexChanged;
 
             btnSearch = new Button
             {
-                Text = "Search",
-                Location = new Point(530, 11),
-                Size = new Size(75, 27)
+                Text = "🔍 Search",
+                Location = new Point(555, 14),
+                Size = new Size(85, 27),
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
             };
+            btnSearch.FlatAppearance.BorderSize = 0;
             btnSearch.Click += BtnSearch_Click;
 
             btnClear = new Button
             {
                 Text = "Clear",
-                Location = new Point(615, 11),
-                Size = new Size(75, 27)
+                Location = new Point(650, 14),
+                Size = new Size(75, 27),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9)
             };
+            btnClear.FlatAppearance.BorderSize = 0;
             btnClear.Click += BtnClear_Click;
 
             pnlSearch.Controls.AddRange(new Control[] {
@@ -265,8 +292,7 @@ namespace InventoryPro.WinForms.Forms
                 if (response.Success && response.Data != null)
                 {
                     _products = response.Data.Items;
-                    UpdateGrid();
-                    lblRecordCount.Text = $"{_products.Count} records";
+                    FilterAndUpdateGrid();
                     lblStatus.Text = "Ready";
                 }
                 else
@@ -283,11 +309,41 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
-        private void UpdateGrid()
+        private void FilterAndUpdateGrid()
         {
-            dgvProducts.DataSource = null;
-            dgvProducts.DataSource = _products;
+            var filteredProducts = _products.AsQueryable();
 
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(txtSearch.Text))
+            {
+                var searchTerm = txtSearch.Text.ToLower();
+                filteredProducts = filteredProducts.Where(p => 
+                    p.Name.ToLower().Contains(searchTerm) ||
+                    p.SKU.ToLower().Contains(searchTerm) ||
+                    p.Description.ToLower().Contains(searchTerm) ||
+                    p.CategoryName.ToLower().Contains(searchTerm));
+            }
+
+            // Apply category filter
+            if (cboCategory.SelectedIndex > 0 && cboCategory.SelectedItem != null)
+            {
+                var selectedCategory = cboCategory.SelectedItem.ToString();
+                if (selectedCategory != "All Categories")
+                {
+                    filteredProducts = filteredProducts.Where(p => p.CategoryName == selectedCategory);
+                }
+            }
+
+            var filteredList = filteredProducts.ToList();
+            dgvProducts.DataSource = null;
+            dgvProducts.DataSource = filteredList;
+            
+            ConfigureGridColumns();
+            lblRecordCount.Text = $"{filteredList.Count} of {_products.Count} records";
+        }
+
+        private void ConfigureGridColumns()
+        {
             // Configure columns
             if (dgvProducts.Columns != null && dgvProducts.Columns.Count > 0)
             {
@@ -295,6 +351,7 @@ namespace InventoryPro.WinForms.Forms
                 if (idColumn != null)
                 {
                     idColumn.Width = 50;
+                    idColumn.HeaderText = "ID";
                 }
 
                 var skuColumn = dgvProducts.Columns["SKU"];
@@ -313,6 +370,7 @@ namespace InventoryPro.WinForms.Forms
                 if (priceColumn != null)
                 {
                     priceColumn.DefaultCellStyle.Format = "C2";
+                    priceColumn.Width = 100;
                 }
 
                 var stockColumn = dgvProducts.Columns["Stock"];
@@ -325,6 +383,13 @@ namespace InventoryPro.WinForms.Forms
                 if (categoryNameColumn != null)
                 {
                     categoryNameColumn.HeaderText = "Category";
+                    categoryNameColumn.Width = 120;
+                }
+
+                var descriptionColumn = dgvProducts.Columns["Description"];
+                if (descriptionColumn != null)
+                {
+                    descriptionColumn.Width = 200;
                 }
 
                 // Hide some columns
@@ -350,6 +415,18 @@ namespace InventoryPro.WinForms.Forms
                 if (imageUrlColumn != null)
                 {
                     imageUrlColumn.Visible = false;
+                }
+
+                var minStockColumn = dgvProducts.Columns["MinStock"];
+                if (minStockColumn != null)
+                {
+                    minStockColumn.Visible = false;
+                }
+
+                var isActiveColumn = dgvProducts.Columns["IsActive"];
+                if (isActiveColumn != null)
+                {
+                    isActiveColumn.Visible = false;
                 }
             }
         }
@@ -494,16 +571,40 @@ namespace InventoryPro.WinForms.Forms
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private async void BtnSearch_Click(object? sender, EventArgs e)
+        private void BtnSearch_Click(object? sender, EventArgs e)
         {
-            await LoadProductsAsync();
+            FilterAndUpdateGrid();
         }
 
-        private async void BtnClear_Click(object? sender, EventArgs e)
+        private void BtnClear_Click(object? sender, EventArgs e)
         {
             txtSearch.Clear();
             cboCategory.SelectedIndex = 0;
-            await LoadProductsAsync();
+            FilterAndUpdateGrid();
+        }
+
+        private void CboCategory_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (_products.Any()) // Only filter if we have loaded products
+            {
+                FilterAndUpdateGrid();
+            }
+        }
+
+        private void TxtSearch_TextChanged(object? sender, EventArgs e)
+        {
+            // Reset and start the timer for debounced search
+            _searchTimer.Stop();
+            _searchTimer.Start();
+        }
+
+        private void SearchTimer_Tick(object? sender, EventArgs e)
+        {
+            _searchTimer.Stop();
+            if (_products.Any()) // Only filter if we have loaded products
+            {
+                FilterAndUpdateGrid();
+            }
         }
 
         private void DgvProducts_DoubleClick(object? sender, EventArgs e)

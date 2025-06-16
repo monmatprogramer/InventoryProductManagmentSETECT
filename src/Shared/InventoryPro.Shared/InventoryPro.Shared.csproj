@@ -22,7 +22,7 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 
 		<!-- Validation -->
-		<PackageReference Include="FluentValidation" Version="11.8.0" />
+		<PackageReference Include="FluentValidation" Version="11.10.0" />
 		<!-- Removed explicit Compile Include items for DTOs as they are implicitly included by the SDK -->
 	</ItemGroup>
 

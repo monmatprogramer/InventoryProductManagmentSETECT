@@ -17,9 +17,15 @@ namespace InventoryPro.WinForms.Forms
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
             {
-            if (disposing && (components != null))
+            if (disposing)
                 {
-                components.Dispose();
+                // Dispose animation timers
+                animationTimer?.Dispose();
+                _buttonAnimationTimer?.Dispose();
+                _spinnerTimer?.Dispose();
+                
+                // Dispose components
+                components?.Dispose();
                 }
             base.Dispose(disposing);
             }
