@@ -17,13 +17,13 @@ namespace InventoryPro.WinForms.Forms
 
         // UI Controls
         private DataGridView dgvSales = null!;
-        private Panel pnlDetails = null!;
+        // private Panel pnlDetails = null!; // Unused field
         private GroupBox grpSaleInfo = null!;
-        private GroupBox grpItems = null!;
+        // private GroupBox grpItems = null!; // Unused field
         private DataGridView dgvSaleItems = null!;
         private Button btnRefresh = null!;
-        private Button btnExport = null!;
-        private Button btnClose = null!;
+        // private Button btnExport = null!; // Unused field
+        // private Button btnClose = null!; // Unused field
         private DateTimePicker dtpFromDate = null!;
         private DateTimePicker dtpToDate = null!;
         private ComboBox cboStatus = null!;
@@ -35,234 +35,24 @@ namespace InventoryPro.WinForms.Forms
 
         public SalesDetailsForm(ILogger<SalesDetailsForm> logger, IApiService apiService, IAuthService authService)
         {
+            
+
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
 
-            InitializeComponent();
-            _ = LoadSalesDataAsync();
+            SetupControls(); // Your manual control setup
+            this.Load += SalesDetailsForm_Load;
         }
 
-        private void InitializeComponent()
+        private void SetupControls()
         {
-            this.Text = "Sales Details & History";
-            this.Size = new Size(1400, 800);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.MinimumSize = new Size(1200, 600);
-
-            // Create main layout
-            var mainPanel = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 1,
-                Padding = new Padding(10)
-            };
-            mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
-            mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
-
-            // Left panel - Sales list
-            var leftPanel = new Panel { Dock = DockStyle.Fill };
-            
-            // Filter controls
-            var filterPanel = new Panel 
-            { 
-                Height = 80, 
-                Dock = DockStyle.Top,
-                Padding = new Padding(5)
-            };
-
-            var lblFromDate = new Label
-            {
-                Text = "From:",
-                Location = new Point(10, 15),
-                Size = new Size(50, 20)
-            };
-
-            dtpFromDate = new DateTimePicker
-            {
-                Location = new Point(65, 12),
-                Size = new Size(120, 25),
-                Value = DateTime.Today.AddDays(-30)
-            };
-
-            var lblToDate = new Label
-            {
-                Text = "To:",
-                Location = new Point(200, 15),
-                Size = new Size(30, 20)
-            };
-
-            dtpToDate = new DateTimePicker
-            {
-                Location = new Point(235, 12),
-                Size = new Size(120, 25),
-                Value = DateTime.Today
-            };
-
-            var lblStatus = new Label
-            {
-                Text = "Status:",
-                Location = new Point(370, 15),
-                Size = new Size(50, 20)
-            };
-
-            cboStatus = new ComboBox
-            {
-                Location = new Point(425, 12),
-                Size = new Size(100, 25),
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            cboStatus.Items.AddRange(new[] { "All", "Completed", "Pending", "Cancelled" });
-            cboStatus.SelectedIndex = 0;
-
-            txtSearch = new TextBox
-            {
-                Location = new Point(10, 45),
-                Size = new Size(200, 25),
-                PlaceholderText = "Search customer, sale ID..."
-            };
-
-            btnRefresh = new Button
-            {
-                Text = "Refresh",
-                Location = new Point(220, 44),
-                Size = new Size(80, 27),
-                BackColor = Color.FromArgb(52, 152, 219),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnRefresh.FlatAppearance.BorderSize = 0;
-            btnRefresh.Click += BtnRefresh_Click;
-
-            btnExport = new Button
-            {
-                Text = "Export",
-                Location = new Point(310, 44),
-                Size = new Size(80, 27),
-                BackColor = Color.FromArgb(46, 204, 113),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnExport.FlatAppearance.BorderSize = 0;
-            btnExport.Click += BtnExport_Click;
-
-            filterPanel.Controls.AddRange(new Control[] 
-            { 
-                lblFromDate, dtpFromDate, lblToDate, dtpToDate, 
-                lblStatus, cboStatus, txtSearch, btnRefresh, btnExport 
-            });
-
-            // Sales grid
-            dgvSales = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly = true,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
-            dgvSales.SelectionChanged += DgvSales_SelectionChanged;
-
-            leftPanel.Controls.Add(dgvSales);
-            leftPanel.Controls.Add(filterPanel);
-
-            // Right panel - Sale details
-            pnlDetails = new Panel 
-            { 
-                Dock = DockStyle.Fill,
-                Padding = new Padding(10),
-                BackColor = Color.FromArgb(248, 248, 248)
-            };
-
-            grpSaleInfo = new GroupBox
-            {
-                Text = "Sale Information",
-                Location = new Point(10, 10),
-                Size = new Size(450, 200),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
-            };
-
-            grpItems = new GroupBox
-            {
-                Text = "Sale Items",
-                Location = new Point(10, 220),
-                Size = new Size(450, 350),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold)
-            };
-
-            dgvSaleItems = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly = true,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
-
-            grpItems.Controls.Add(dgvSaleItems);
-
-            var btnInvoice = new Button
-            {
-                Text = "📄 Invoice",
-                Location = new Point(270, 580),
-                Size = new Size(100, 30),
-                BackColor = Color.FromArgb(52, 152, 219),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnInvoice.FlatAppearance.BorderSize = 0;
-            btnInvoice.Click += BtnInvoice_Click;
-
-            btnClose = new Button
-            {
-                Text = "Close",
-                Location = new Point(380, 580),
-                Size = new Size(80, 30),
-                BackColor = Color.FromArgb(149, 165, 166),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            btnClose.FlatAppearance.BorderSize = 0;
-            btnClose.Click += (s, e) => this.Close();
-
-            pnlDetails.Controls.AddRange(new Control[] { grpSaleInfo, grpItems, btnInvoice, btnClose });
-
-            mainPanel.Controls.Add(leftPanel, 0, 0);
-            mainPanel.Controls.Add(pnlDetails, 1, 0);
-
-            this.Controls.Add(mainPanel);
-
-            // Setup data binding
-            SetupDataGrids();
+            // Your manual control initialization code here
         }
 
-        private void SetupDataGrids()
+        private async void SalesDetailsForm_Load(object? sender, EventArgs e)
         {
-            // Setup sales grid columns
-            dgvSales.Columns.Clear();
-            dgvSales.Columns.AddRange(new DataGridViewColumn[]
-            {
-                new DataGridViewTextBoxColumn { Name = "Id", HeaderText = "Sale ID", Width = 80 },
-                new DataGridViewTextBoxColumn { Name = "Date", HeaderText = "Date", Width = 120 },
-                new DataGridViewTextBoxColumn { Name = "CustomerName", HeaderText = "Customer", Width = 150 },
-                new DataGridViewTextBoxColumn { Name = "TotalAmount", HeaderText = "Total", Width = 100 },
-                new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Status", Width = 80 },
-                new DataGridViewTextBoxColumn { Name = "PaymentMethod", HeaderText = "Payment", Width = 80 }
-            });
-
-            // Setup sale items grid columns
-            dgvSaleItems.Columns.Clear();
-            dgvSaleItems.Columns.AddRange(new DataGridViewColumn[]
-            {
-                new DataGridViewTextBoxColumn { Name = "ProductName", HeaderText = "Product", Width = 150 },
-                new DataGridViewTextBoxColumn { Name = "ProductSKU", HeaderText = "SKU", Width = 80 },
-                new DataGridViewTextBoxColumn { Name = "Quantity", HeaderText = "Qty", Width = 60 },
-                new DataGridViewTextBoxColumn { Name = "UnitPrice", HeaderText = "Price", Width = 80 },
-                new DataGridViewTextBoxColumn { Name = "Total", HeaderText = "Total", Width = 80 }
-            });
+            await LoadSalesDataAsync();
         }
 
         private async Task LoadSalesDataAsync()
@@ -478,5 +268,7 @@ namespace InventoryPro.WinForms.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
+
+      
     }
 }

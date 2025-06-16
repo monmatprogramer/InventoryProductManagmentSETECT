@@ -110,36 +110,42 @@ namespace InventoryPro.WinForms.Forms
         }
 
         /// <summary>
-        /// Applies modern styling to all form elements
+        /// Applies simplified styling for performance
         /// </summary>
         private void ApplyModernStyling()
         {
-            // Enable anti-aliasing for smoother text rendering
-            this.SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
+            // Use native styling for maximum performance
+            // Set background colors directly instead of custom painting
+            
+            // Set left panel background color
+            if (pnlLeftPanel != null)
+            {
+                pnlLeftPanel.BackColor = Color.FromArgb(59, 130, 246);
+            }
 
-            // Configure button styling
+            // Configure button styling without custom paint
             ConfigureButtonStyling();
 
             // Configure input field styling
             ConfigureInputStyling();
 
-            _logger.LogDebug("Modern styling applied to LoginForm");
+            _logger.LogDebug("Simplified styling applied to LoginForm for performance");
         }
 
         /// <summary>
-        /// Initializes animation timers for smooth UI transitions
+        /// Initializes animation timers (disabled for performance)
         /// </summary>
         private void InitializeAnimationTimers()
         {
-            // Button animation timer for smooth loading transitions
-            _buttonAnimationTimer.Interval = 16; // 60 FPS
+            // Disable all animation timers for maximum performance
+            _buttonAnimationTimer.Interval = 1000; // Set to very slow interval
             _buttonAnimationTimer.Tick += ButtonAnimationTimer_Tick;
 
-            // Spinner timer for loading indicator
-            _spinnerTimer.Interval = 16; // 60 FPS  
+            _spinnerTimer.Interval = 1000; // Set to very slow interval
             _spinnerTimer.Tick += SpinnerTimer_Tick;
 
-            _logger.LogDebug("Animation timers initialized");
+            // Don't start any timers by default
+            _logger.LogDebug("Animation timers initialized but disabled for performance");
         }
 
         #endregion
@@ -147,30 +153,12 @@ namespace InventoryPro.WinForms.Forms
         #region Custom Painting Methods
 
         /// <summary>
-        /// Creates a custom gradient background for the left panel
-        /// This gives the form a modern, professional appearance
+        /// Disabled custom painting for maximum performance
         /// </summary>
         private void PnlLeftPanel_Paint(object? sender, PaintEventArgs e)
         {
-            if (sender is not Panel panel) return;
-
-            // Create a linear gradient from top-left to bottom-right
-            using var gradientBrush = new LinearGradientBrush(
-                panel.ClientRectangle,
-                Color.FromArgb(45, 108, 175),   // Start color (darker blue)
-                Color.FromArgb(79, 172, 254),   // End color (lighter blue)
-                LinearGradientMode.ForwardDiagonal);
-
-            // Fill the panel with the gradient
-            e.Graphics.FillRectangle(gradientBrush, panel.ClientRectangle);
-
-            // Add subtle animation effect
-            if (_animationProgress > 0)
-            {
-                using var overlayBrush = new SolidBrush(
-                    Color.FromArgb((int)(30 * _animationProgress), Color.White));
-                e.Graphics.FillRectangle(overlayBrush, panel.ClientRectangle);
-            }
+            // Disable custom painting - use panel's native BackColor instead
+            // This eliminates all custom drawing CPU overhead
         }
 
         /// <summary>
@@ -204,50 +192,12 @@ namespace InventoryPro.WinForms.Forms
         }
 
         /// <summary>
-        /// Enhanced custom painting for input containers with smooth transitions
+        /// Disabled input container custom painting for performance
         /// </summary>
         private void InputContainer_Paint(object? sender, PaintEventArgs e)
         {
-            if (sender is not Panel panel) return;
-
-            var rect = new Rectangle(0, 0, panel.Width - 1, panel.Height - 1);
-            var isFocused = panel.Focused || panel.ContainsFocus;
-
-            // Smooth color transitions
-            var borderColor = isFocused ? _primaryBlue : _borderGray;
-            var borderWidth = isFocused ? 2 : 1;
-            var backgroundColorBase = _backgroundGray;
-
-            // Enhanced background with subtle gradient when focused
-            if (isFocused)
-            {
-                using var gradientBrush = new LinearGradientBrush(
-                    panel.ClientRectangle,
-                    Color.FromArgb(250, 251, 252),
-                    backgroundColorBase,
-                    LinearGradientMode.Vertical);
-                e.Graphics.FillRectangle(gradientBrush, panel.ClientRectangle);
-            }
-            else
-            {
-                using var backgroundBrush = new SolidBrush(backgroundColorBase);
-                e.Graphics.FillRectangle(backgroundBrush, panel.ClientRectangle);
-            }
-
-            // Enable anti-aliasing for smoother borders
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-
-            // Draw border with rounded corners and enhanced styling
-            using var borderPen = new Pen(borderColor, borderWidth);
-            DrawRoundedRectangle(e.Graphics, borderPen, rect, 8);
-
-            // Add subtle inner glow when focused
-            if (isFocused)
-            {
-                var innerRect = new Rectangle(rect.X + 1, rect.Y + 1, rect.Width - 2, rect.Height - 2);
-                using var glowPen = new Pen(Color.FromArgb(50, _primaryBlue), 1);
-                DrawRoundedRectangle(e.Graphics, glowPen, innerRect, 7);
-            }
+            // Disable custom painting for maximum performance
+            // Use native control styling instead
         }
 
         /// <summary>
@@ -280,94 +230,12 @@ namespace InventoryPro.WinForms.Forms
         }
 
         /// <summary>
-        /// Custom button painting for modern gradient buttons with smooth loading animation
+        /// Disabled custom button painting for maximum performance
         /// </summary>
         private void BtnLogin_Paint(object? sender, PaintEventArgs e)
         {
-            if (sender is not Button button) return;
-
-            var rect = button.ClientRectangle;
-            var isHovered = button.ClientRectangle.Contains(button.PointToClient(Cursor.Position)) && button.Enabled;
-
-            // Enhanced color logic for different states
-            Color buttonColor;
-            if (!button.Enabled && _isLoggingIn)
-            {
-                // Loading state - slightly darker blue
-                buttonColor = Color.FromArgb(
-                    Math.Max(0, _primaryBlue.R - 10), 
-                    Math.Max(0, _primaryBlue.G - 10), 
-                    Math.Max(0, _primaryBlue.B - 10));
-            }
-            else if (isHovered)
-            {
-                buttonColor = _primaryBlueHover;
-            }
-            else
-            {
-                buttonColor = _primaryBlue;
-            }
-
-            // Enable anti-aliasing for smoother graphics
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            e.Graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-
-            // Create gradient brush for button with enhanced gradient
-            using var gradientBrush = new LinearGradientBrush(
-                rect,
-                buttonColor,
-                Color.FromArgb(
-                    Math.Max(0, buttonColor.R - 25), 
-                    Math.Max(0, buttonColor.G - 25), 
-                    Math.Max(0, buttonColor.B - 25)),
-                LinearGradientMode.Vertical);
-
-            // Add color blend for more sophisticated gradient
-            var blend = new ColorBlend();
-            blend.Colors = new[] {
-                Color.FromArgb(
-                    Math.Min(255, buttonColor.R + 15), 
-                    Math.Min(255, buttonColor.G + 15), 
-                    Math.Min(255, buttonColor.B + 15)),
-                buttonColor,
-                Color.FromArgb(
-                    Math.Max(0, buttonColor.R - 25), 
-                    Math.Max(0, buttonColor.G - 25), 
-                    Math.Max(0, buttonColor.B - 25))
-                };
-            blend.Positions = new[] { 0.0f, 0.5f, 1.0f };
-            gradientBrush.InterpolationColors = blend;
-
-            // Fill button with rounded corners
-            using var path = CreateRoundedPath(rect, 8);
-            e.Graphics.FillPath(gradientBrush, path);
-
-            // Add subtle border
-            using var borderPen = new Pen(Color.FromArgb(30, Color.White), 1);
-            e.Graphics.DrawPath(borderPen, path);
-
-            // Draw loading overlay if in loading state
-            if (_isLoggingIn && _overlayOpacity > 0)
-            {
-                using var overlayBrush = new SolidBrush(Color.FromArgb((int)(_overlayOpacity * 255), Color.White));
-                e.Graphics.FillPath(overlayBrush, path);
-            }
-
-            // Draw loading spinner or text
-            if (_isLoggingIn)
-            {
-                DrawLoadingSpinner(e.Graphics, rect);
-                DrawLoadingText(e.Graphics, rect, button.Font);
-            }
-            else
-            {
-                // Draw normal button text with smooth transitions
-                var textColor = button.Enabled ? Color.White : Color.Gray;
-                var textRect = new Rectangle(rect.X, rect.Y, rect.Width, rect.Height);
-
-                TextRenderer.DrawText(e.Graphics, button.Text, button.Font, textRect, textColor,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-            }
+            // Disable custom painting - use native button appearance
+            // This eliminates the most CPU-intensive custom drawing
         }
 
         /// <summary>
@@ -815,7 +683,7 @@ namespace InventoryPro.WinForms.Forms
         #region UI State Management
 
         /// <summary>
-        /// Sets the login state with smooth animations (enables/disables controls during login)
+        /// Sets the login state without animations for maximum performance
         /// </summary>
         private void SetLoginState(bool isLoggingIn)
         {
@@ -829,74 +697,32 @@ namespace InventoryPro.WinForms.Forms
 
             if (isLoggingIn)
             {
-                // Store original button text for restoration
+                // Store original button text and change to loading state
                 _originalButtonText = btnLogin.Text;
-
-                // Disable button and change cursor
+                btnLogin.Text = "Signing In...";
                 btnLogin.Enabled = false;
                 this.Cursor = Cursors.WaitCursor;
 
-                // Start smooth button animation
-                _buttonAnimationProgress = 0f;
-                _isAnimatingButton = true;
-                _buttonAnimationTimer.Start();
-
-                // Start loading spinner
-                _loadingSpinnerAngle = 0f;
-                _spinnerTimer.Start();
-
-                // Show progress indicator with smooth fade
+                // Show progress indicator without animations
                 progressBar.Visible = true;
                 progressBar.Style = ProgressBarStyle.Marquee;
-
-                // Start background animation
-                animationTimer.Start();
             }
             else
             {
-                // Restore button text and enable
+                // Restore original state
                 btnLogin.Text = _originalButtonText;
                 btnLogin.Enabled = true;
                 this.Cursor = Cursors.Default;
 
-                // Start fade out animation
-                _buttonAnimationProgress = 0f;
-                _isAnimatingButton = true;
-                _buttonAnimationTimer.Start();
-
-                // Stop loading spinner
-                _spinnerTimer.Stop();
-                _loadingSpinnerAngle = 0f;
-
                 // Hide progress indicator
                 progressBar.Visible = false;
                 progressBar.Style = ProgressBarStyle.Continuous;
-
-                // Continue background animation briefly for smooth transition
-                Task.Delay(300).ContinueWith(_ =>
-                {
-                    if (this.InvokeRequired)
-                    {
-                        this.Invoke(() =>
-                        {
-                            animationTimer.Stop();
-                            _animationProgress = 0f;
-                        });
-                    }
-                    else
-                    {
-                        animationTimer.Stop();
-                        _animationProgress = 0f;
-                    }
-                });
             }
 
-            // Refresh affected controls with smooth invalidation
-            btnLogin.Invalidate();
-            pnlLeftPanel.Invalidate();
-
-            // Add subtle animation to the whole login container
-            AnimateLoginContainer(isLoggingIn);
+            // Stop all timers to prevent CPU overhead
+            _buttonAnimationTimer?.Stop();
+            _spinnerTimer?.Stop();
+            animationTimer?.Stop();
         }
 
         /// <summary>
@@ -946,248 +772,81 @@ namespace InventoryPro.WinForms.Forms
         #region Animation Methods
 
         /// <summary>
-        /// Animates the login container for visual feedback
+        /// Disabled login container animation for performance
         /// </summary>
         private void AnimateLoginContainer(bool isLoggingIn)
         {
-            var timer = new Timer();
-            timer.Interval = 16; // 60 FPS
-            var steps = 0;
-            var maxSteps = 15;
-            var originalLocation = pnlLoginContainer.Location;
-
-            timer.Tick += (s, e) =>
-            {
-                steps++;
-                var progress = (float)steps / maxSteps;
-                var easedProgress = EaseInOutQuart(progress);
-
-                if (isLoggingIn)
-                {
-                    // Subtle scale down effect for login state
-                    var offset = (int)(easedProgress * 2); // Very subtle movement
-                    pnlLoginContainer.Location = new Point(originalLocation.X + offset, originalLocation.Y);
-                }
-                else
-                {
-                    // Return to original position
-                    var offset = (int)((1 - easedProgress) * 2);
-                    pnlLoginContainer.Location = new Point(originalLocation.X + offset, originalLocation.Y);
-                }
-
-                if (steps >= maxSteps)
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    pnlLoginContainer.Location = originalLocation;
-                }
-            };
-
-            timer.Start();
+            // Disable all animation for maximum performance
+            // Keep static white background
         }
 
         /// <summary>
-        /// Creates a smooth flash effect for the error label with improved animation
+        /// Simplified error flash effect
         /// </summary>
-        private async void FlashErrorLabel()
+        private void FlashErrorLabel()
         {
-            try
+            // Simple flash without complex animation for performance
+            var originalColor = lblError.ForeColor;
+            lblError.ForeColor = Color.FromArgb(255, 100, 100);
+            
+            // Use a simple timer for quick flash back
+            var flashTimer = new Timer();
+            flashTimer.Interval = 200;
+            flashTimer.Tick += (s, e) =>
             {
-                var originalColor = lblError.ForeColor;
-                var steps = 20;
-
-                // Smooth fade animation instead of abrupt flash
-                for (int i = 0; i < steps; i++)
-                {
-                    var progress = (float)i / steps;
-                    var easedProgress = EaseInOutSine(progress);
-
-                    // Create smooth color transition
-                    var flashColor = Color.FromArgb(
-                        (int)(originalColor.R + (50 * (1 - easedProgress))),
-                        (int)(originalColor.G * easedProgress),
-                        (int)(originalColor.B * easedProgress)
-                    );
-
-                    lblError.ForeColor = flashColor;
-                    await Task.Delay(20);
-                }
-
                 lblError.ForeColor = originalColor;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error during flash animation");
-            }
+                flashTimer.Stop();
+                flashTimer.Dispose();
+            };
+            flashTimer.Start();
         }
 
         /// <summary>
-        /// Starts the enhanced welcome animation when form is first shown
+        /// Disabled welcome animation for performance
         /// </summary>
         private void StartWelcomeAnimation()
         {
-            // Animate the login container sliding in with better easing
-            var originalLocation = pnlLoginContainer.Location;
-            pnlLoginContainer.Location = new Point(originalLocation.X + 80, originalLocation.Y);
-
-            var timer = new Timer();
-            timer.Interval = 16; // 60 FPS
-            var steps = 0;
-            var maxSteps = 30; // Longer animation for smoother effect
-
-            timer.Tick += (s, e) =>
-            {
-                steps++;
-                var progress = (float)steps / maxSteps;
-                var easeProgress = EaseOutElastic(progress); // More interesting easing
-
-                var currentX = originalLocation.X + (int)((1 - easeProgress) * 80);
-                pnlLoginContainer.Location = new Point(currentX, originalLocation.Y);
-
-                if (steps >= maxSteps)
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    pnlLoginContainer.Location = originalLocation;
-
-                    // Start subtle background animation after welcome animation
-                    animationTimer.Start();
-                }
-            };
-
-            timer.Start();
+            // No animation - just set static appearance for performance
+            pnlLoginContainer.BackColor = Color.White;
+            // Don't start any animation timers
         }
 
         /// <summary>
-        /// Animates a control with smooth transitions and enhanced effects
+        /// Disabled control animation for performance
         /// </summary>
         private void AnimateControl(Control? control, bool expand)
         {
-            if (control == null) return;
-
-            // Create smooth scale and color transition animation
-            var timer = new Timer();
-            timer.Interval = 16; // 60 FPS
-            var steps = 0;
-            var maxSteps = 10; // Quick but smooth animation
-            var originalBounds = control.Bounds;
-
-            timer.Tick += (s, e) =>
-            {
-                steps++;
-                var progress = (float)steps / maxSteps;
-                var easedProgress = EaseInOutQuart(progress);
-
-                if (expand)
-                {
-                    // Subtle scale up effect for focus
-                    var scaleOffset = (int)(easedProgress * 1); // Very subtle 1px expansion
-                    control.Location = new Point(originalBounds.X - scaleOffset / 2, originalBounds.Y - scaleOffset / 2);
-                    control.Size = new Size(originalBounds.Width + scaleOffset, originalBounds.Height + scaleOffset);
-                }
-                else
-                {
-                    // Return to original size
-                    var scaleOffset = (int)((1 - easedProgress) * 1);
-                    control.Location = new Point(originalBounds.X - scaleOffset / 2, originalBounds.Y - scaleOffset / 2);
-                    control.Size = new Size(originalBounds.Width + scaleOffset, originalBounds.Height + scaleOffset);
-                }
-
-                // Trigger repaint for color transitions
-                control.Invalidate();
-
-                if (steps >= maxSteps)
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    control.Bounds = originalBounds; // Ensure we return to exact original bounds
-                }
-            };
-
-            timer.Start();
+            // Completely disable animations for performance
+            // No visual changes to prevent CPU overhead
         }
 
         /// <summary>
-        /// Animation timer tick event for ongoing animations
+        /// Disabled animation timer for performance
         /// </summary>
         private void AnimationTimer_Tick(object? sender, EventArgs e)
         {
-            if (_animationDirection)
-            {
-                _animationProgress += 0.015f; // Slower, smoother animation
-                if (_animationProgress >= 1.0f)
-                {
-                    _animationProgress = 1.0f;
-                    _animationDirection = false;
-                }
-            }
-            else
-            {
-                _animationProgress -= 0.015f; // Slower, smoother animation
-                if (_animationProgress <= 0.0f)
-                {
-                    _animationProgress = 0.0f;
-                    _animationDirection = true;
-                }
-            }
-
-            // Apply easing for smoother transitions
-            var easedProgress = EaseInOutSine(_animationProgress);
-
-            // Refresh animated elements
-            pnlLeftPanel.Invalidate();
+            // Disable all animations to eliminate CPU overhead
+            // Stop the timer immediately to prevent further calls
+            animationTimer?.Stop();
         }
 
         /// <summary>
-        /// Button animation timer for smooth loading transitions
+        /// Disabled button animation timer for performance
         /// </summary>
         private void ButtonAnimationTimer_Tick(object? sender, EventArgs e)
         {
-            if (_isAnimatingButton)
-            {
-                _buttonAnimationProgress += 0.08f; // Smooth button animation speed
-
-                if (_buttonAnimationProgress >= 1.0f)
-                {
-                    _buttonAnimationProgress = 1.0f;
-                    _buttonAnimationTimer.Stop();
-                    _isAnimatingButton = false;
-                }
-
-                // Apply easing to button animation
-                var easedProgress = EaseInOutQuart(_buttonAnimationProgress);
-
-                // Update overlay opacity for loading state
-                if (_isLoggingIn)
-                {
-                    _overlayOpacity = easedProgress * 0.3f; // Max 30% opacity
-                }
-                else
-                {
-                    _overlayOpacity = (1.0f - easedProgress) * 0.3f; // Fade out
-                }
-
-                // Refresh button
-                btnLogin.Invalidate();
-            }
+            // Disable button animations to eliminate CPU overhead
+            _buttonAnimationTimer?.Stop();
+            _isAnimatingButton = false;
         }
 
         /// <summary>
-        /// Spinner animation timer for loading indicator
+        /// Disabled spinner timer for performance
         /// </summary>
         private void SpinnerTimer_Tick(object? sender, EventArgs e)
         {
-            if (_isLoggingIn)
-            {
-                _loadingSpinnerAngle += 8f; // Smooth spinner rotation
-                if (_loadingSpinnerAngle >= 360f)
-                {
-                    _loadingSpinnerAngle = 0f;
-                }
-
-                // Refresh button to show spinner
-                btnLogin.Invalidate();
-            }
+            // Disable spinner to eliminate CPU overhead
+            _spinnerTimer?.Stop();
         }
 
         /// <summary>

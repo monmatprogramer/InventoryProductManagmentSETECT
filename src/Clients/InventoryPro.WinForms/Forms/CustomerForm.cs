@@ -218,14 +218,17 @@ namespace InventoryPro.WinForms.Forms
                 RowHeadersVisible = false,
                 Font = new Font("Segoe UI", 9),
                 RowTemplate = { Height = 35 },
+                ColumnHeadersHeight = 45,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
                 ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
                 {
                     BackColor = Color.FromArgb(52, 58, 64),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 9, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     SelectionBackColor = Color.FromArgb(52, 58, 64),
-                    Padding = new Padding(10, 8, 10, 8)
+                    Padding = new Padding(12, 10, 12, 10),
+                    WrapMode = DataGridViewTriState.False
                 },
                 DefaultCellStyle = new DataGridViewCellStyle
                 {
@@ -331,37 +334,42 @@ namespace InventoryPro.WinForms.Forms
                 var idColumn = dgvCustomers.Columns["Id"];
                 if (idColumn != null)
                 {
-                    idColumn.Width = 60;
+                    idColumn.Width = 70;
                     idColumn.HeaderText = "ID";
                     idColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    idColumn.MinimumWidth = 70;
                 }
 
                 var nameColumn = dgvCustomers.Columns["Name"];
                 if (nameColumn != null)
                 {
-                    nameColumn.Width = 180;
+                    nameColumn.Width = 200;
                     nameColumn.HeaderText = "👤 Customer Name";
+                    nameColumn.MinimumWidth = 150;
                 }
 
                 var emailColumn = dgvCustomers.Columns["Email"];
                 if (emailColumn != null)
                 {
-                    emailColumn.Width = 220;
+                    emailColumn.Width = 250;
                     emailColumn.HeaderText = "📧 Email Address";
+                    emailColumn.MinimumWidth = 180;
                 }
 
                 var phoneColumn = dgvCustomers.Columns["Phone"];
                 if (phoneColumn != null)
                 {
-                    phoneColumn.Width = 130;
+                    phoneColumn.Width = 140;
                     phoneColumn.HeaderText = "📞 Phone";
+                    phoneColumn.MinimumWidth = 120;
                 }
 
                 var addressColumn = dgvCustomers.Columns["Address"];
                 if (addressColumn != null)
                 {
-                    addressColumn.Width = 200;
+                    addressColumn.Width = 220;
                     addressColumn.HeaderText = "🏠 Address";
+                    addressColumn.MinimumWidth = 150;
                 }
 
                 var totalPurchasesColumn = dgvCustomers.Columns["TotalPurchases"];
@@ -369,7 +377,8 @@ namespace InventoryPro.WinForms.Forms
                 {
                     totalPurchasesColumn.DefaultCellStyle.Format = "C2";
                     totalPurchasesColumn.HeaderText = "💰 Total Purchases";
-                    totalPurchasesColumn.Width = 140;
+                    totalPurchasesColumn.Width = 160;
+                    totalPurchasesColumn.MinimumWidth = 120;
                     totalPurchasesColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                     totalPurchasesColumn.DefaultCellStyle.ForeColor = Color.FromArgb(40, 167, 69);
                     totalPurchasesColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
@@ -379,7 +388,8 @@ namespace InventoryPro.WinForms.Forms
                 if (orderCountColumn != null)
                 {
                     orderCountColumn.HeaderText = "🛒 Orders";
-                    orderCountColumn.Width = 80;
+                    orderCountColumn.Width = 100;
+                    orderCountColumn.MinimumWidth = 80;
                     orderCountColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 }
 
@@ -388,7 +398,8 @@ namespace InventoryPro.WinForms.Forms
                 {
                     lastOrderDateColumn.HeaderText = "📅 Last Order";
                     lastOrderDateColumn.DefaultCellStyle.Format = "MMM dd, yyyy";
-                    lastOrderDateColumn.Width = 120;
+                    lastOrderDateColumn.Width = 140;
+                    lastOrderDateColumn.MinimumWidth = 100;
                 }
 
                 // Hide unnecessary columns
