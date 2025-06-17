@@ -37,6 +37,7 @@ namespace InventoryPro.WinForms.Forms
 
         // Shopping cart
         private Label lblCart = null!;
+        private Label lblCartCount = null!;
         private DataGridView dgvCart = null!;
         private Label lblSubtotal = null!;
         private Label lblTax = null!;
@@ -144,75 +145,129 @@ namespace InventoryPro.WinForms.Forms
         private void InitializeComponent()
         {
             this.Text = "Sales - Point of Sale";
-            this.Size = new Size(1200, 700);
+            this.Size = new Size(1400, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.WindowState = FormWindowState.Maximized;
 
-            // Create main layout
+            // Create main layout with improved responsiveness
             var pnlMain = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 1
+                RowCount = 1,
+                BackColor = Color.FromArgb(245, 246, 250),
+                Padding = new Padding(15)
             };
-            pnlMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            pnlMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+            // Better column distribution: 60% for products, 40% for cart
+            pnlMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
+            pnlMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
 
-            // Left panel - Product selection
+            // Left panel - Product selection with modern card-like design
             pnlLeft = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10)
+                Padding = new Padding(20),
+                BackColor = Color.White,
+                Margin = new Padding(5)
+            };
+            pnlLeft.Paint += (s, e) =>
+            {
+                // Modern card shadow effect
+                using (var brush = new SolidBrush(Color.FromArgb(10, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(brush, 3, 3, pnlLeft.Width - 3, pnlLeft.Height - 3);
+                }
+                e.Graphics.FillRectangle(Brushes.White, 0, 0, pnlLeft.Width - 3, pnlLeft.Height - 3);
+                using (var pen = new Pen(Color.FromArgb(230, 235, 241), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlLeft.Width - 4, pnlLeft.Height - 4);
+                }
             };
 
-            // Customer selection section with modern styling
+            // Customer section with modern card layout
+            var pnlCustomer = new Panel
+            {
+                Location = new Point(20, 20),
+                Size = new Size(0, 80), // Width will be set dynamically
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(15)
+            };
+            pnlCustomer.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlCustomer.Width - 1, pnlCustomer.Height - 1);
+                }
+            };
+
             lblCustomer = new Label
             {
-                Text = "👤 Customer:",
-                Location = new Point(10, 10),
-                Size = new Size(90, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                Text = "👤 Customer Selection",
+                Location = new Point(15, 10),
+                Size = new Size(200, 25),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.Transparent
             };
 
             cboCustomer = new ComboBox
             {
-                Location = new Point(105, 10),
-                Size = new Size(280, 28),
+                Location = new Point(15, 40),
+                Size = new Size(0, 32), // Width will be set dynamically
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 10),
                 BackColor = Color.White
             };
 
             btnNewCustomer = new Button
             {
                 Text = "👥 New Customer",
-                Location = new Point(395, 8),
-                Size = new Size(135, 32),
+                Location = new Point(0, 38), // Position will be set dynamically
+                Size = new Size(140, 36),
                 BackColor = Color.FromArgb(102, 16, 242),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnNewCustomer.FlatAppearance.BorderSize = 0;
             btnNewCustomer.FlatAppearance.MouseOverBackColor = Color.FromArgb(81, 12, 194);
             btnNewCustomer.Click += BtnNewCustomer_Click;
 
-            // Product search section with modern styling
+            pnlCustomer.Controls.AddRange(new Control[] { lblCustomer, cboCustomer, btnNewCustomer });
+
+            // Product search section with modern card layout
+            var pnlProductSearch = new Panel
+            {
+                Location = new Point(20, 110),
+                Size = new Size(0, 100), // Width will be set dynamically
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(15)
+            };
+            pnlProductSearch.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlProductSearch.Width - 1, pnlProductSearch.Height - 1);
+                }
+            };
+
             lblProduct = new Label
             {
-                Text = "🔍 Product Search:",
-                Location = new Point(10, 50),
-                Size = new Size(150, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                Text = "🔍 Product Search & Selection",
+                Location = new Point(15, 10),
+                Size = new Size(250, 25),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.Transparent
             };
 
             txtProductSearch = new TextBox
             {
-                Location = new Point(10, 80),
-                Size = new Size(300, 28),
+                Location = new Point(15, 40),
+                Size = new Size(0, 32), // Width will be set dynamically
                 PlaceholderText = "Search by product name or SKU code...",
-                Font = new Font("Segoe UI", 10),
+                Font = new Font("Segoe UI", 11),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.White
             };
@@ -221,12 +276,13 @@ namespace InventoryPro.WinForms.Forms
             btnAddProduct = new Button
             {
                 Text = "➕ Add to Cart",
-                Location = new Point(320, 78),
-                Size = new Size(110, 32),
+                Location = new Point(0, 38), // Position will be set dynamically
+                Size = new Size(120, 36),
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand
             };
             btnAddProduct.FlatAppearance.BorderSize = 0;
             btnAddProduct.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 142, 58);
@@ -235,122 +291,245 @@ namespace InventoryPro.WinForms.Forms
             btnRefreshData = new Button
             {
                 Text = "Loading...",
-                Location = new Point(440, 78),
-                Size = new Size(90, 32),
+                Location = new Point(0, 38), // Position will be set dynamically
+                Size = new Size(100, 36),
                 BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
-                Enabled = false
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Enabled = false,
+                Cursor = Cursors.Hand
             };
             btnRefreshData.FlatAppearance.BorderSize = 0;
             btnRefreshData.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 105, 217);
             btnRefreshData.Click += BtnRefreshData_Click;
 
-            // Products grid with premium sizing and layout
+            pnlProductSearch.Controls.AddRange(new Control[] { lblProduct, txtProductSearch, btnAddProduct, btnRefreshData });
+
+            // Products grid with responsive modern design
             dgvProducts = new DataGridView
             {
-                Location = new Point(10, 125),
-                Size = new Size(540, 385),
+                Location = new Point(20, 220),
+                Size = new Size(0, 0), // Size will be set dynamically
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 ReadOnly = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
                 ScrollBars = ScrollBars.Both,
                 BorderStyle = BorderStyle.None,
-                Margin = new Padding(5)
+                Margin = new Padding(5),
+                BackgroundColor = Color.White
             };
             dgvProducts.DoubleClick += DgvProducts_DoubleClick;
             dgvProducts.CellFormatting += DgvProducts_CellFormatting;
 
+            // Add resize event handler for responsive layout
+            pnlLeft.Resize += (s, e) =>
+            {
+                var width = pnlLeft.Width - 60; // Account for padding and margins
+                var height = pnlLeft.Height - 280; // Account for other controls
+                
+                // Update customer panel
+                pnlCustomer.Width = width;
+                cboCustomer.Width = width - 170; // Leave space for button
+                btnNewCustomer.Left = width - 155;
+                
+                // Update product search panel
+                pnlProductSearch.Width = width;
+                txtProductSearch.Width = width - 260; // Leave space for buttons
+                btnAddProduct.Left = width - 240;
+                btnRefreshData.Left = width - 115;
+                
+                // Update products grid
+                dgvProducts.Width = width;
+                dgvProducts.Height = Math.Max(height, 200); // Minimum height
+            };
+
             pnlLeft.Controls.AddRange(new Control[] {
-                lblCustomer, cboCustomer, btnNewCustomer,
-                lblProduct, txtProductSearch, btnAddProduct, btnRefreshData,
-                dgvProducts
+                pnlCustomer, pnlProductSearch, dgvProducts
             });
 
-            // Right panel - Shopping cart
+            // Right panel - Shopping cart with modern card design
             pnlRight = new Panel
             {
                 Dock = DockStyle.Fill,
-                Padding = new Padding(10),
-                BackColor = Color.FromArgb(248, 248, 248)
+                Padding = new Padding(20),
+                BackColor = Color.White,
+                Margin = new Padding(5)
+            };
+            pnlRight.Paint += (s, e) =>
+            {
+                // Modern card shadow effect
+                using (var brush = new SolidBrush(Color.FromArgb(10, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(brush, 3, 3, pnlRight.Width - 3, pnlRight.Height - 3);
+                }
+                e.Graphics.FillRectangle(Brushes.White, 0, 0, pnlRight.Width - 3, pnlRight.Height - 3);
+                using (var pen = new Pen(Color.FromArgb(230, 235, 241), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlRight.Width - 4, pnlRight.Height - 4);
+                }
+            };
+
+            // Cart header with enhanced modern styling
+            var pnlCartHeader = new Panel
+            {
+                Location = new Point(20, 20),
+                Size = new Size(0, 50), // Width will be set dynamically, reduced from 60 to 50
+                BackColor = Color.FromArgb(52, 58, 64),
+                Padding = new Padding(20, 12, 20, 12) // Reduced padding
+            };
+            pnlCartHeader.Paint += (s, e) =>
+            {
+                // Add gradient effect to header
+                using (var brush = new LinearGradientBrush(
+                    new Rectangle(0, 0, pnlCartHeader.Width, pnlCartHeader.Height),
+                    Color.FromArgb(52, 58, 64),
+                    Color.FromArgb(73, 80, 87),
+                    LinearGradientMode.Horizontal))
+                {
+                    e.Graphics.FillRectangle(brush, 0, 0, pnlCartHeader.Width, pnlCartHeader.Height);
+                }
             };
 
             lblCart = new Label
             {
                 Text = "🛒 Shopping Cart",
-                Location = new Point(10, 10),
-                Size = new Size(250, 30),
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                Location = new Point(20, 15), // Adjusted for smaller header
+                Size = new Size(250, 25),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold), // Reduced from 15 to 13
+                ForeColor = Color.White,
+                BackColor = Color.Transparent
             };
 
-            // Cart grid
+            // Add cart item count label
+            lblCartCount = new Label
+            {
+                Text = "0 items",
+                Location = new Point(0, 15), // Position will be set dynamically, adjusted for smaller header
+                Size = new Size(100, 25),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular), // Reduced from 12 to 10
+                ForeColor = Color.FromArgb(206, 212, 218),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleRight
+            };
+            
+            pnlCartHeader.Controls.AddRange(new Control[] { lblCart, lblCartCount });
+
+            // Cart grid with modern design
             dgvCart = new DataGridView
             {
-                Location = new Point(10, 50),
-                Size = new Size(550, 300),
+                Location = new Point(20, 75), // Adjusted for smaller header (reduced from 80 to 75)
+                Size = new Size(0, 0), // Size will be set dynamically
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = true,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BorderStyle = BorderStyle.None,
+                BackgroundColor = Color.White,
+                GridColor = Color.FromArgb(230, 235, 241)
             };
             dgvCart.CellValueChanged += DgvCart_CellValueChanged;
             dgvCart.UserDeletingRow += DgvCart_UserDeletingRow;
 
-            // Payment section
+            // Payment section with modern card design
             var pnlPayment = new Panel
             {
-                Location = new Point(10, 360),
-                Size = new Size(550, 200),
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(20, 0), // Position will be set dynamically
+                Size = new Size(0, 200), // Width will be set dynamically
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(20)
+            };
+            pnlPayment.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlPayment.Width - 1, pnlPayment.Height - 1);
+                }
+            };
+
+            // Totals section
+            var pnlTotals = new Panel
+            {
+                Location = new Point(20, 20),
+                Size = new Size(0, 120), // Width will be set dynamically
+                BackColor = Color.White,
+                Padding = new Padding(15)
+            };
+            pnlTotals.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlTotals.Width - 1, pnlTotals.Height - 1);
+                }
             };
 
             lblSubtotal = new Label
             {
                 Text = "📊 Subtotal: $0.00",
-                Location = new Point(10, 10),
-                Size = new Size(220, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.FromArgb(73, 80, 87)
+                Location = new Point(15, 15),
+                Size = new Size(0, 25), // Width will be set dynamically
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                BackColor = Color.Transparent
             };
 
             lblTax = new Label
             {
                 Text = "📋 Tax (10%): $0.00",
-                Location = new Point(10, 40),
-                Size = new Size(220, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.FromArgb(73, 80, 87)
+                Location = new Point(15, 45),
+                Size = new Size(0, 25), // Width will be set dynamically
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                BackColor = Color.Transparent
             };
 
             lblTotal = new Label
             {
                 Text = "💰 Total: $0.00",
-                Location = new Point(10, 70),
-                Size = new Size(220, 30),
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.FromArgb(40, 167, 69)
+                Location = new Point(15, 75),
+                Size = new Size(0, 35), // Width will be set dynamically
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.FromArgb(40, 167, 69),
+                BackColor = Color.Transparent
+            };
+
+            pnlTotals.Controls.AddRange(new Control[] { lblSubtotal, lblTax, lblTotal });
+
+            // Payment details section
+            var pnlPaymentDetails = new Panel
+            {
+                Location = new Point(20, 150),
+                Size = new Size(0, 90), // Width will be set dynamically
+                BackColor = Color.White,
+                Padding = new Padding(20)
+            };
+            pnlPaymentDetails.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 1))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlPaymentDetails.Width - 1, pnlPaymentDetails.Height - 1);
+                }
             };
 
             lblPaymentMethod = new Label
             {
                 Text = "💳 Payment Method:",
-                Location = new Point(250, 10),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                Location = new Point(15, 15),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.Transparent
             };
 
             cboPaymentMethod = new ComboBox
             {
-                Location = new Point(400, 10),
-                Size = new Size(140, 25),
+                Location = new Point(170, 13),
+                Size = new Size(0, 30), // Width will be set dynamically
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 10),
                 BackColor = Color.White
             };
             cboPaymentMethod.Items.AddRange(new object[] { "💵 Cash", "💳 Credit Card", "💸 Debit Card", "📝 Check" });
@@ -359,20 +538,21 @@ namespace InventoryPro.WinForms.Forms
             lblPaidAmount = new Label
             {
                 Text = "💵 Paid Amount:",
-                Location = new Point(250, 40),
-                Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                Location = new Point(15, 50),
+                Size = new Size(150, 25),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.Transparent
             };
 
             nudPaidAmount = new NumericUpDown
             {
-                Location = new Point(400, 40),
-                Size = new Size(140, 25),
+                Location = new Point(170, 48),
+                Size = new Size(0, 30), // Width will be set dynamically
                 DecimalPlaces = 2,
                 Maximum = 999999.99m,
                 Minimum = 0,
-                Font = new Font("Segoe UI", 9),
+                Font = new Font("Segoe UI", 11),
                 BackColor = Color.White
             };
             nudPaidAmount.ValueChanged += NudPaidAmount_ValueChanged;
@@ -380,48 +560,117 @@ namespace InventoryPro.WinForms.Forms
             lblChange = new Label
             {
                 Text = "💸 Change: $0.00",
-                Location = new Point(250, 70),
-                Size = new Size(290, 30),
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                ForeColor = Color.FromArgb(23, 162, 184)
+                Location = new Point(0, 15), // Position will be set dynamically
+                Size = new Size(0, 30), // Width will be set dynamically
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                ForeColor = Color.FromArgb(23, 162, 184),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleRight
             };
 
-            btnCompleteSale = new Button
+            pnlPaymentDetails.Controls.AddRange(new Control[] { lblPaymentMethod, cboPaymentMethod, lblPaidAmount, nudPaidAmount, lblChange });
+
+            pnlPayment.Controls.AddRange(new Control[] { pnlTotals, pnlPaymentDetails });
+
+            // Action buttons panel with enhanced design
+            var pnlActionButtons = new Panel
             {
-                Text = "✅ Complete Sale",
-                Location = new Point(250, 120),
-                Size = new Size(160, 45),
-                BackColor = Color.FromArgb(40, 167, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 12, FontStyle.Bold)
+                Location = new Point(20, 0), // Position will be set dynamically  
+                Size = new Size(0, 130), // Width will be set dynamically, increased height
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(15)
             };
-            btnCompleteSale.FlatAppearance.BorderSize = 0;
-            btnCompleteSale.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 142, 58);
+            pnlActionButtons.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 225, 230), 2))
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, pnlActionButtons.Width - 1, pnlActionButtons.Height - 1);
+                }
+            };
+
+            // Complete Sale button with round modern design and smaller text
+            btnCompleteSale = CreateRoundButton("✅ Complete", new Point(15, 15), new Size(0, 45), 
+                Color.FromArgb(40, 167, 69), Color.FromArgb(34, 142, 58));
             btnCompleteSale.Click += BtnCompleteSale_Click;
 
-            btnCancelSale = new Button
-            {
-                Text = "❌ Cancel Sale",
-                Location = new Point(420, 120),
-                Size = new Size(140, 45),
-                BackColor = Color.FromArgb(220, 53, 69),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 12, FontStyle.Bold)
-            };
-            btnCancelSale.FlatAppearance.BorderSize = 0;
-            btnCancelSale.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
+            // Generate Invoice button with round modern design and smaller text
+            var btnGenerateInvoice = CreateRoundButton("🧾 Invoice", new Point(0, 15), new Size(0, 45), 
+                Color.FromArgb(0, 123, 255), Color.FromArgb(0, 105, 217));
+            btnGenerateInvoice.Click += BtnGenerateInvoice_Click;
+
+            // Cancel Sale button with modern professional design and smaller text
+            btnCancelSale = CreateRoundButton("❌ Cancel", new Point(15, 70), new Size(0, 35), 
+                Color.FromArgb(220, 53, 69), Color.FromArgb(200, 35, 51));
             btnCancelSale.Click += BtnCancelSale_Click;
 
-            pnlPayment.Controls.AddRange(new Control[] {
-                lblSubtotal, lblTax, lblTotal,
-                lblPaymentMethod, cboPaymentMethod,
-                lblPaidAmount, nudPaidAmount, lblChange,
-                btnCompleteSale, btnCancelSale
-            });
+            pnlActionButtons.Controls.AddRange(new Control[] { btnCompleteSale, btnGenerateInvoice, btnCancelSale });
 
-            pnlRight.Controls.AddRange(new Control[] { lblCart, dgvCart, pnlPayment });
+            // Add resize event handler for right panel responsive layout
+            pnlRight.Resize += (s, e) =>
+            {
+                var width = pnlRight.Width - 60; // Account for padding and margins
+                var height = pnlRight.Height;
+                
+                // Update cart header
+                pnlCartHeader.Width = width;
+                lblCartCount.Left = width - 120;
+                lblCartCount.Top = 15; // Ensure consistent positioning
+                
+                // Calculate available space for cart grid
+                var cartHeight = height - 450; // Adjusted for smaller header and reduced sizes
+                dgvCart.Width = width;
+                dgvCart.Height = Math.Max(cartHeight, 120); // Reduced minimum height
+                
+                // Update payment section
+                var paymentTop = dgvCart.Bottom + 20;
+                pnlPayment.Top = paymentTop;
+                pnlPayment.Width = width;
+                
+                // Update inner panels
+                pnlTotals.Width = width - 40;
+                pnlPaymentDetails.Width = width - 40;
+                
+                // Update totals labels
+                var halfWidth = (width - 40) / 2;
+                lblSubtotal.Width = halfWidth;
+                lblTax.Width = halfWidth;
+                lblTotal.Width = halfWidth;
+                
+                // Update payment controls
+                var paymentControlWidth = width - 220;
+                cboPaymentMethod.Width = Math.Max(paymentControlWidth, 120);
+                nudPaidAmount.Width = Math.Max(paymentControlWidth, 120);
+                
+                // Update change label
+                lblChange.Left = halfWidth + 15;
+                lblChange.Width = halfWidth - 30;
+                
+                // Update action buttons panel
+                var actionButtonsTop = pnlPayment.Bottom + 15;
+                pnlActionButtons.Top = actionButtonsTop;
+                pnlActionButtons.Width = width;
+                
+                // Calculate optimal button sizes for all three buttons to be visible
+                var buttonWidth = (width - 60) / 2; // Two buttons per row with margins
+                var fullButtonWidth = width - 50; // Full width for cancel button
+                
+                // Ensure minimum button width for readability
+                buttonWidth = Math.Max(buttonWidth, 120);
+                fullButtonWidth = Math.Max(fullButtonWidth, 150);
+                
+                // Position Complete Purchase and Generate Invoice buttons side by side
+                btnCompleteSale.Width = buttonWidth;
+                btnCompleteSale.Left = 15;
+                
+                btnGenerateInvoice.Width = buttonWidth;
+                btnGenerateInvoice.Left = 30 + buttonWidth;
+                
+                // Position Cancel button below with proper spacing
+                btnCancelSale.Width = fullButtonWidth;
+                btnCancelSale.Left = 15;
+            };
+
+            pnlRight.Controls.AddRange(new Control[] { pnlCartHeader, dgvCart, pnlPayment, pnlActionButtons });
 
             // Add panels to main layout
             pnlMain.Controls.Add(pnlLeft, 0, 0);
@@ -438,55 +687,157 @@ namespace InventoryPro.WinForms.Forms
                 dgvCart.DataSource = null;
                 dgvCart.Columns.Clear();
 
-                // Add columns first
+                // Configure modern grid styling
+                dgvCart.BackgroundColor = Color.White;
+                dgvCart.BorderStyle = BorderStyle.None;
+                dgvCart.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+                dgvCart.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+                dgvCart.EnableHeadersVisualStyles = false;
+                dgvCart.RowHeadersVisible = false;
+                dgvCart.Font = new Font("Segoe UI", 10);
+                dgvCart.GridColor = Color.FromArgb(230, 235, 241);
+                dgvCart.RowTemplate.Height = 35; // Reduced from 45 to 35
+                dgvCart.ColumnHeadersHeight = 40; // Reduced from 50 to 40
+                dgvCart.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+                dgvCart.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
+                dgvCart.AllowUserToResizeRows = false;
+                dgvCart.AllowUserToResizeColumns = true;
+
+                // Modern header styling with reduced font size
+                dgvCart.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(52, 58, 64),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold), // Reduced from 11 to 10
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    SelectionBackColor = Color.FromArgb(52, 58, 64),
+                    Padding = new Padding(10, 6, 10, 6), // Reduced padding
+                    WrapMode = DataGridViewTriState.False
+                };
+
+                // Modern cell styling with reduced font size
+                dgvCart.DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.White,
+                    ForeColor = Color.FromArgb(33, 37, 41),
+                    SelectionBackColor = Color.FromArgb(74, 144, 226),
+                    SelectionForeColor = Color.White,
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(10, 6, 10, 6), // Reduced padding
+                    Font = new Font("Segoe UI", 9), // Reduced from 10 to 9
+                    WrapMode = DataGridViewTriState.False
+                };
+
+                dgvCart.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(248, 250, 252),
+                    ForeColor = Color.FromArgb(33, 37, 41),
+                    SelectionBackColor = Color.FromArgb(74, 144, 226),
+                    SelectionForeColor = Color.White,
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
+                    Padding = new Padding(10, 6, 10, 6), // Reduced padding
+                    Font = new Font("Segoe UI", 9), // Reduced from 10 to 9
+                    WrapMode = DataGridViewTriState.False
+                };
+
+                // Add columns with responsive design
+                dgvCart.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "OrderNumber",
+                    HeaderText = "📋 #",
+                    FillWeight = 8,
+                    MinimumWidth = 40,
+                    ReadOnly = true,
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Alignment = DataGridViewContentAlignment.MiddleLeft,
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold), // Reduced from 12 to 10
+                        ForeColor = Color.FromArgb(255, 255, 255),
+                        BackColor = Color.FromArgb(52, 58, 64),
+                        Padding = new Padding(12, 6, 6, 6) // Reduced padding
+                    }
+                });
+
+                // Hidden ProductId column for internal use
                 dgvCart.Columns.Add(new DataGridViewTextBoxColumn
                 {
                     Name = "ProductId",
-                    HeaderText = "ID",
                     DataPropertyName = "ProductId",
-                    Width = 50,
-                    ReadOnly = true
+                    Visible = false
                 });
 
                 dgvCart.Columns.Add(new DataGridViewTextBoxColumn
                 {
                     Name = "ProductName",
-                    HeaderText = "Product",
+                    HeaderText = "📦 Product",
                     DataPropertyName = "ProductName",
-                    Width = 200,
-                    ReadOnly = true
+                    FillWeight = 42,
+                    MinimumWidth = 150,
+                    ReadOnly = true,
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Font = new Font("Segoe UI", 9, FontStyle.Bold), // Reduced from 11 to 9
+                        ForeColor = Color.FromArgb(44, 62, 80)
+                    }
                 });
 
                 dgvCart.Columns.Add(new DataGridViewTextBoxColumn
                 {
                     Name = "UnitPrice",
-                    HeaderText = "Price",
+                    HeaderText = "💰 Price",
                     DataPropertyName = "UnitPrice",
-                    Width = 80,
-                    DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
+                    FillWeight = 20,
+                    MinimumWidth = 80,
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Format = "C2",
+                        Alignment = DataGridViewContentAlignment.MiddleRight,
+                        Font = new Font("Segoe UI", 9, FontStyle.Bold), // Reduced from 11 to 9
+                        ForeColor = Color.FromArgb(46, 125, 50),
+                        BackColor = Color.FromArgb(240, 248, 255)
+                    },
                     ReadOnly = true
                 });
 
                 dgvCart.Columns.Add(new DataGridViewTextBoxColumn
                 {
                     Name = "Quantity",
-                    HeaderText = "Qty",
+                    HeaderText = "📊 Qty",
                     DataPropertyName = "Quantity",
-                    Width = 60
+                    FillWeight = 15,
+                    MinimumWidth = 60,
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold), // Reduced from 12 to 10
+                        BackColor = Color.FromArgb(255, 248, 220),
+                        ForeColor = Color.FromArgb(133, 77, 14)
+                    }
                 });
 
                 dgvCart.Columns.Add(new DataGridViewTextBoxColumn
                 {
                     Name = "Total",
-                    HeaderText = "Total",
+                    HeaderText = "💸 Total",
                     DataPropertyName = "Total",
-                    Width = 100,
-                    DefaultCellStyle = new DataGridViewCellStyle { Format = "C2" },
+                    FillWeight = 15,
+                    MinimumWidth = 80,
+                    DefaultCellStyle = new DataGridViewCellStyle 
+                    { 
+                        Format = "C2",
+                        Alignment = DataGridViewContentAlignment.MiddleRight,
+                        Font = new Font("Segoe UI", 10, FontStyle.Bold), // Reduced from 13 to 10
+                        ForeColor = Color.FromArgb(40, 167, 69),
+                        BackColor = Color.FromArgb(248, 255, 248)
+                    },
                     ReadOnly = true
                 });
 
                 // Set data source after columns are configured
                 dgvCart.DataSource = _cartItems;
+
+                // Update order numbers after data binding
+                UpdateCartOrderNumbers();
 
                 // Add data error handler to gracefully handle any binding issues
                 dgvCart.DataError += DgvCart_DataError;
@@ -494,6 +845,82 @@ namespace InventoryPro.WinForms.Forms
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error setting up cart grid");
+            }
+        }
+
+        private Button CreateRoundButton(string text, Point location, Size size, Color backColor, Color hoverColor)
+        {
+            var button = new Button
+            {
+                Text = text,
+                Location = location,
+                Size = size,
+                BackColor = backColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold), // Reduced from 12 to 10
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = hoverColor;
+            button.FlatAppearance.MouseDownBackColor = Color.FromArgb(
+                Math.Max(0, hoverColor.R - 20),
+                Math.Max(0, hoverColor.G - 20),
+                Math.Max(0, hoverColor.B - 20));
+
+            // Add round corners using Paint event
+            button.Paint += (s, e) =>
+            {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    var path = new GraphicsPath();
+                    var rect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    int radius = 15;
+                    
+                    // Create rounded rectangle path
+                    path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
+                    path.AddArc(rect.X, rect.Y + rect.Height - radius, radius, radius, 90, 90);
+                    path.CloseFigure();
+                    
+                    btn.Region = new Region(path);
+                    
+                    // Fill with background color
+                    using (var brush = new SolidBrush(btn.BackColor))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+                    
+                    // Draw text
+                    var textRect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    using (var textBrush = new SolidBrush(btn.ForeColor))
+                    {
+                        e.Graphics.DrawString(btn.Text, btn.Font, textBrush, textRect, sf);
+                    }
+                }
+            };
+
+            return button;
+        }
+
+        private void UpdateCartOrderNumbers()
+        {
+            try
+            {
+                for (int i = 0; i < dgvCart.Rows.Count && i < _cartItems.Count; i++)
+                {
+                    dgvCart.Rows[i].Cells["OrderNumber"].Value = (i + 1).ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating cart order numbers");
             }
         }
 
@@ -601,19 +1028,13 @@ namespace InventoryPro.WinForms.Forms
 
             if (dgvProducts.Columns != null && dgvProducts.Columns.Count > 0)
             {
+                // Hide the product ID column - we don't want to show it to users
                 if (dgvProducts.Columns.Contains("Id"))
                 {
                     var column = dgvProducts.Columns["Id"];
                     if (column != null)
                     {
-                        column.Width = 95;
-                        column.HeaderText = "🆔 ID";
-                        column.MinimumWidth = 85;
-                        column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                        column.DefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-                        column.DefaultCellStyle.ForeColor = Color.FromArgb(94, 108, 132);
-                        column.DefaultCellStyle.Padding = new Padding(15, 18, 15, 18);
-                        column.DefaultCellStyle.BackColor = Color.FromArgb(250, 251, 252);
+                        column.Visible = false;
                     }
                 }
 
@@ -622,13 +1043,13 @@ namespace InventoryPro.WinForms.Forms
                     var column = dgvProducts.Columns["Name"];
                     if (column != null)
                     {
-                        column.Width = 320;
+                        column.FillWeight = 50; // 50% of available width (increased since ID is hidden)
                         column.HeaderText = "📦 Product Name";
-                        column.MinimumWidth = 280;
+                        column.MinimumWidth = 200;
                         column.DefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
                         column.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
                         column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-                        column.DefaultCellStyle.Padding = new Padding(20, 18, 18, 18);
+                        column.DefaultCellStyle.Padding = new Padding(12, 12, 12, 12);
                     }
                 }
 
@@ -637,13 +1058,13 @@ namespace InventoryPro.WinForms.Forms
                     var column = dgvProducts.Columns["SKU"];
                     if (column != null)
                     {
-                        column.Width = 170;
+                        column.FillWeight = 25; // 25% of available width (increased)
                         column.HeaderText = "🏷️ SKU Code";
-                        column.MinimumWidth = 150;
+                        column.MinimumWidth = 120;
                         column.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Regular);
                         column.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125);
                         column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-                        column.DefaultCellStyle.Padding = new Padding(18, 18, 18, 18);
+                        column.DefaultCellStyle.Padding = new Padding(12, 12, 12, 12);
                         column.DefaultCellStyle.BackColor = Color.FromArgb(253, 254, 255);
                     }
                 }
@@ -654,13 +1075,13 @@ namespace InventoryPro.WinForms.Forms
                     if (column != null)
                     {
                         column.DefaultCellStyle.Format = "C2";
-                        column.Width = 140;
+                        column.FillWeight = 12; // 12% of available width
                         column.HeaderText = "💰 Price";
-                        column.MinimumWidth = 120;
+                        column.MinimumWidth = 90;
                         column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                         column.DefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
                         column.DefaultCellStyle.ForeColor = Color.FromArgb(46, 125, 50);
-                        column.DefaultCellStyle.Padding = new Padding(18, 18, 25, 18);
+                        column.DefaultCellStyle.Padding = new Padding(12, 12, 12, 12);
                         column.DefaultCellStyle.BackColor = Color.FromArgb(248, 255, 248);
                     }
                 }
@@ -670,12 +1091,12 @@ namespace InventoryPro.WinForms.Forms
                     var column = dgvProducts.Columns["Stock"];
                     if (column != null)
                     {
-                        column.Width = 120;
+                        column.FillWeight = 13; // 13% of available width
                         column.HeaderText = "📊 Stock";
-                        column.MinimumWidth = 100;
+                        column.MinimumWidth = 90;
                         column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                         column.DefaultCellStyle.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-                        column.DefaultCellStyle.Padding = new Padding(15, 18, 15, 18);
+                        column.DefaultCellStyle.Padding = new Padding(8, 12, 8, 12);
                     }
                 }
 
@@ -854,6 +1275,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     existingItem.Quantity++;
                     UpdateTotals();
+                    UpdateCartOrderNumbers();
 
                     // Focus the row and quantity cell for quick adjustment
                     dgvCart.ClearSelection();
@@ -900,6 +1322,7 @@ namespace InventoryPro.WinForms.Forms
                     MaxStock = product.Stock
                 });
                 UpdateTotals();
+                UpdateCartOrderNumbers();
 
                 // Focus the new row for quick quantity adjustment
                 int newIndex = _cartItems.Count - 1;
@@ -921,9 +1344,19 @@ namespace InventoryPro.WinForms.Forms
             var tax = subtotal * _taxRate;
             var total = subtotal + tax;
 
-            lblSubtotal.Text = $"Subtotal: {subtotal:C}";
-            lblTax.Text = $"Tax ({_taxRate:P0}): {tax:C}";
-            lblTotal.Text = $"Total: {total:C}";
+            lblSubtotal.Text = $"📊 Subtotal: {subtotal:C}";
+            lblTax.Text = $"📋 Tax ({_taxRate:P0}): {tax:C}";
+            lblTotal.Text = $"💰 Total: {total:C}";
+
+            // Update cart count
+            var itemCount = _cartItems.Count;
+            var totalQuantity = _cartItems.Sum(item => item.Quantity);
+            
+            if (lblCartCount != null)
+            {
+                lblCartCount.Text = itemCount == 0 ? "Empty cart" : 
+                    itemCount == 1 ? "1 item" : $"{itemCount} items ({totalQuantity} qty)";
+            }
 
             nudPaidAmount.Value = total;
             UpdateChange();
@@ -958,6 +1391,7 @@ namespace InventoryPro.WinForms.Forms
                 dgvCart.DataError += DgvCart_DataError;
 
                 UpdateTotals();
+                UpdateCartOrderNumbers();
 
                 _logger.LogInformation("Cart display refreshed successfully with {Count} items", _cartItems.Count);
             }
@@ -1407,6 +1841,119 @@ namespace InventoryPro.WinForms.Forms
             catch (Exception handlerEx)
             {
                 _logger.LogError(handlerEx, "Error in HandleSaleCompletionError method");
+            }
+        }
+
+        private async void BtnGenerateInvoice_Click(object? sender, EventArgs e)
+        {
+            // First complete the sale, then automatically generate invoice
+            if (_cartItems.Count == 0)
+            {
+                MessageBox.Show("Cart is empty. Please add products before generating an invoice.",
+                    "Empty Cart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Complete the sale first
+                await CompleteSaleAndGenerateInvoice();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating invoice");
+                MessageBox.Show($"Error generating invoice: {ex.Message}",
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task CompleteSaleAndGenerateInvoice()
+        {
+            // This is similar to BtnCompleteSale_Click but automatically generates invoice
+            try
+            {
+                // Validate cart and payment details (same as complete sale logic)
+                if (_cartItems.Count == 0)
+                {
+                    MessageBox.Show("Cart is empty. Please add products to complete a sale.",
+                        "Empty Cart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Validate totals
+                decimal total = 0;
+                for (int i = 0; i < _cartItems.Count; i++)
+                    total += _cartItems[i].Total;
+                total *= (1 + _taxRate);
+
+                if (nudPaidAmount.Value < total)
+                {
+                    MessageBox.Show("Paid amount is less than total amount.",
+                        "Insufficient Payment", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Complete the sale
+                var customerId = 1;
+                if (cboCustomer.SelectedItem is CustomerDto customer)
+                {
+                    customerId = customer.Id;
+                }
+
+                var sale = new CreateSaleDto
+                {
+                    CustomerId = customerId,
+                    PaymentMethod = cboPaymentMethod.Text,
+                    PaidAmount = nudPaidAmount.Value,
+                    Notes = "Invoice Generated",
+                    Items = _cartItems.Select(i => new CreateSaleItemDto
+                    {
+                        ProductId = i.ProductId,
+                        ProductName = i.ProductName,
+                        ProductSKU = i.ProductSKU,
+                        Quantity = i.Quantity,
+                        UnitPrice = i.UnitPrice,
+                        DiscountAmount = 0
+                    }).ToList()
+                };
+
+                var response = await _apiService.CreateSaleAsync(sale).ConfigureAwait(false);
+                if (response.Success && response.Data != null)
+                {
+                    SalesDataChanged?.Invoke(this, EventArgs.Empty);
+
+                    RunOnUiThread(() =>
+                    {
+                        MessageBox.Show("Sale completed successfully! Generating invoice...",
+                            "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        
+                        // Automatically show invoice
+                        try
+                        {
+                            ShowInvoiceForm(response.Data);
+                        }
+                        catch (Exception invoiceEx)
+                        {
+                            _logger.LogError(invoiceEx, "Error opening invoice form");
+                            MessageBox.Show($"Sale completed but error opening invoice: {invoiceEx.Message}",
+                                "Invoice Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+
+                        ClearCartAndResetForm();
+                    });
+
+                    await LoadProductsAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    MessageBox.Show($"Error completing sale: {response.Message}",
+                        "Sale Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in CompleteSaleAndGenerateInvoice");
+                throw;
             }
         }
 

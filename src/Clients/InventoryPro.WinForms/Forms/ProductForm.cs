@@ -3,6 +3,7 @@ using InventoryPro.WinForms.Dialogs;
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
+using System.Drawing.Drawing2D;
 
 
 namespace InventoryPro.WinForms.Forms
@@ -39,9 +40,25 @@ namespace InventoryPro.WinForms.Forms
         private ToolStripStatusLabel lblStatus;
         private ToolStripStatusLabel lblRecordCount;
 
+        // Pagination controls
+        private Panel pnlPagination;
+        private Button btnFirstPage;
+        private Button btnPrevPage;
+        private Button btnNextPage;
+        private Button btnLastPage;
+        private Label lblPageInfo;
+        private ComboBox cboPageSize;
+        private Label lblPageSize;
+
         // Data
         private List<ProductDto> _products = new();
         private List<CategoryDto> _categories = new();
+        
+        // Pagination state
+        private int _currentPage = 1;
+        private int _pageSize = 25;
+        private int _totalRecords = 0;
+        private int _totalPages = 0;
         
         // Search timer for debouncing
         private System.Windows.Forms.Timer _searchTimer;
@@ -67,6 +84,16 @@ namespace InventoryPro.WinForms.Forms
             btnExport = new ToolStripButton();
             lblStatus = new ToolStripStatusLabel();
             lblRecordCount = new ToolStripStatusLabel();
+            
+            // Initialize pagination controls
+            pnlPagination = new Panel();
+            btnFirstPage = new Button();
+            btnPrevPage = new Button();
+            btnNextPage = new Button();
+            btnLastPage = new Button();
+            lblPageInfo = new Label();
+            cboPageSize = new ComboBox();
+            lblPageSize = new Label();
 
             // Initialize search timer
             _searchTimer = new System.Windows.Forms.Timer();
@@ -274,7 +301,8 @@ namespace InventoryPro.WinForms.Forms
                 CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
                 ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None,
                 EnableHeadersVisualStyles = false,
-                RowHeadersVisible = false,
+                RowHeadersVisible = true,
+                RowHeadersWidth = 60,
                 Font = new Font("Segoe UI", 10),
                 GridColor = Color.FromArgb(230, 235, 241),
                 Margin = new Padding(20),
@@ -290,7 +318,7 @@ namespace InventoryPro.WinForms.Forms
                     BackColor = Color.FromArgb(52, 58, 64),
                     ForeColor = Color.White,
                     Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    Alignment = DataGridViewContentAlignment.MiddleLeft,
                     SelectionBackColor = Color.FromArgb(52, 58, 64),
                     Padding = new Padding(15, 18, 15, 18),
                     WrapMode = DataGridViewTriState.False
@@ -322,6 +350,7 @@ namespace InventoryPro.WinForms.Forms
             dgvProducts.CellFormatting += DgvProducts_CellFormatting;
             dgvProducts.SizeChanged += DgvProducts_SizeChanged;
             dgvProducts.DataBindingComplete += DgvProducts_DataBindingComplete;
+            dgvProducts.RowPostPaint += DgvProducts_RowPostPaint;
 
             // Modern status strip
             statusStrip = new StatusStrip
@@ -350,8 +379,71 @@ namespace InventoryPro.WinForms.Forms
             
             statusStrip.Items.AddRange(new ToolStripItem[] { lblStatus, lblRecordCount });
 
+            // Create pagination panel
+            pnlPagination = new Panel
+            {
+                Height = 70,
+                Dock = DockStyle.Bottom,
+                BackColor = Color.FromArgb(52, 58, 64),
+                Padding = new Padding(20, 15, 20, 15)
+            };
+
+            // Page size selector
+            lblPageSize = new Label
+            {
+                Text = "Items per page:",
+                Location = new Point(20, 20),
+                Size = new Size(100, 25),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            cboPageSize = new ComboBox
+            {
+                Location = new Point(125, 18),
+                Size = new Size(80, 28),
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(52, 58, 64)
+            };
+            cboPageSize.Items.AddRange(new object[] { 10, 25, 50, 100 });
+            cboPageSize.SelectedItem = _pageSize;
+            cboPageSize.SelectedIndexChanged += CboPageSize_SelectedIndexChanged;
+
+            // Page info label
+            lblPageInfo = new Label
+            {
+                Location = new Point(230, 20),
+                Size = new Size(200, 25),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            // Navigation buttons with modern styling
+            btnFirstPage = CreatePaginationButton("⏮️ First", new Point(450, 15));
+            btnFirstPage.Click += BtnFirstPage_Click;
+
+            btnPrevPage = CreatePaginationButton("⏪ Prev", new Point(540, 15));
+            btnPrevPage.Click += BtnPrevPage_Click;
+
+            btnNextPage = CreatePaginationButton("Next ⏩", new Point(630, 15));
+            btnNextPage.Click += BtnNextPage_Click;
+
+            btnLastPage = CreatePaginationButton("Last ⏭️", new Point(720, 15));
+            btnLastPage.Click += BtnLastPage_Click;
+
+            // Add controls to pagination panel
+            pnlPagination.Controls.AddRange(new Control[] {
+                lblPageSize, cboPageSize, lblPageInfo,
+                btnFirstPage, btnPrevPage, btnNextPage, btnLastPage
+            });
+
             // Add controls to form
             this.Controls.Add(dgvProducts);
+            this.Controls.Add(pnlPagination);
             this.Controls.Add(pnlSearch);
             this.Controls.Add(toolStrip);
             this.Controls.Add(statusStrip);
@@ -427,11 +519,12 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 lblStatus.Text = "Loading products...";
+                UpdatePaginationButtons(false); // Disable buttons while loading
 
                 var parameters = new PaginationParameters
                 {
-                    PageNumber = 1,
-                    PageSize = 100,
+                    PageNumber = _currentPage,
+                    PageSize = _pageSize,
                     SearchTerm = txtSearch.Text
                 };
 
@@ -439,54 +532,38 @@ namespace InventoryPro.WinForms.Forms
                 if (response.Success && response.Data != null)
                 {
                     _products = response.Data.Items;
-                    FilterAndUpdateGrid();
+                    _totalRecords = response.Data.TotalCount;
+                    _totalPages = (int)Math.Ceiling((double)_totalRecords / _pageSize);
+                    
+                    dgvProducts.DataSource = null;
+                    dgvProducts.DataSource = _products;
+                    ConfigureGridColumns();
+                    
+                    UpdatePaginationInfo();
+                    UpdatePaginationButtons(true);
                     lblStatus.Text = "Ready";
                 }
                 else
                 {
                     lblStatus.Text = "Error loading products";
+                    UpdatePaginationButtons(true);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading products");
                 lblStatus.Text = "Error loading products";
+                UpdatePaginationButtons(true);
                 MessageBox.Show("Error loading products. Please try again.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void FilterAndUpdateGrid()
+        private async Task FilterAndUpdateGridAsync()
         {
-            var filteredProducts = _products.AsQueryable();
-
-            // Apply search filter
-            if (!string.IsNullOrWhiteSpace(txtSearch.Text))
-            {
-                var searchTerm = txtSearch.Text.ToLower();
-                filteredProducts = filteredProducts.Where(p => 
-                    p.Name.ToLower().Contains(searchTerm) ||
-                    p.SKU.ToLower().Contains(searchTerm) ||
-                    p.Description.ToLower().Contains(searchTerm) ||
-                    p.CategoryName.ToLower().Contains(searchTerm));
-            }
-
-            // Apply category filter
-            if (cboCategory.SelectedIndex > 0 && cboCategory.SelectedItem != null)
-            {
-                var selectedCategory = cboCategory.SelectedItem.ToString();
-                if (selectedCategory != "All Categories")
-                {
-                    filteredProducts = filteredProducts.Where(p => p.CategoryName == selectedCategory);
-                }
-            }
-
-            var filteredList = filteredProducts.ToList();
-            dgvProducts.DataSource = null;
-            dgvProducts.DataSource = filteredList;
-            
-            ConfigureGridColumns();
-            lblRecordCount.Text = $"{filteredList.Count} of {_products.Count} records";
+            // Reset to first page when filtering
+            _currentPage = 1;
+            await LoadProductsAsync();
         }
 
         private void ConfigureGridColumns()
@@ -497,16 +574,38 @@ namespace InventoryPro.WinForms.Forms
                 // Temporarily disable auto-sizing to set up columns
                 dgvProducts.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
 
+                // Hide the actual ID column and use row headers for sequential numbers
                 var idColumn = dgvProducts.Columns["Id"];
                 if (idColumn != null)
                 {
-                    idColumn.HeaderText = "🆔 ID";
-                    idColumn.MinimumWidth = 60;
-                    idColumn.FillWeight = 8; // 8% of total width
-                    idColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    idColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-                    idColumn.DefaultCellStyle.ForeColor = Color.FromArgb(94, 108, 132);
-                    idColumn.DefaultCellStyle.BackColor = Color.FromArgb(250, 251, 252);
+                    idColumn.Visible = false;
+                }
+
+                // Configure row headers for sequential numbering and add header title
+                dgvProducts.RowHeadersDefaultCellStyle = new DataGridViewCellStyle
+                {
+                    BackColor = Color.FromArgb(52, 58, 64),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Alignment = DataGridViewContentAlignment.MiddleCenter,
+                    SelectionBackColor = Color.FromArgb(52, 58, 64),
+                    Padding = new Padding(5, 5, 5, 5),
+                    WrapMode = DataGridViewTriState.False
+                };
+
+                // Set the row header title
+                if (dgvProducts.TopLeftHeaderCell != null)
+                {
+                    dgvProducts.TopLeftHeaderCell.Value = "#";
+                    dgvProducts.TopLeftHeaderCell.Style = new DataGridViewCellStyle
+                    {
+                        BackColor = Color.FromArgb(52, 58, 64),
+                        ForeColor = Color.White,
+                        Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                        Alignment = DataGridViewContentAlignment.MiddleCenter,
+                        SelectionBackColor = Color.FromArgb(52, 58, 64),
+                        Padding = new Padding(5, 5, 5, 5)
+                    };
                 }
 
                 var skuColumn = dgvProducts.Columns["SKU"];
@@ -514,7 +613,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     skuColumn.HeaderText = "🏷️ SKU";
                     skuColumn.MinimumWidth = 80;
-                    skuColumn.FillWeight = 12; // 12% of total width
+                    skuColumn.FillWeight = 15; // 15% of total width (increased since no ID column)
                     skuColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Regular);
                     skuColumn.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125);
                     skuColumn.DefaultCellStyle.BackColor = Color.FromArgb(253, 254, 255);
@@ -525,7 +624,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     nameColumn.HeaderText = "📦 Product Name";
                     nameColumn.MinimumWidth = 150;
-                    nameColumn.FillWeight = 30; // 30% of total width - largest column
+                    nameColumn.FillWeight = 32; // 32% of total width - largest column
                     nameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
                     nameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
                 }
@@ -536,8 +635,8 @@ namespace InventoryPro.WinForms.Forms
                     priceColumn.DefaultCellStyle.Format = "C2";
                     priceColumn.HeaderText = "💰 Price";
                     priceColumn.MinimumWidth = 80;
-                    priceColumn.FillWeight = 12; // 12% of total width
-                    priceColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    priceColumn.FillWeight = 13; // 13% of total width
+                    priceColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
                     priceColumn.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
                     priceColumn.DefaultCellStyle.ForeColor = Color.FromArgb(46, 125, 50);
                     priceColumn.DefaultCellStyle.BackColor = Color.FromArgb(248, 255, 248);
@@ -548,7 +647,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     stockColumn.HeaderText = "📊 Stock";
                     stockColumn.MinimumWidth = 70;
-                    stockColumn.FillWeight = 10; // 10% of total width
+                    stockColumn.FillWeight = 12; // 12% of total width
                     stockColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     stockColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
                 }
@@ -558,7 +657,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     categoryNameColumn.HeaderText = "📂 Category";
                     categoryNameColumn.MinimumWidth = 90;
-                    categoryNameColumn.FillWeight = 13; // 13% of total width
+                    categoryNameColumn.FillWeight = 15; // 15% of total width
                     categoryNameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
                     categoryNameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(102, 16, 242);
                     categoryNameColumn.DefaultCellStyle.BackColor = Color.FromArgb(248, 245, 255);
@@ -569,13 +668,13 @@ namespace InventoryPro.WinForms.Forms
                 {
                     descriptionColumn.HeaderText = "📝 Description";
                     descriptionColumn.MinimumWidth = 120;
-                    descriptionColumn.FillWeight = 25; // 25% of total width
+                    descriptionColumn.FillWeight = 28; // 28% of total width
                     descriptionColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
                     descriptionColumn.DefaultCellStyle.ForeColor = Color.FromArgb(73, 80, 87);
                     descriptionColumn.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
                 }
 
-                // Hide unnecessary columns
+                // Hide unnecessary columns (Id is already hidden above)
                 var columnsToHide = new[] { "CategoryId", "CreatedAt", "UpdatedAt", "ImageUrl", "MinStock", "IsActive" };
                 foreach (var columnName in columnsToHide)
                 {
@@ -627,6 +726,32 @@ namespace InventoryPro.WinForms.Forms
             ConfigureGridColumns();
         }
 
+        private void DgvProducts_RowPostPaint(object? sender, DataGridViewRowPostPaintEventArgs e)
+        {
+            if (sender is not DataGridView grid) return;
+
+            // Draw sequential row numbers starting from 1
+            var rowNumber = (e.RowIndex + 1).ToString();
+            
+            // Calculate the center position for the text
+            var centerFormat = new StringFormat()
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center
+            };
+
+            // Get the row header rectangle
+            var headerBounds = new Rectangle(e.RowBounds.Left, e.RowBounds.Top, 
+                grid.RowHeadersWidth, e.RowBounds.Height);
+
+            // Draw the row number with modern styling
+            using (var headerBrush = new SolidBrush(Color.White))
+            using (var font = new Font("Segoe UI", 10, FontStyle.Bold))
+            {
+                e.Graphics.DrawString(rowNumber, font, headerBrush, headerBounds, centerFormat);
+            }
+        }
+
         private void HideColumnIfExists(string columnName)
         {
             if (dgvProducts.Columns.Contains(columnName))
@@ -652,9 +777,8 @@ namespace InventoryPro.WinForms.Forms
             // Adjust fill weights for small screens (without description)
             if (dgvProducts.Columns != null)
             {
-                SetColumnFillWeight("Id", 10);
-                SetColumnFillWeight("SKU", 15);
-                SetColumnFillWeight("Name", 45);
+                SetColumnFillWeight("SKU", 20);
+                SetColumnFillWeight("Name", 50);
                 SetColumnFillWeight("Price", 15);
                 SetColumnFillWeight("Stock", 15);
                 SetColumnFillWeight("CategoryName", 0); // Hide category on very small screens
@@ -666,12 +790,11 @@ namespace InventoryPro.WinForms.Forms
             // Adjust fill weights for medium screens
             if (dgvProducts.Columns != null)
             {
-                SetColumnFillWeight("Id", 8);
-                SetColumnFillWeight("SKU", 12);
-                SetColumnFillWeight("Name", 25);
+                SetColumnFillWeight("SKU", 15);
+                SetColumnFillWeight("Name", 28);
                 SetColumnFillWeight("Price", 12);
                 SetColumnFillWeight("Stock", 10);
-                SetColumnFillWeight("CategoryName", 13);
+                SetColumnFillWeight("CategoryName", 15);
                 SetColumnFillWeight("Description", 20);
             }
         }
@@ -926,6 +1049,7 @@ namespace InventoryPro.WinForms.Forms
 
         private async void BtnRefresh_Click(object? sender, EventArgs e)
         {
+            _currentPage = 1; // Reset to first page when refreshing
             await LoadProductsAsync();
         }
 
@@ -936,24 +1060,24 @@ namespace InventoryPro.WinForms.Forms
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        private void BtnSearch_Click(object? sender, EventArgs e)
+        private async void BtnSearch_Click(object? sender, EventArgs e)
         {
-            FilterAndUpdateGrid();
+            await FilterAndUpdateGridAsync();
         }
 
-        private void BtnClear_Click(object? sender, EventArgs e)
+        private async void BtnClear_Click(object? sender, EventArgs e)
         {
             txtSearch.Clear();
-            cboCategory.SelectedIndex = 0;
-            FilterAndUpdateGrid();
+            if (cboCategory.Items.Count > 0)
+            {
+                cboCategory.SelectedIndex = 0;
+            }
+            await FilterAndUpdateGridAsync();
         }
 
-        private void CboCategory_SelectedIndexChanged(object? sender, EventArgs e)
+        private async void CboCategory_SelectedIndexChanged(object? sender, EventArgs e)
         {
-            if (_products.Any()) // Only filter if we have loaded products
-            {
-                FilterAndUpdateGrid();
-            }
+            await FilterAndUpdateGridAsync();
         }
 
         private void TxtSearch_TextChanged(object? sender, EventArgs e)
@@ -963,13 +1087,10 @@ namespace InventoryPro.WinForms.Forms
             _searchTimer.Start();
         }
 
-        private void SearchTimer_Tick(object? sender, EventArgs e)
+        private async void SearchTimer_Tick(object? sender, EventArgs e)
         {
             _searchTimer.Stop();
-            if (_products.Any()) // Only filter if we have loaded products
-            {
-                FilterAndUpdateGrid();
-            }
+            await FilterAndUpdateGridAsync();
         }
 
         private void DgvProducts_DoubleClick(object? sender, EventArgs e)
@@ -1027,6 +1148,112 @@ namespace InventoryPro.WinForms.Forms
                 }
             }
         }
+
+        #region Pagination Methods
+
+        private Button CreatePaginationButton(string text, Point location)
+        {
+            var button = new Button
+            {
+                Text = text,
+                Location = location,
+                Size = new Size(80, 35),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(0, 105, 217);
+            button.FlatAppearance.MouseDownBackColor = Color.FromArgb(0, 86, 179);
+            return button;
+        }
+
+        private void UpdatePaginationInfo()
+        {
+            if (_totalRecords == 0)
+            {
+                lblPageInfo.Text = "No records found";
+                lblRecordCount.Text = "0 records";
+            }
+            else
+            {
+                var startRecord = (_currentPage - 1) * _pageSize + 1;
+                var endRecord = Math.Min(_currentPage * _pageSize, _totalRecords);
+                lblPageInfo.Text = $"Page {_currentPage} of {_totalPages} ({startRecord}-{endRecord} of {_totalRecords})";
+                lblRecordCount.Text = $"{_totalRecords} total records";
+            }
+        }
+
+        private void UpdatePaginationButtons(bool enabled)
+        {
+            if (btnFirstPage == null || btnPrevPage == null || btnNextPage == null || btnLastPage == null)
+                return;
+
+            btnFirstPage.Enabled = enabled && _currentPage > 1;
+            btnPrevPage.Enabled = enabled && _currentPage > 1;
+            btnNextPage.Enabled = enabled && _currentPage < _totalPages;
+            btnLastPage.Enabled = enabled && _currentPage < _totalPages;
+
+            // Update button colors based on enabled state
+            var enabledColor = Color.FromArgb(0, 123, 255);
+            var disabledColor = Color.FromArgb(108, 117, 125);
+
+            btnFirstPage.BackColor = btnFirstPage.Enabled ? enabledColor : disabledColor;
+            btnPrevPage.BackColor = btnPrevPage.Enabled ? enabledColor : disabledColor;
+            btnNextPage.BackColor = btnNextPage.Enabled ? enabledColor : disabledColor;
+            btnLastPage.BackColor = btnLastPage.Enabled ? enabledColor : disabledColor;
+        }
+
+        private async void BtnFirstPage_Click(object? sender, EventArgs e)
+        {
+            if (_currentPage > 1)
+            {
+                _currentPage = 1;
+                await LoadProductsAsync();
+            }
+        }
+
+        private async void BtnPrevPage_Click(object? sender, EventArgs e)
+        {
+            if (_currentPage > 1)
+            {
+                _currentPage--;
+                await LoadProductsAsync();
+            }
+        }
+
+        private async void BtnNextPage_Click(object? sender, EventArgs e)
+        {
+            if (_currentPage < _totalPages)
+            {
+                _currentPage++;
+                await LoadProductsAsync();
+            }
+        }
+
+        private async void BtnLastPage_Click(object? sender, EventArgs e)
+        {
+            if (_currentPage < _totalPages)
+            {
+                _currentPage = _totalPages;
+                await LoadProductsAsync();
+            }
+        }
+
+        private async void CboPageSize_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (cboPageSize.SelectedItem != null && int.TryParse(cboPageSize.SelectedItem.ToString(), out int newPageSize))
+            {
+                _pageSize = newPageSize;
+                _currentPage = 1; // Reset to first page when changing page size
+                await LoadProductsAsync();
+            }
+        }
+
+        #endregion
     }
 
     /// <summary>
@@ -1043,7 +1270,7 @@ namespace InventoryPro.WinForms.Forms
         private TextBox txtName = null!;
         private TextBox txtSKU = null!;
         private TextBox txtDescription = null!;
-        private NumericUpDown nudPrice = null!;
+        private TextBox txtPrice = null!;
         private NumericUpDown nudStock = null!;
         private NumericUpDown nudMinStock = null!;
         private ComboBox cboCategory = null!;
@@ -1078,198 +1305,337 @@ namespace InventoryPro.WinForms.Forms
             txtName = new TextBox();
             txtSKU = new TextBox();
             txtDescription = new TextBox();
-            nudPrice = new NumericUpDown();
+            txtPrice = new TextBox();
             nudStock = new NumericUpDown();
             nudMinStock = new NumericUpDown();
             cboCategory = new ComboBox();
             btnOK = new Button();
             btnCancel = new Button();
 
-            // Form properties
-            this.Text = _existingProduct == null ? "Add New Product" : "Edit Product";
-            this.Size = new Size(450, 550);
+            // Form properties - Modern design with larger size and darker background
+            this.Text = _existingProduct == null ? "➕ Add New Product" : "✏️ Edit Product";
+            this.Size = new Size(580, 780);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.BackColor = Color.White;
+            this.BackColor = Color.FromArgb(235, 240, 245);
             this.Font = new Font("Segoe UI", 9F);
+            this.Padding = new Padding(30, 30, 30, 30);
 
-            // Product Name
+            // Add form title at the top
+            var titleLabel = new Label
+            {
+                Text = _existingProduct == null ? "🛍️ CREATE NEW PRODUCT" : "📝 EDIT PRODUCT DETAILS",
+                Location = new Point(40, 15),
+                Size = new Size(480, 45),
+                Font = new Font("Segoe UI", 18, FontStyle.Bold),
+                ForeColor = Color.FromArgb(25, 135, 84),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter,
+                BorderStyle = BorderStyle.None
+            };
+            titleLabel.Paint += (s, e) => {
+                var rect = new Rectangle(0, titleLabel.Height - 3, titleLabel.Width, 3);
+                using (var brush = new LinearGradientBrush(rect, Color.FromArgb(25, 135, 84), Color.FromArgb(40, 167, 69), LinearGradientMode.Horizontal))
+                {
+                    e.Graphics.FillRectangle(brush, rect);
+                }
+            };
+            this.Controls.Add(titleLabel);
+
+            // Product Name - Improved layout with bigger input and better spacing
             var lblName = new Label
             {
-                Text = "Product Name:",
-                Location = new Point(20, 20),
-                Size = new Size(100, 25),
+                Text = "📦 Product Name:",
+                Location = new Point(40, 80),
+                Size = new Size(200, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             txtName = new TextBox
             {
-                Location = new Point(20, 45),
-                Size = new Size(390, 25),
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(40, 108),
+                Size = new Size(480, 42),
+                Font = new Font("Segoe UI", 13),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(255, 255, 255),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Padding = new Padding(15, 12, 15, 12)
             };
+            txtName.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, txtName.ClientRectangle, Color.FromArgb(0, 123, 255), ButtonBorderStyle.Solid);
+            txtName.Enter += (s, e) => { txtName.BackColor = Color.FromArgb(245, 251, 255); txtName.Invalidate(); };
+            txtName.Leave += (s, e) => { txtName.BackColor = Color.FromArgb(255, 255, 255); txtName.Invalidate(); };
 
-            // SKU
+            // SKU - Modern design with more spacing
             var lblSKU = new Label
             {
-                Text = "SKU:",
-                Location = new Point(20, 80),
-                Size = new Size(100, 25),
+                Text = "🏷️ SKU (Stock Keeping Unit):",
+                Location = new Point(40, 180),
+                Size = new Size(250, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             txtSKU = new TextBox
             {
-                Location = new Point(20, 105),
-                Size = new Size(390, 25),
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(40, 208),
+                Size = new Size(480, 42),
+                Font = new Font("Segoe UI", 13),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(255, 255, 255),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Padding = new Padding(15, 12, 15, 12)
             };
+            txtSKU.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, txtSKU.ClientRectangle, Color.FromArgb(0, 123, 255), ButtonBorderStyle.Solid);
+            txtSKU.Enter += (s, e) => { txtSKU.BackColor = Color.FromArgb(245, 251, 255); txtSKU.Invalidate(); };
+            txtSKU.Leave += (s, e) => { txtSKU.BackColor = Color.FromArgb(255, 255, 255); txtSKU.Invalidate(); };
 
-            // Description
+            // Description - Modern textarea design with better spacing
             var lblDescription = new Label
             {
-                Text = "Description:",
-                Location = new Point(20, 140),
-                Size = new Size(100, 25),
+                Text = "📝 Description:",
+                Location = new Point(40, 280),
+                Size = new Size(150, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             txtDescription = new TextBox
             {
-                Location = new Point(20, 165),
-                Size = new Size(390, 80),
+                Location = new Point(40, 308),
+                Size = new Size(480, 95),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Font = new Font("Segoe UI", 12),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(255, 255, 255),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Padding = new Padding(15, 12, 15, 12)
             };
+            txtDescription.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, txtDescription.ClientRectangle, Color.FromArgb(0, 123, 255), ButtonBorderStyle.Solid);
+            txtDescription.Enter += (s, e) => { txtDescription.BackColor = Color.FromArgb(245, 251, 255); txtDescription.Invalidate(); };
+            txtDescription.Leave += (s, e) => { txtDescription.BackColor = Color.FromArgb(255, 255, 255); txtDescription.Invalidate(); };
 
-            // Price
+            // Price - Modern text input with placeholder and better spacing
             var lblPrice = new Label
             {
-                Text = "Price:",
-                Location = new Point(20, 260),
-                Size = new Size(100, 25),
+                Text = "💰 Price ($):",
+                Location = new Point(40, 433),
+                Size = new Size(120, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
-            nudPrice = new NumericUpDown
+            txtPrice = new TextBox
             {
-                Location = new Point(20, 285),
-                Size = new Size(180, 25),
-                DecimalPlaces = 2,
-                Maximum = 999999,
-                Minimum = 0,
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Location = new Point(40, 461),
+                Size = new Size(220, 42),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(248, 255, 248),
+                ForeColor = Color.FromArgb(46, 125, 50),
+                TextAlign = HorizontalAlignment.Right,
+                PlaceholderText = "0.00",
+                Padding = new Padding(15, 12, 15, 12)
             };
+            txtPrice.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, txtPrice.ClientRectangle, Color.FromArgb(40, 167, 69), ButtonBorderStyle.Solid);
+            txtPrice.Enter += (s, e) => { txtPrice.BackColor = Color.FromArgb(240, 255, 240); txtPrice.Invalidate(); };
+            txtPrice.Leave += (s, e) => { txtPrice.BackColor = Color.FromArgb(248, 255, 248); txtPrice.Invalidate(); };
+            txtPrice.KeyPress += TxtPrice_KeyPress;
 
-            // Stock
+            // Stock - Modern numeric input with better spacing
             var lblStock = new Label
             {
-                Text = "Stock:",
-                Location = new Point(220, 260),
-                Size = new Size(100, 25),
+                Text = "📊 Current Stock:",
+                Location = new Point(290, 433),
+                Size = new Size(150, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             nudStock = new NumericUpDown
             {
-                Location = new Point(220, 285),
-                Size = new Size(190, 25),
+                Location = new Point(290, 461),
+                Size = new Size(230, 42),
                 Maximum = 999999,
                 Minimum = 0,
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(245, 250, 255),
+                ForeColor = Color.FromArgb(52, 144, 220),
+                TextAlign = HorizontalAlignment.Center
             };
+            nudStock.Enter += (s, e) => nudStock.BackColor = Color.FromArgb(230, 245, 255);
+            nudStock.Leave += (s, e) => nudStock.BackColor = Color.FromArgb(245, 250, 255);
 
-            // Minimum Stock
+            // Minimum Stock - Modern numeric input with better spacing
             var lblMinStock = new Label
             {
-                Text = "Minimum Stock:",
-                Location = new Point(20, 320),
-                Size = new Size(120, 25),
+                Text = "⚠️ Minimum Stock Alert:",
+                Location = new Point(40, 533),
+                Size = new Size(180, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             nudMinStock = new NumericUpDown
             {
-                Location = new Point(20, 345),
-                Size = new Size(180, 25),
+                Location = new Point(40, 561),
+                Size = new Size(220, 42),
                 Maximum = 999999,
                 Minimum = 0,
-                Font = new Font("Segoe UI", 10),
-                BorderStyle = BorderStyle.FixedSingle
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.FromArgb(255, 248, 240),
+                ForeColor = Color.FromArgb(255, 140, 0),
+                TextAlign = HorizontalAlignment.Center
             };
+            nudMinStock.Enter += (s, e) => nudMinStock.BackColor = Color.FromArgb(255, 240, 220);
+            nudMinStock.Leave += (s, e) => nudMinStock.BackColor = Color.FromArgb(255, 248, 240);
 
-            // Category
+            // Category - Modern dropdown with better spacing
             var lblCategory = new Label
             {
-                Text = "Category:",
-                Location = new Point(220, 320),
-                Size = new Size(100, 25),
+                Text = "📂 Category:",
+                Location = new Point(290, 533),
+                Size = new Size(120, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(52, 58, 64)
+                ForeColor = Color.FromArgb(44, 62, 80),
+                BackColor = Color.Transparent
             };
 
             cboCategory = new ComboBox
             {
-                Location = new Point(220, 345),
-                Size = new Size(190, 25),
+                Location = new Point(290, 561),
+                Size = new Size(230, 42),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10)
+                Font = new Font("Segoe UI", 12),
+                BackColor = Color.FromArgb(248, 245, 255),
+                ForeColor = Color.FromArgb(102, 16, 242),
+                FlatStyle = FlatStyle.Standard
+            };
+            cboCategory.Enter += (s, e) => cboCategory.BackColor = Color.FromArgb(235, 225, 255);
+            cboCategory.Leave += (s, e) => cboCategory.BackColor = Color.FromArgb(248, 245, 255);
+
+            // Modern Buttons with round borders and improved positioning
+            var buttonPanel = new Panel
+            {
+                Location = new Point(70, 630),
+                Size = new Size(440, 80),
+                BackColor = Color.Transparent
             };
 
-            // Buttons
             btnOK = new Button
             {
-                Text = "Save",
-                Location = new Point(250, 400),
-                Size = new Size(80, 35),
+                Text = "💾 SAVE PRODUCT",
+                Location = new Point(50, 20),
+                Size = new Size(170, 55),
                 DialogResult = DialogResult.OK,
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false,
+                TextAlign = ContentAlignment.MiddleCenter
             };
             btnOK.FlatAppearance.BorderSize = 0;
+            btnOK.FlatAppearance.MouseOverBackColor = Color.FromArgb(34, 139, 58);
+            btnOK.FlatAppearance.MouseDownBackColor = Color.FromArgb(28, 117, 49);
             btnOK.Click += BtnOK_Click;
+            btnOK.Paint += (s, e) => {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    var path = new GraphicsPath();
+                    var rect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    int radius = 15;
+                    path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
+                    path.AddArc(rect.X, rect.Y + rect.Height - radius, radius, radius, 90, 90);
+                    path.CloseFigure();
+                    btn.Region = new Region(path);
+                    
+                    using (var brush = new SolidBrush(btn.BackColor))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+                    
+                    var textRect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    using (var textBrush = new SolidBrush(btn.ForeColor))
+                    {
+                        e.Graphics.DrawString(btn.Text, btn.Font, textBrush, textRect, sf);
+                    }
+                }
+            };
 
             btnCancel = new Button
             {
-                Text = "Cancel",
-                Location = new Point(340, 400),
-                Size = new Size(80, 35),
+                Text = "❌ CANCEL",
+                Location = new Point(240, 20),
+                Size = new Size(170, 55),
                 DialogResult = DialogResult.Cancel,
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor = Cursors.Hand
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false,
+                TextAlign = ContentAlignment.MiddleCenter
             };
             btnCancel.FlatAppearance.BorderSize = 0;
+            btnCancel.FlatAppearance.MouseOverBackColor = Color.FromArgb(90, 98, 104);
+            btnCancel.FlatAppearance.MouseDownBackColor = Color.FromArgb(73, 80, 87);
+            btnCancel.Paint += (s, e) => {
+                var btn = s as Button;
+                if (btn != null)
+                {
+                    var path = new GraphicsPath();
+                    var rect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    int radius = 15;
+                    path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
+                    path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
+                    path.AddArc(rect.X, rect.Y + rect.Height - radius, radius, radius, 90, 90);
+                    path.CloseFigure();
+                    btn.Region = new Region(path);
+                    
+                    using (var brush = new SolidBrush(btn.BackColor))
+                    {
+                        e.Graphics.FillPath(brush, path);
+                    }
+                    
+                    var textRect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    using (var textBrush = new SolidBrush(btn.ForeColor))
+                    {
+                        e.Graphics.DrawString(btn.Text, btn.Font, textBrush, textRect, sf);
+                    }
+                }
+            };
+
+            buttonPanel.Controls.AddRange(new Control[] { btnOK, btnCancel });
 
             // Add all controls to form
             this.Controls.AddRange(new Control[] {
                 lblName, txtName,
                 lblSKU, txtSKU,
                 lblDescription, txtDescription,
-                lblPrice, nudPrice,
+                lblPrice, txtPrice,
                 lblStock, nudStock,
                 lblMinStock, nudMinStock,
                 lblCategory, cboCategory,
-                btnOK, btnCancel
+                buttonPanel
             });
 
             this.ResumeLayout(false);
@@ -1299,7 +1665,7 @@ namespace InventoryPro.WinForms.Forms
                 txtName.Text = _existingProduct.Name ?? string.Empty;
                 txtSKU.Text = _existingProduct.SKU ?? string.Empty;
                 txtDescription.Text = _existingProduct.Description ?? string.Empty;
-                nudPrice.Value = _existingProduct.Price;
+                txtPrice.Text = _existingProduct.Price.ToString("F2");
                 nudStock.Value = _existingProduct.Stock;
                 nudMinStock.Value = _existingProduct.MinStock;
 
@@ -1309,6 +1675,30 @@ namespace InventoryPro.WinForms.Forms
                     cboCategory.SelectedItem = categoryItem;
                 }
             }
+        }
+
+        private void TxtPrice_KeyPress(object? sender, KeyPressEventArgs e)
+        {
+            // Allow control keys (backspace, delete, etc.)
+            if (char.IsControl(e.KeyChar))
+            {
+                return;
+            }
+
+            // Allow digits
+            if (char.IsDigit(e.KeyChar))
+            {
+                return;
+            }
+
+            // Allow decimal point only if there isn't one already
+            if (e.KeyChar == '.' && sender is TextBox txt && !txt.Text.Contains('.'))
+            {
+                return;
+            }
+
+            // Block all other characters
+            e.Handled = true;
         }
 
         private void BtnOK_Click(object? sender, EventArgs e)
@@ -1341,11 +1731,11 @@ namespace InventoryPro.WinForms.Forms
                 return;
             }
 
-            if (nudPrice.Value <= 0)
+            if (!decimal.TryParse(txtPrice.Text, out decimal price) || price <= 0)
             {
                 MessageBox.Show("Please enter a valid price greater than 0.",
                     "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                nudPrice.Focus();
+                txtPrice.Focus();
                 this.DialogResult = DialogResult.None;
                 return;
             }
@@ -1358,7 +1748,7 @@ namespace InventoryPro.WinForms.Forms
                 Name = txtName.Text.Trim(),
                 SKU = txtSKU.Text.Trim(),
                 Description = txtDescription.Text.Trim(),
-                Price = nudPrice.Value,
+                Price = price,
                 Stock = (int)nudStock.Value,
                 MinStock = (int)nudMinStock.Value,
                 CategoryId = selectedCategory.Id,
