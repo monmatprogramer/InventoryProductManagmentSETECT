@@ -844,7 +844,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     Text = "Logging out...",
                     Size = new Size(400, 150),
-                    StartPosition = FormStartPosition.CenterParent,
+                    StartPosition = FormStartPosition.CenterScreen,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
                     MinimizeBox = false,
