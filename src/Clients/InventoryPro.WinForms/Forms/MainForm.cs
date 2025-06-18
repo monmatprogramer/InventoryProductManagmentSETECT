@@ -29,7 +29,6 @@ namespace InventoryPro.WinForms.Forms
         private Button btnSales;
         private Button btnSalesHistory;
         private Button btnReports;
-        private Button btnSettings;
         
         // Top bar controls
         private Label lblWelcome;
@@ -79,7 +78,6 @@ namespace InventoryPro.WinForms.Forms
             btnSales = new Button();
             btnSalesHistory = new Button();
             btnReports = new Button();
-            btnSettings = new Button();
             lblWelcome = new Label();
             lblDateTime = new Label();
             lblSystemStatus = new Label();
@@ -202,10 +200,9 @@ namespace InventoryPro.WinForms.Forms
             btnSales = CreateNavButton("💰 New Sale", 3, false);
             btnSalesHistory = CreateNavButton("📈 Sales History", 4, false);
             btnReports = CreateNavButton("📊 Reports", 5, false);
-            btnSettings = CreateNavButton("⚙ Settings", 6, false);
             
             navPanel.Controls.AddRange(new Control[] {
-                btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings
+                btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports
             });
             
             pnlSidebar.Controls.Add(navPanel);
@@ -527,12 +524,6 @@ namespace InventoryPro.WinForms.Forms
                 OpenMyProfileForm();
             });
 
-            // Settings menu button
-            var btnSettingsMenu = CreateDropdownMenuItem("Settings", 103, () =>
-            {
-                HideUserDropdown();
-                OpenSettingsForm();
-            });
 
             // Modern logout button with sleek design
             var btnLogout = new Button
@@ -586,7 +577,7 @@ namespace InventoryPro.WinForms.Forms
 
             // Add controls to dropdown
             pnlUserDropdown.Controls.AddRange(new Control[] {
-                userInfoPanel, separator, btnProfile, btnSettingsMenu, btnLogout
+                userInfoPanel, separator, btnProfile, btnLogout
             });
 
             // Button click handler to toggle dropdown
@@ -1063,9 +1054,9 @@ namespace InventoryPro.WinForms.Forms
                 BackColor = Color.Transparent
             };
             
-            btnQuickSale = CreateQuickActionButton("💰 New Sale", Color.FromArgb(40, 167, 69), 0);
-            btnAddProduct = CreateQuickActionButton("➕ Add Product", Color.FromArgb(0, 123, 255), 1);
-            btnAddCustomer = CreateQuickActionButton("👤 Add Customer", Color.FromArgb(102, 16, 242), 2);
+            btnQuickSale = CreateQuickActionButton("New Sale", Color.FromArgb(40, 167, 69), 0);
+            btnAddProduct = CreateQuickActionButton("Add Product", Color.FromArgb(0, 123, 255), 1);
+            btnAddCustomer = CreateQuickActionButton("Add Customer", Color.FromArgb(102, 16, 242), 2);
             
             // Connect quick action buttons
             btnQuickSale.Click += (s, e) => OpenSalesForm();
@@ -1508,7 +1499,7 @@ namespace InventoryPro.WinForms.Forms
             using (var buttonTextBrush = new SolidBrush(Color.White))
             using (var buttonFont = new Font("Segoe UI", 9, FontStyle.Bold))
             {
-                var buttonText = "📊 View All Sales";
+                var buttonText = "View All Sales";
                 var textSize = g.MeasureString(buttonText, buttonFont);
                 var textX = buttonRect.X + (buttonRect.Width - (int)textSize.Width) / 2;
                 var textY = buttonRect.Y + (buttonRect.Height - (int)textSize.Height) / 2;
@@ -1762,7 +1753,7 @@ namespace InventoryPro.WinForms.Forms
             if (sender is Button clickedButton && clickedButton.Tag is int buttonIndex)
             {
                 // Reset all buttons
-                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings };
+                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports };
                 foreach (var btn in allNavButtons)
                 {
                     UpdateNavButtonStyle(btn, false);
@@ -1793,9 +1784,6 @@ namespace InventoryPro.WinForms.Forms
                         break;
                     case 5: // Reports
                         OpenReportsForm();
-                        break;
-                    case 6: // Settings
-                        OpenSettingsForm();
                         break;
                 }
             }
@@ -1884,22 +1872,6 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
-        private void OpenSettingsForm()
-        {
-            try
-            {
-                using var settingsForm = _serviceProvider.GetRequiredService<SettingsForm>();
-                settingsForm.ShowDialog();
-                // Refresh dashboard after closing settings form
-                _ = RefreshDashboardData();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error opening settings form");
-                MessageBox.Show($"Error opening settings form: {ex.Message}", 
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
         
         private void OpenMyProfileForm()
         {
