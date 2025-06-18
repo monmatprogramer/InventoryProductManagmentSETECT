@@ -528,6 +528,13 @@ namespace InventoryPro.WinForms.Forms
                     SearchTerm = txtSearch.Text
                 };
 
+                // Add category filter if selected
+                if (cboCategory.SelectedIndex > 0 && _categories.Count > 0)
+                {
+                    var selectedCategoryId = _categories[cboCategory.SelectedIndex - 1].Id;
+                    parameters.CategoryId = selectedCategoryId;
+                }
+
                 var response = await _apiService.GetProductsAsync(parameters);
                 if (response.Success && response.Data != null)
                 {

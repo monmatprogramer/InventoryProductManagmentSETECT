@@ -528,6 +528,9 @@ namespace InventoryPro.WinForms.Services
             if (!string.IsNullOrEmpty(parameters.SortDirection))
                 queryParams.Add($"sortDirection={Uri.EscapeDataString(parameters.SortDirection)}");
 
+            if (parameters.CategoryId.HasValue)
+                queryParams.Add($"categoryId={parameters.CategoryId.Value}");
+
             return string.Join("&", queryParams);
             }
 

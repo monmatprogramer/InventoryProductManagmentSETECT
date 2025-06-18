@@ -49,6 +49,7 @@
         public string SearchTerm { get; set; } = string.Empty;
         public string SortBy { get; set; } = string.Empty;
         public string SortDirection { get; set; } = "asc"; // asc or desc
+        public int? CategoryId { get; set; }
         }
 
     /// <summary>

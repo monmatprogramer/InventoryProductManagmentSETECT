@@ -41,6 +41,12 @@ namespace InventoryPro.ProductService.Controllers
                         p.Description.Contains(parameters.SearchTerm, StringComparison.OrdinalIgnoreCase));
                     }
 
+                // Apply category filter
+                if (parameters.CategoryId.HasValue)
+                    {
+                    products = products.Where(p => p.CategoryId == parameters.CategoryId.Value);
+                    }
+
                 // Apply pagination
                 var totalCount = products.Count();
                 var items = products

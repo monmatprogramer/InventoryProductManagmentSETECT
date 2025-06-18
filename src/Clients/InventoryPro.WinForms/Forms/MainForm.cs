@@ -2,6 +2,7 @@ using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using InventoryPro.Shared.DTOs;
 
 namespace InventoryPro.WinForms.Forms
@@ -34,6 +35,9 @@ namespace InventoryPro.WinForms.Forms
         private Label lblWelcome;
         private Label lblDateTime;
         private Label lblSystemStatus;
+        private Panel pnlUserProfile;
+        private Button btnUserProfile;
+        private Panel pnlUserDropdown;
 
         // Dashboard cards
         private Panel cardTotalProducts;
@@ -64,10 +68,43 @@ namespace InventoryPro.WinForms.Forms
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-            
+
+            pnlSidebar = new Panel();
+            pnlTopBar = new Panel();
+            pnlContent = new Panel();
+            pnlStatusBar = new Panel();
+            btnDashboard = new Button();
+            btnProducts = new Button();
+            btnCustomers = new Button();
+            btnSales = new Button();
+            btnSalesHistory = new Button();
+            btnReports = new Button();
+            btnSettings = new Button();
+            lblWelcome = new Label();
+            lblDateTime = new Label();
+            lblSystemStatus = new Label();
+            pnlUserProfile = new Panel();
+            btnUserProfile = new Button();
+            pnlUserDropdown = new Panel();
+            cardTotalProducts = new Panel();
+            cardTotalCustomers = new Panel();
+            cardTotalSales = new Panel();
+            cardLowStock = new Panel();
+            btnQuickSale = new Button();
+            btnAddProduct = new Button();
+            btnAddCustomer = new Button();
+            chartSalesPanel = new Panel();
+            chartProductsPanel = new Panel();
+            stockAlertsPanel = new Panel();
+            recentSalesPanel = new Panel();
+            refreshTimer = new System.Windows.Forms.Timer();
+
+
+
             InitializeComponent();
             SetupRealtimeUpdates();
             LoadDashboardDataAsync();
+            SetupClickOutsideHandler();
         }
         
         private void InitializeComponent()
@@ -165,7 +202,7 @@ namespace InventoryPro.WinForms.Forms
             btnSales = CreateNavButton("💰 New Sale", 3, false);
             btnSalesHistory = CreateNavButton("📈 Sales History", 4, false);
             btnReports = CreateNavButton("📊 Reports", 5, false);
-            btnSettings = CreateNavButton("⚙️ Settings", 6, false);
+            btnSettings = CreateNavButton("⚙ Settings", 6, false);
             
             navPanel.Controls.AddRange(new Control[] {
                 btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings
@@ -261,7 +298,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "Welcome back! 👋",
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41),
-                Location = new Point(30, 20),
+                Location = new Point(30, 5),
                 Size = new Size(300, 30),
                 BackColor = Color.Transparent
             };
@@ -272,7 +309,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = DateTime.Now.ToString("dddd, MMMM dd, yyyy - HH:mm"),
                 Font = new Font("Segoe UI", 10),
                 ForeColor = Color.FromArgb(108, 117, 125),
-                Location = new Point(30, 45),
+                Location = new Point(35, 45),
                 Size = new Size(350, 20),
                 BackColor = Color.Transparent
             };
@@ -285,12 +322,601 @@ namespace InventoryPro.WinForms.Forms
                 ForeColor = Color.FromArgb(40, 167, 69),
                 TextAlign = ContentAlignment.MiddleRight,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(pnlTopBar.Width - 200, 20),
+                Location = new Point(pnlTopBar.Width - 350, 20),
                 Size = new Size(150, 40),
                 BackColor = Color.Transparent
             };
+
+            // Create modern user profile section
+            CreateUserProfileSection();
             
-            pnlTopBar.Controls.AddRange(new Control[] { lblWelcome, lblDateTime, lblSystemStatus });
+            pnlTopBar.Controls.AddRange(new Control[] { lblWelcome, lblDateTime, lblSystemStatus, pnlUserProfile });
+        }
+
+        private void CreateUserProfileSection()
+        {
+            // User profile container
+            pnlUserProfile = new Panel
+            {
+                Width = 90,
+                Height = 80,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                BackColor = Color.Transparent
+            };
+            
+            // Set location after the form is properly sized
+            pnlUserProfile.Location = new Point(this.Width - 110, 0);
+
+            // User profile button with premium design
+            btnUserProfile = new Button
+            {
+                Width = 70,
+                Height = 55,
+                Top = 12,
+                Left = 10,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Text = "",
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(50, 0, 35, 0),
+                Cursor = Cursors.Hand
+            };
+
+            btnUserProfile.FlatAppearance.BorderSize = 1;
+            btnUserProfile.FlatAppearance.BorderColor = Color.FromArgb(0, 123, 255);
+            btnUserProfile.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 248, 255);
+
+            // Add user avatar, name and dropdown arrow with premium styling
+            btnUserProfile.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                
+                // Draw rounded button background
+                var buttonRect = new Rectangle(0, 0, btnUserProfile.Width, btnUserProfile.Height);
+                using (var brush = new SolidBrush(btnUserProfile.BackColor))
+                {
+                    g.FillRoundedRectangle(brush, buttonRect, 12);
+                }
+                
+                // Draw border
+                using (var borderPen = new Pen(Color.FromArgb(0, 123, 255), 2))
+                {
+                    g.DrawRoundedRectangle(borderPen, new Rectangle(1, 1, btnUserProfile.Width - 3, btnUserProfile.Height - 3), 12);
+                }
+
+                // Draw user avatar circle
+                var avatarRect = new Rectangle(12, 12, 31, 31);
+                using (var avatarBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                {
+                    g.FillEllipse(avatarBrush, avatarRect);
+                }
+                
+                // Draw user icon in avatar
+                using (var iconBrush = new SolidBrush(Color.White))
+                using (var iconFont = new Font("Segoe UI", 10, FontStyle.Bold))
+                {
+                    var iconRect = new Rectangle(avatarRect.X, avatarRect.Y, avatarRect.Width, avatarRect.Height);
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString("JD", iconFont, iconBrush, iconRect, sf);
+                }
+
+                // Note: Username and role text are intentionally removed from main button
+                // to avoid duplication with the dropdown. Only avatar and arrow are shown.
+
+                // Draw dropdown arrow
+                var arrowSize = 6;
+                var arrowX = btnUserProfile.Width - 18;
+                var arrowY = (btnUserProfile.Height - arrowSize) / 2;
+                
+                using (var arrowBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                {
+                    var arrowPoints = new Point[]
+                    {
+                        new Point(arrowX, arrowY),
+                        new Point(arrowX + arrowSize, arrowY),
+                        new Point(arrowX + arrowSize / 2, arrowY + arrowSize / 2)
+                    };
+                    g.FillPolygon(arrowBrush, arrowPoints);
+                }
+            };
+
+            // Create dropdown panel (initially hidden)
+            pnlUserDropdown = new Panel
+            {
+                Width = 200,
+                Height = 195,
+                Top = 50, // Position it below the button
+                Left = -20, // Align it with the button
+                BackColor = Color.White,
+                Visible = false,
+                BorderStyle = BorderStyle.None
+            };
+
+            // Add shadow and rounded corners to dropdown
+            // Custom paint for premium dropdown appearance
+            pnlUserDropdown.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Draw shadow
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(80, 0, 0, 0)))
+                {
+                    g.FillRoundedRectangle(shadowBrush, new Rectangle(3, 3, pnlUserDropdown.Width - 3, pnlUserDropdown.Height - 3), 8);
+                }
+
+                // Draw dropdown background
+                using (var backgroundBrush = new SolidBrush(Color.White))
+                {
+                    g.FillRoundedRectangle(backgroundBrush, new Rectangle(0, 0, pnlUserDropdown.Width - 3, pnlUserDropdown.Height - 3), 8);
+                }
+
+                // Draw border
+                using (var borderPen = new Pen(Color.FromArgb(220, 224, 229), 1))
+                {
+                    g.DrawRoundedRectangle(borderPen, new Rectangle(0, 0, pnlUserDropdown.Width - 4, pnlUserDropdown.Height - 4), 8);
+                }
+            };
+
+            // User info section with enhanced styling
+            var userInfoPanel = new Panel
+            {
+                Width = 170,
+                Height = 48,
+                Top = 10,
+                Left = 15,
+                BackColor = Color.FromArgb(248, 249, 250)
+            };
+            
+            userInfoPanel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var brush = new SolidBrush(Color.FromArgb(248, 249, 250)))
+                {
+                    g.FillRoundedRectangle(brush, new Rectangle(0, 0, userInfoPanel.Width, userInfoPanel.Height), 6);
+                }
+                
+                // Draw user avatar circle
+                var avatarRect = new Rectangle(10, 10, 30, 30);
+                using (var avatarBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                {
+                    g.FillEllipse(avatarBrush, avatarRect);
+                }
+                
+                // Draw user icon in avatar
+                using (var iconBrush = new SolidBrush(Color.White))
+                using (var iconFont = new Font("Segoe UI", 9, FontStyle.Bold))
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString("JD", iconFont, iconBrush, avatarRect, sf);
+                }
+                
+                // Draw username
+                using (var textBrush = new SolidBrush(Color.FromArgb(33, 37, 41)))
+                using (var textFont = new Font("Segoe UI", 9, FontStyle.Bold))
+                {
+                    g.DrawString("John Doe", textFont, textBrush, new Point(48, 12));
+                }
+                
+                // Draw role
+                using (var roleBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+                using (var roleFont = new Font("Segoe UI", 8))
+                {
+                    g.DrawString("System Administrator", roleFont, roleBrush, new Point(48, 26));
+                }
+            };
+
+            // Separator line
+            var separator = new Panel
+            {
+                Height = 1,
+                Width = 170,
+                Top = 63,
+                Left = 15,
+                BackColor = Color.FromArgb(220, 224, 229)
+            };
+
+            // Profile menu button
+            var btnProfile = CreateDropdownMenuItem("My Profile", 68, () =>
+            {
+                HideUserDropdown();
+                MessageBox.Show("Profile settings will be implemented in future updates.", 
+                    "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            });
+
+            // Settings menu button
+            var btnSettingsMenu = CreateDropdownMenuItem("Settings", 103, () =>
+            {
+                HideUserDropdown();
+                OpenSettingsForm();
+            });
+
+            // Modern logout button with sleek design
+            var btnLogout = new Button
+            {
+                Text = "Sign Out",
+                Width = 170,
+                Height = 38,
+                Top = 143,
+                Left = 15,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+
+            btnLogout.FlatAppearance.BorderSize = 0;
+            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
+            btnLogout.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 25, 41);
+
+            // Modern rounded corners for logout button with premium styling
+            btnLogout.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, btnLogout.Width, btnLogout.Height);
+                
+                // Create modern gradient brush
+                using (var brush = new LinearGradientBrush(rect, 
+                    Color.FromArgb(230, 60, 75), Color.FromArgb(210, 45, 60), LinearGradientMode.Vertical))
+                {
+                    g.FillRoundedRectangle(brush, rect, 10);
+                }
+
+                // Add modern subtle highlight
+                using (var highlightBrush = new SolidBrush(Color.FromArgb(25, 255, 255, 255)))
+                {
+                    g.FillRoundedRectangle(highlightBrush, new Rectangle(1, 1, rect.Width - 2, rect.Height / 2), 9);
+                }
+
+                // Draw text with perfect center alignment
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                using (var textBrush = new SolidBrush(btnLogout.ForeColor))
+                {
+                    g.DrawString(btnLogout.Text, btnLogout.Font, textBrush, rect, sf);
+                }
+            };
+
+            btnLogout.Click += BtnLogout_Click;
+
+            // Add controls to dropdown
+            pnlUserDropdown.Controls.AddRange(new Control[] {
+                userInfoPanel, separator, btnProfile, btnSettingsMenu, btnLogout
+            });
+
+            // Button click handler to toggle dropdown
+            btnUserProfile.Click += (s, e) => ToggleUserDropdown();
+
+            // Add button to profile panel
+            pnlUserProfile.Controls.Add(btnUserProfile);
+            
+            // Add dropdown to the main form to ensure it appears on top
+            this.Controls.Add(pnlUserDropdown);
+            pnlUserDropdown.BringToFront();
+            
+            // Add resize handler to maintain proper positioning
+            this.SizeChanged += (s, e) => {
+                if (pnlUserProfile != null)
+                {
+                    pnlUserProfile.Location = new Point(this.Width - 110, 0);
+                    // Update dropdown position relative to the main form
+                    pnlUserDropdown.Location = new Point(this.Width - 220, 80);
+                }
+            };
+            
+            // Set initial dropdown position
+            pnlUserDropdown.Location = new Point(this.Width - 220, 80);
+        }
+
+        private Button CreateDropdownMenuItem(string text, int top, Action onClick)
+        {
+            var button = new Button
+            {
+                Text = "", // Empty text to prevent duplicate drawing
+                Width = 170,
+                Height = 35,
+                Top = top,
+                Left = 15,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(15, 0, 10, 0),
+                Cursor = Cursors.Hand,
+                Tag = text // Store the text in Tag for custom drawing
+            };
+
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = Color.Transparent;
+            button.FlatAppearance.MouseDownBackColor = Color.Transparent;
+
+            // Add custom paint for rounded hover effect
+            button.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                
+                var rect = new Rectangle(0, 0, button.Width, button.Height);
+                
+                // Draw background with rounded corners on hover
+                if (button.ClientRectangle.Contains(button.PointToClient(Control.MousePosition)))
+                {
+                    using (var hoverBrush = new SolidBrush(Color.FromArgb(240, 248, 255)))
+                    {
+                        g.FillRoundedRectangle(hoverBrush, rect, 6);
+                    }
+                    
+                    // Add subtle border on hover
+                    using (var hoverPen = new Pen(Color.FromArgb(200, 220, 240), 1))
+                    {
+                        g.DrawRoundedRectangle(hoverPen, new Rectangle(0, 0, rect.Width - 1, rect.Height - 1), 6);
+                    }
+                }
+                
+                // Draw text manually for better control
+                using (var textBrush = new SolidBrush(button.ForeColor))
+                {
+                    var textRect = new Rectangle(15, 0, button.Width - 25, button.Height);
+                    var sf = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
+                    g.DrawString(button.Tag?.ToString() ?? "", button.Font, textBrush, textRect, sf);
+                }
+            };
+            
+            // Force repaint on mouse enter/leave
+            button.MouseEnter += (s, e) => button.Invalidate();
+            button.MouseLeave += (s, e) => button.Invalidate();
+
+            button.Click += (s, e) => onClick?.Invoke();
+
+            return button;
+        }
+
+        private void ToggleUserDropdown()
+        {
+            pnlUserDropdown.Visible = !pnlUserDropdown.Visible;
+            if (pnlUserDropdown.Visible)
+            {
+                // Bring both the profile panel and dropdown to front
+                pnlUserProfile.BringToFront();
+                pnlUserDropdown.BringToFront();
+                
+                // Ensure it's in front of the top bar
+                pnlTopBar.Controls.SetChildIndex(pnlUserProfile, 0);
+                
+                // Debug: Log the dropdown state
+                _logger?.LogInformation($"User dropdown toggled: Visible={pnlUserDropdown.Visible}, Location={pnlUserDropdown.Location}, Size={pnlUserDropdown.Size}");
+            }
+        }
+
+        private void HideUserDropdown()
+        {
+            pnlUserDropdown.Visible = false;
+        }
+
+        private void BtnLogout_Click(object? sender, EventArgs e)
+        {
+            HideUserDropdown();
+
+            // Create modern logout confirmation dialog
+            var result = ShowModernLogoutConfirmation();
+            
+            if (result == DialogResult.Yes)
+            {
+                PerformLogout();
+            }
+        }
+
+        private DialogResult ShowModernLogoutConfirmation()
+        {
+            using var confirmDialog = new Form
+            {
+                Text = "Confirm Logout",
+                Size = new Size(490, 250),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                BackColor = Color.White,
+                Font = new Font("Segoe UI", 9F)
+            };
+
+            // Icon
+            var iconLabel = new Label
+            {
+                Text = "🚪",
+                Font = new Font("Segoe UI", 20),
+                Location = new Point(40, 30),
+                Size = new Size(60, 60),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+
+            // Title
+            var titleLabel = new Label
+            {
+                Text = "Logout Confirmation",
+                Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Location = new Point(120, 30),
+                Size = new Size(290, 40),
+                BackColor = Color.Transparent
+            };
+
+            // Message
+            var messageLabel = new Label
+            {
+                Text = "Are you sure you want to logout from InventoryPro?\nYour current session will be ended.",
+                Font = new Font("Segoe UI", 11),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                Location = new Point(120, 65),
+                Size = new Size(250, 50),
+                BackColor = Color.Transparent
+            };
+
+            // Buttons panel
+            var buttonPanel = new Panel
+            {
+                Height = 60,
+                Dock = DockStyle.Bottom,
+                BackColor = Color.FromArgb(248, 249, 250),
+                Padding = new Padding(15)
+            };
+
+            var btnYes = new Button
+                {
+                Text = "✅ Yes, Logout",
+                Size = new Size(155, 40),
+                Location = new Point(120, 10),
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.Yes,
+                TextAlign = ContentAlignment.MiddleCenter
+                };
+            btnYes.FlatAppearance.BorderSize = 0;
+            btnYes.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0,0, btnYes.Width, btnYes.Height);
+                using (var brush = new SolidBrush(btnYes.BackColor)) {
+                    g.FillRoundedRectangle(brush, rect, 8);
+                    }
+                //Draw center
+                var textRect = new Rectangle(0,0,btnYes.Width,btnYes.Height);
+                var sf = new StringFormat
+                    {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                    };
+                using (var textBrush = new SolidBrush(btnYes.ForeColor))
+                    {
+                    g.DrawString(btnYes.Text, btnYes.Font, textBrush, textRect,sf);
+                    }
+            };
+
+            var btnNo = new Button
+            {
+                Text = "❌ Cancel",
+                Size = new Size(120, 40),
+                Location = new Point(300, 10),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.No
+            };
+            btnNo.FlatAppearance.BorderSize = 0;
+
+            buttonPanel.Controls.AddRange(new Control[] { btnYes, btnNo });
+            confirmDialog.Controls.AddRange(new Control[] { iconLabel, titleLabel, messageLabel, buttonPanel });
+
+            confirmDialog.AcceptButton = btnNo; // Default to cancel for safety
+            confirmDialog.CancelButton = btnNo;
+
+            return confirmDialog.ShowDialog(this);
+        }
+
+        private void PerformLogout()
+        {
+            try
+            {
+                _logger.LogInformation("User logout initiated");
+
+                // Stop refresh timer
+                refreshTimer?.Stop();
+
+                // Clear any cached authentication data
+                // Note: Add your authentication cleanup logic here
+
+                // Show logout progress
+                using var logoutDialog = new Form
+                {
+                    Text = "Logging out...",
+                    Size = new Size(400, 150),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    ControlBox = false,
+                    BackColor = Color.White
+                };
+
+                var progressLabel = new Label
+                {
+                    Text = "🔄 Logging out safely...",
+                    Font = new Font("Segoe UI", 12, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(33, 37, 41),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    Dock = DockStyle.Fill
+                };
+
+                logoutDialog.Controls.Add(progressLabel);
+                logoutDialog.Show(this);
+                logoutDialog.Refresh();
+
+                // Simulate logout process
+                System.Threading.Thread.Sleep(1000);
+
+                logoutDialog.Close();
+
+                _logger.LogInformation("User logout completed successfully");
+
+                // Close the main form and return to login
+                this.Hide();
+                
+                // Show login form (you'll need to implement this based on your application structure)
+                ShowLoginForm();
+                
+                // Close this form
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout process");
+                MessageBox.Show("An error occurred during logout. The application will close.",
+                    "Logout Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Application.Exit();
+            }
+        }
+
+        private void ShowLoginForm()
+        {
+            // Create and show login form
+            // Note: Replace this with your actual login form implementation
+            try
+            {
+                // This should be replaced with your actual login form
+                var loginForm = _serviceProvider.GetService<LoginForm>();
+                if (loginForm != null)
+                {
+                    loginForm.Show();
+                }
+                else
+                {
+                    // Fallback: restart the application
+                    MessageBox.Show("Logout successful. Please restart the application to login again.",
+                        "Logout Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Application.Exit();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error showing login form after logout");
+                MessageBox.Show("Logout complete. Please restart the application.",
+                    "Logout Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Application.Exit();
+            }
         }
         
         private void CreateContentArea()
@@ -1134,7 +1760,7 @@ namespace InventoryPro.WinForms.Forms
         
         private void NavButton_Click(object? sender, EventArgs e)
         {
-            if (sender is Button clickedButton)
+            if (sender is Button clickedButton && clickedButton.Tag is int buttonIndex)
             {
                 // Reset all buttons
                 var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings };
@@ -1147,7 +1773,7 @@ namespace InventoryPro.WinForms.Forms
                 UpdateNavButtonStyle(clickedButton, true);
                 
                 // Handle navigation
-                int buttonIndex = (int)clickedButton.Tag;
+                //int buttonIndex = (int)clickedButton.Tag;
                 switch (buttonIndex)
                 {
                     case 0: // Dashboard
@@ -1180,18 +1806,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var productForm = _serviceProvider.GetService(typeof(ProductForm)) as ProductForm;
-                if (productForm != null)
-                {
-                    productForm.ShowDialog();
-                    // Refresh dashboard after closing product form
-                    _ = RefreshDashboardData();
-                }
+                using var productForm = _serviceProvider.GetRequiredService<ProductForm>();
+                productForm.ShowDialog();
+                // Refresh dashboard after closing product form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening products form");
-                MessageBox.Show("Error opening products form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error opening products form: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         
@@ -1199,18 +1822,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var customerForm = _serviceProvider.GetService(typeof(CustomerForm)) as CustomerForm;
-                if (customerForm != null)
-                {
-                    customerForm.ShowDialog();
-                    // Refresh dashboard after closing customer form
-                    _ = RefreshDashboardData();
-                }
+                using var customerForm = _serviceProvider.GetRequiredService<CustomerForm>();
+                customerForm.ShowDialog();
+                // Refresh dashboard after closing customer form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening customers form");
-                MessageBox.Show("Error opening customers form", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error opening customers form: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         
@@ -1218,24 +1838,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var salesForm = _serviceProvider.GetService(typeof(SalesForm)) as SalesForm;
-                if (salesForm != null)
-                {
-                    salesForm.ShowDialog();
-                    // Refresh dashboard after closing sales form
-                    _ = RefreshDashboardData();
-                }
-                else
-                {
-                    _logger.LogWarning("SalesForm service not found in service provider");
-                    MessageBox.Show("Sales form is not available. Please check system configuration.", 
-                        "Service Not Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                using var salesForm = _serviceProvider.GetRequiredService<SalesForm>();
+                salesForm.ShowDialog();
+                // Refresh dashboard after closing sales form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening sales form");
-                MessageBox.Show("Error opening sales form. Please try again.", 
+                MessageBox.Show($"Error opening sales form: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1244,24 +1855,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var salesHistoryForm = _serviceProvider.GetService(typeof(SalesHistoryForm)) as SalesHistoryForm;
-                if (salesHistoryForm != null)
-                {
-                    salesHistoryForm.ShowDialog();
-                    // Refresh dashboard after closing sales history form
-                    _ = RefreshDashboardData();
-                }
-                else
-                {
-                    _logger.LogWarning("SalesHistoryForm service not found in service provider");
-                    MessageBox.Show("Sales history form is not available. Please check system configuration.", 
-                        "Service Not Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                using var salesHistoryForm = _serviceProvider.GetRequiredService<SalesHistoryForm>();
+                salesHistoryForm.ShowDialog();
+                // Refresh dashboard after closing sales history form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening sales history form");
-                MessageBox.Show("Error opening sales history form. Please try again.", 
+                MessageBox.Show($"Error opening sales history form: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1270,24 +1872,15 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var reportForm = _serviceProvider.GetService(typeof(ReportForm)) as ReportForm;
-                if (reportForm != null)
-                {
-                    reportForm.ShowDialog();
-                    // Refresh dashboard after closing report form
-                    _ = RefreshDashboardData();
-                }
-                else
-                {
-                    _logger.LogWarning("ReportForm service not found in service provider");
-                    MessageBox.Show("Reports form is not available. Please check system configuration.", 
-                        "Service Not Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                using var reportForm = _serviceProvider.GetRequiredService<ReportForm>();
+                reportForm.ShowDialog();
+                // Refresh dashboard after closing report form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening reports form");
-                MessageBox.Show("Error opening reports form. Please try again.", 
+                MessageBox.Show($"Error opening reports form: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1296,28 +1889,29 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var settingsForm = _serviceProvider.GetService(typeof(SettingsForm)) as SettingsForm;
-                if (settingsForm != null)
-                {
-                    settingsForm.ShowDialog();
-                    // Refresh dashboard after closing settings form
-                    _ = RefreshDashboardData();
-                }
-                else
-                {
-                    _logger.LogWarning("SettingsForm service not found in service provider");
-                    MessageBox.Show("Settings form is not available. Please check system configuration.", 
-                        "Service Not Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
+                using var settingsForm = _serviceProvider.GetRequiredService<SettingsForm>();
+                settingsForm.ShowDialog();
+                // Refresh dashboard after closing settings form
+                _ = RefreshDashboardData();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error opening settings form");
-                MessageBox.Show("Error opening settings form. Please try again.", 
+                MessageBox.Show($"Error opening settings form: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         
+        private void SetupClickOutsideHandler()
+        {
+            // Add click handler to main form to hide dropdown when clicking outside
+            this.Click += (s, e) => HideUserDropdown();
+            
+            // Add click handlers to all main panels
+            pnlContent.Click += (s, e) => HideUserDropdown();
+            pnlSidebar.Click += (s, e) => HideUserDropdown();
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             refreshTimer?.Stop();
