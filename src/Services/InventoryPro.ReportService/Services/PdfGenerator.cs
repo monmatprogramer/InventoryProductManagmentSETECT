@@ -251,6 +251,9 @@ namespace InventoryPro.ReportService.Services
         /// </summary>
         public static byte[] GenerateInventoryReportPdf(InventoryReport report)
         {
+            if (report == null)
+                throw new ArgumentNullException(nameof(report), "Inventory report cannot be null");
+
             using var stream = new MemoryStream();
             var writer = new PdfWriter(stream);
             var pdf = new PdfDocument(writer);
@@ -289,6 +292,12 @@ namespace InventoryPro.ReportService.Services
             AddTableRow(summaryTable, "Low Stock Products:", report.LowStockProducts.ToString("N0"), headerFont, normalFont);
             AddTableRow(summaryTable, "Out of Stock Products:", report.OutOfStockProducts.ToString("N0"), headerFont, normalFont);
             AddTableRow(summaryTable, "Total Inventory Value:", $"${report.TotalInventoryValue:N2}", headerFont, normalFont);
+            
+            // Add debug info if no products
+            if (report.TotalProducts == 0)
+            {
+                AddTableRow(summaryTable, "DEBUG:", "No products found in report", headerFont, normalFont);
+            }
 
             document.Add(summaryTable);
             document.Add(new Paragraph("\n"));
@@ -323,7 +332,7 @@ namespace InventoryPro.ReportService.Services
             // Low stock products details
             if (report.ProductInventoryDetails.Any())
             {
-                document.Add(new Paragraph("LOW STOCK PRODUCTS")
+                document.Add(new Paragraph($"PRODUCT INVENTORY DETAILS ({report.ProductInventoryDetails.Count} items)")
                     .SetFont(headerFont)
                     .SetFontSize(14)
                     .SetMarginBottom(10));
@@ -356,6 +365,18 @@ namespace InventoryPro.ReportService.Services
                 }
 
                 document.Add(productsTable);
+            }
+            else
+            {
+                document.Add(new Paragraph("PRODUCT INVENTORY DETAILS")
+                    .SetFont(headerFont)
+                    .SetFontSize(14)
+                    .SetMarginBottom(10));
+                    
+                document.Add(new Paragraph("No product inventory details available in this report.")
+                    .SetFont(normalFont)
+                    .SetFontSize(12)
+                    .SetMarginBottom(20));
             }
 
             // Footer

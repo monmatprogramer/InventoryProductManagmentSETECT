@@ -70,7 +70,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 16;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Report date
@@ -93,7 +93,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A4"].Value = "Metric";
             sheet.Cells["B4"].Value = "Value";
             sheet.Cells["A4:B4"].Style.Font.Bold = true;
-            sheet.Cells["A4:B4"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A4:B4"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A4:B4"].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
 
             foreach (var (metric, value) in summaryData)
@@ -115,7 +115,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 14;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Headers
@@ -124,7 +124,7 @@ namespace InventoryPro.ReportService.Services
             {
                 sheet.Cells[3, i + 1].Value = headers[i];
                 sheet.Cells[3, i + 1].Style.Font.Bold = true;
-                sheet.Cells[3, i + 1].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+                sheet.Cells[3, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
                 sheet.Cells[3, i + 1].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
             }
 
@@ -146,12 +146,12 @@ namespace InventoryPro.ReportService.Services
                 // Color code status
                 if (product.StockStatus == "Out of Stock")
                 {
-                    sheet.Cells[row, 8].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+                    sheet.Cells[row, 8].Style.Fill.PatternType = ExcelFillStyle.Solid;
                     sheet.Cells[row, 8].Style.Fill.BackgroundColor.SetColor(Color.LightCoral);
                 }
                 else if (product.StockStatus == "Low")
                 {
-                    sheet.Cells[row, 8].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+                    sheet.Cells[row, 8].Style.Fill.PatternType = ExcelFillStyle.Solid;
                     sheet.Cells[row, 8].Style.Fill.BackgroundColor.SetColor(Color.LightYellow);
                 }
 
@@ -177,7 +177,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 14;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Headers
@@ -185,7 +185,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["B3"].Value = "Total Stock";
             sheet.Cells["C3"].Value = "Total Value";
             sheet.Cells["A3:C3"].Style.Font.Bold = true;
-            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
 
             // Data
@@ -227,7 +227,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 16;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             sheet.Cells["A3"].Value = $"Period: {report.StartDate:MMM dd, yyyy} - {report.EndDate:MMM dd, yyyy}";
@@ -244,7 +244,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A5"].Value = "Metric";
             sheet.Cells["B5"].Value = "Value";
             sheet.Cells["A5:B5"].Style.Font.Bold = true;
-            sheet.Cells["A5:B5"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A5:B5"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A5:B5"].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
 
             var row = 6;
@@ -266,7 +266,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 14;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Headers
@@ -274,7 +274,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["B3"].Value = "Total Amount";
             sheet.Cells["C3"].Value = "Order Count";
             sheet.Cells["A3:C3"].Style.Font.Bold = true;
-            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
 
             // Data
@@ -299,7 +299,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 14;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Headers
@@ -308,7 +308,7 @@ namespace InventoryPro.ReportService.Services
             {
                 sheet.Cells[3, i + 1].Value = headers[i];
                 sheet.Cells[3, i + 1].Style.Font.Bold = true;
-                sheet.Cells[3, i + 1].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+                sheet.Cells[3, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
                 sheet.Cells[3, i + 1].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
             }
 
@@ -335,7 +335,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["A1"].Style.Font.Size = 14;
             sheet.Cells["A1"].Style.Font.Bold = true;
             sheet.Cells["A1"].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
-            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A1"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.LightBlue);
 
             // Headers
@@ -343,7 +343,7 @@ namespace InventoryPro.ReportService.Services
             sheet.Cells["B3"].Value = "Order Count";
             sheet.Cells["C3"].Value = "Total Amount";
             sheet.Cells["A3:C3"].Style.Font.Bold = true;
-            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillPatternType.Solid;
+            sheet.Cells["A3:C3"].Style.Fill.PatternType = ExcelFillStyle.Solid;
             sheet.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.LightGray);
 
             // Data

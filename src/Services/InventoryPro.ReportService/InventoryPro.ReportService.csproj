@@ -16,13 +16,14 @@
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
 		<!-- For PDF generation -->
 		<PackageReference Include="iText7" Version="8.0.5" />
+		<PackageReference Include="iText7.bouncy-castle-adapter" Version="8.0.5" />
 		<!-- For Chart generation -->
 		<PackageReference Include="ScottPlot" Version="4.1.71" />
 		<PackageReference Include="System.Drawing.Common" Version="9.0.0" />
 		<PackageReference Include="OxyPlot.Core" Version="2.1.2" />
 		<PackageReference Include="OxyPlot.ImageSharp" Version="2.1.2" />
-		<!-- For Excel generation in real implementation -->
-		<!-- <PackageReference Include="EPPlus" Version="7.0.0" /> -->
+		<!-- For Excel generation -->
+		<PackageReference Include="EPPlus" Version="7.0.0" />
 	</ItemGroup>
 
 	<!-- Add reference to Shared project -->
