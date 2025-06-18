@@ -768,8 +768,8 @@ namespace InventoryPro.WinForms.Forms
         {
             if (sender is not DataGridView grid) return;
 
-            // Draw sequential row numbers starting from 1
-            var rowNumber = (e.RowIndex + 1).ToString();
+            // Draw sequential row numbers continuing from previous pages
+            var rowNumber = ((_currentPage - 1) * _pageSize + e.RowIndex + 1).ToString();
             
             // Calculate the center position for the text
             var centerFormat = new StringFormat()
