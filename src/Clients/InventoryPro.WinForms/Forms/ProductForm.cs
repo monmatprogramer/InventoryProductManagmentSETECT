@@ -631,7 +631,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     nameColumn.HeaderText = "📦 Product Name";
                     nameColumn.MinimumWidth = 150;
-                    nameColumn.FillWeight = 32; // 32% of total width - largest column
+                    nameColumn.FillWeight = 30; // 30% of total width - largest column
                     nameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
                     nameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
                 }
@@ -652,11 +652,24 @@ namespace InventoryPro.WinForms.Forms
                 var stockColumn = dgvProducts.Columns["Stock"];
                 if (stockColumn != null)
                 {
-                    stockColumn.HeaderText = "📊 Stock";
+                    stockColumn.HeaderText = "📊 Current Stock";
                     stockColumn.MinimumWidth = 70;
-                    stockColumn.FillWeight = 12; // 12% of total width
+                    stockColumn.FillWeight = 10; // 10% of total width (reduced to make room for MinStock)
                     stockColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     stockColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                }
+
+                var minStockColumn = dgvProducts.Columns["MinStock"];
+                if (minStockColumn != null)
+                {
+                    minStockColumn.HeaderText = "⚠️ Min Stock";
+                    minStockColumn.MinimumWidth = 70;
+                    minStockColumn.FillWeight = 8; // 8% of total width
+                    minStockColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    minStockColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                    minStockColumn.DefaultCellStyle.ForeColor = Color.FromArgb(255, 140, 0);
+                    minStockColumn.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 240);
+                    minStockColumn.Visible = true; // Make sure it's visible
                 }
 
                 var categoryNameColumn = dgvProducts.Columns["CategoryName"];
@@ -664,7 +677,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     categoryNameColumn.HeaderText = "📂 Category";
                     categoryNameColumn.MinimumWidth = 90;
-                    categoryNameColumn.FillWeight = 15; // 15% of total width
+                    categoryNameColumn.FillWeight = 13; // 13% of total width
                     categoryNameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
                     categoryNameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(102, 16, 242);
                     categoryNameColumn.DefaultCellStyle.BackColor = Color.FromArgb(248, 245, 255);
@@ -675,14 +688,14 @@ namespace InventoryPro.WinForms.Forms
                 {
                     descriptionColumn.HeaderText = "📝 Description";
                     descriptionColumn.MinimumWidth = 120;
-                    descriptionColumn.FillWeight = 28; // 28% of total width
+                    descriptionColumn.FillWeight = 26; // 26% of total width
                     descriptionColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
                     descriptionColumn.DefaultCellStyle.ForeColor = Color.FromArgb(73, 80, 87);
                     descriptionColumn.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
                 }
 
                 // Hide unnecessary columns (Id is already hidden above)
-                var columnsToHide = new[] { "CategoryId", "CreatedAt", "UpdatedAt", "ImageUrl", "MinStock", "IsActive" };
+                var columnsToHide = new[] { "CategoryId", "CreatedAt", "UpdatedAt", "ImageUrl", "IsActive" };
                 foreach (var columnName in columnsToHide)
                 {
                     if (dgvProducts.Columns.Contains(columnName))
@@ -784,10 +797,11 @@ namespace InventoryPro.WinForms.Forms
             // Adjust fill weights for small screens (without description)
             if (dgvProducts.Columns != null)
             {
-                SetColumnFillWeight("SKU", 20);
-                SetColumnFillWeight("Name", 50);
+                SetColumnFillWeight("SKU", 18);
+                SetColumnFillWeight("Name", 45);
                 SetColumnFillWeight("Price", 15);
-                SetColumnFillWeight("Stock", 15);
+                SetColumnFillWeight("Stock", 12);
+                SetColumnFillWeight("MinStock", 10);
                 SetColumnFillWeight("CategoryName", 0); // Hide category on very small screens
             }
         }
@@ -798,11 +812,12 @@ namespace InventoryPro.WinForms.Forms
             if (dgvProducts.Columns != null)
             {
                 SetColumnFillWeight("SKU", 15);
-                SetColumnFillWeight("Name", 28);
+                SetColumnFillWeight("Name", 26);
                 SetColumnFillWeight("Price", 12);
                 SetColumnFillWeight("Stock", 10);
-                SetColumnFillWeight("CategoryName", 15);
-                SetColumnFillWeight("Description", 20);
+                SetColumnFillWeight("MinStock", 8);
+                SetColumnFillWeight("CategoryName", 13);
+                SetColumnFillWeight("Description", 16);
             }
         }
 
@@ -881,6 +896,12 @@ namespace InventoryPro.WinForms.Forms
                     e.CellStyle.ForeColor = Color.FromArgb(44, 62, 80);
                     e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
                 }
+            }
+
+            // Ensure MinStock column maintains center alignment
+            if (grid.Columns[e.ColumnIndex].Name == "MinStock")
+            {
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
             }
 
             // Alternating row colors but respect stock formatting
