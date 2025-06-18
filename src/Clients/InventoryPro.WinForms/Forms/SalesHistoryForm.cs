@@ -3,6 +3,7 @@ using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
+using System.Drawing.Printing;
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -42,6 +43,7 @@ namespace InventoryPro.WinForms.Forms
         private Label lblPaymentDetails = null!;
         private Button btnCloseDetails = null!;
         private Button btnPrintInvoice = null!;
+        private Button btnPrintPreview = null!;
 
         // Status bar
         private ToolStripStatusLabel lblStatus = null!;
@@ -52,6 +54,11 @@ namespace InventoryPro.WinForms.Forms
         private List<SaleItemDisplayDto> _salesData = new();
         private List<SaleItemDisplayDto> _filteredData = new();
         private SaleItemDisplayDto? _selectedItem;
+
+        // Printing
+        private PrintDocument _printDocument = null!;
+        private PrintPreviewDialog _printPreviewDialog = null!;
+        private PrintDialog _printDialog = null!;
 
         // Modern colors
         private readonly Color _primaryBlue = Color.FromArgb(59, 130, 246);
@@ -72,6 +79,7 @@ namespace InventoryPro.WinForms.Forms
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
             InitializeComponent();
+            InitializePrintComponents();
         }
 
         private void InitializeComponent()
@@ -253,7 +261,10 @@ namespace InventoryPro.WinForms.Forms
             lblPaymentDetails = CreateDetailsLabel(new Point(25, 470), new Size(340, 60));
 
             // Action buttons
-            btnPrintInvoice = CreateModernButton("🖨️", "Print Invoice", _accentPurple, new Point(25, 550), new Size(340, 40));
+            btnPrintPreview = CreateModernButton("👁️", "Print Preview", _primaryBlue, new Point(25, 550), new Size(165, 40));
+            btnPrintPreview.Click += BtnPrintPreview_Click;
+
+            btnPrintInvoice = CreateModernButton("🖨️", "Print Invoice", _accentPurple, new Point(200, 550), new Size(165, 40));
             btnPrintInvoice.Click += BtnPrintInvoice_Click;
 
             pnlDetailsContainer.Controls.AddRange(new Control[] {
@@ -262,7 +273,7 @@ namespace InventoryPro.WinForms.Forms
                 lblCustomerTitle, lblCustomerDetails,
                 lblTransactionTitle, lblTransactionDetails,
                 lblPaymentTitle, lblPaymentDetails,
-                btnPrintInvoice
+                btnPrintPreview, btnPrintInvoice
             });
 
             pnlDetails.Controls.Add(pnlDetailsContainer);
@@ -842,16 +853,274 @@ namespace InventoryPro.WinForms.Forms
             HideDetailsPanel();
         }
 
+        private void InitializePrintComponents()
+        {
+            try
+            {
+                _printDocument = new PrintDocument();
+                _printDocument.PrintPage += PrintDocument_PrintPage;
+                _printDocument.DocumentName = "Invoice";
+
+                _printPreviewDialog = new PrintPreviewDialog
+                {
+                    Document = _printDocument,
+                    Width = 800,
+                    Height = 600,
+                    UseAntiAlias = true
+                };
+
+                _printDialog = new PrintDialog
+                {
+                    Document = _printDocument,
+                    UseEXDialog = true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error initializing print components");
+            }
+        }
+
+        private void BtnPrintPreview_Click(object? sender, EventArgs e)
+        {
+            if (_selectedItem == null)
+            {
+                MessageBox.Show("Please select a transaction to preview the invoice.", 
+                    "No Transaction Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                _printPreviewDialog.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error showing print preview");
+                MessageBox.Show($"Error showing print preview: {ex.Message}", 
+                    "Print Preview Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
         private void BtnPrintInvoice_Click(object? sender, EventArgs e)
         {
-            if (_selectedItem != null)
+            if (_selectedItem == null)
             {
-                MessageBox.Show($"🖨️ Print Invoice #{_selectedItem.InvoiceNumber}\n\n" +
-                              $"Product: {_selectedItem.ProductName}\n" +
-                              $"Customer: {_selectedItem.CustomerName}\n" +
-                              $"Amount: {_selectedItem.TotalPrice:C}\n\n" +
-                              "Print functionality will be implemented soon!",
-                              "Print Invoice", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Please select a transaction to print the invoice.", 
+                    "No Transaction Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                if (_printDialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    _printDocument.Print();
+                    
+                    MessageBox.Show($"Invoice #{_selectedItem.InvoiceNumber} has been sent to the printer successfully!", 
+                        "Print Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error printing invoice");
+                MessageBox.Show($"Error printing invoice: {ex.Message}", 
+                    "Print Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void PrintDocument_PrintPage(object? sender, PrintPageEventArgs e)
+        {
+            if (_selectedItem == null || e.Graphics == null) return;
+
+            try
+            {
+                var graphics = e.Graphics;
+                var pageWidth = e.PageBounds.Width;
+                var pageHeight = e.PageBounds.Height;
+                var margin = 60;
+                var yPosition = margin;
+                var leftMargin = margin;
+                var rightMargin = pageWidth - margin;
+                var contentWidth = rightMargin - leftMargin;
+
+                // Define fonts
+                var titleFont = new Font("Segoe UI", 28, FontStyle.Bold);
+                var headerFont = new Font("Segoe UI", 16, FontStyle.Bold);
+                var subHeaderFont = new Font("Segoe UI", 14, FontStyle.Bold);
+                var normalFont = new Font("Segoe UI", 11);
+                var smallFont = new Font("Segoe UI", 10);
+                var boldFont = new Font("Segoe UI", 11, FontStyle.Bold);
+
+                // Colors
+                var primaryColor = Color.FromArgb(59, 130, 246);
+                var darkGray = Color.FromArgb(55, 65, 81);
+                var lightGray = Color.FromArgb(156, 163, 175);
+
+                // Company Header
+                using (var brush = new SolidBrush(primaryColor))
+                {
+                    graphics.FillRectangle(brush, leftMargin, yPosition, contentWidth, 100);
+                }
+
+                using (var brush = new SolidBrush(Color.White))
+                {
+                    graphics.DrawString("INVENTORY PRO", titleFont, brush, leftMargin + 20, yPosition + 20);
+                    graphics.DrawString("Professional Inventory Management System", normalFont, brush, leftMargin + 20, yPosition + 60);
+                }
+
+                yPosition += 120;
+
+                // Invoice Title and Number
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString("SALES INVOICE", headerFont, brush, leftMargin, yPosition);
+                    var invoiceText = $"Invoice #: {_selectedItem.InvoiceNumber}";
+                    var invoiceSize = graphics.MeasureString(invoiceText, headerFont);
+                    graphics.DrawString(invoiceText, headerFont, brush, rightMargin - invoiceSize.Width, yPosition);
+                }
+
+                yPosition += 50;
+
+                // Date and Status
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString($"Date: {_selectedItem.Date:dddd, MMMM dd, yyyy}", normalFont, brush, leftMargin, yPosition);
+                    graphics.DrawString($"Time: {_selectedItem.Date:hh:mm tt}", normalFont, brush, leftMargin, yPosition + 25);
+                    
+                    var statusText = $"Status: {_selectedItem.Status}";
+                    var statusSize = graphics.MeasureString(statusText, boldFont);
+                    graphics.DrawString(statusText, boldFont, brush, rightMargin - statusSize.Width, yPosition);
+                }
+
+                yPosition += 70;
+
+                // Customer Information Section
+                DrawSectionHeader(graphics, "BILL TO:", subHeaderFont, darkGray, leftMargin, yPosition);
+                yPosition += 35;
+
+                using (var lightBrush = new SolidBrush(Color.FromArgb(249, 250, 251)))
+                {
+                    graphics.FillRectangle(lightBrush, leftMargin, yPosition, contentWidth / 2 - 10, 80);
+                }
+
+                using (var pen = new Pen(Color.FromArgb(229, 231, 235)))
+                {
+                    graphics.DrawRectangle(pen, leftMargin, yPosition, contentWidth / 2 - 10, 80);
+                }
+
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString(_selectedItem.CustomerName, boldFont, brush, leftMargin + 15, yPosition + 15);
+                    graphics.DrawString($"Purchase Date: {_selectedItem.Date:MMM dd, yyyy}", normalFont, brush, leftMargin + 15, yPosition + 40);
+                }
+
+                yPosition += 100;
+
+                // Product Details Section
+                DrawSectionHeader(graphics, "PRODUCT DETAILS:", subHeaderFont, darkGray, leftMargin, yPosition);
+                yPosition += 35;
+
+                // Table Header
+                using (var headerBrush = new SolidBrush(Color.FromArgb(243, 244, 246)))
+                {
+                    graphics.FillRectangle(headerBrush, leftMargin, yPosition, contentWidth, 40);
+                }
+
+                using (var pen = new Pen(Color.FromArgb(229, 231, 235)))
+                {
+                    graphics.DrawRectangle(pen, leftMargin, yPosition, contentWidth, 40);
+                }
+
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString("PRODUCT", boldFont, brush, leftMargin + 15, yPosition + 12);
+                    graphics.DrawString("QTY", boldFont, brush, leftMargin + 300, yPosition + 12);
+                    graphics.DrawString("UNIT PRICE", boldFont, brush, leftMargin + 380, yPosition + 12);
+                    graphics.DrawString("TOTAL", boldFont, brush, leftMargin + 500, yPosition + 12);
+                }
+
+                yPosition += 40;
+
+                // Product Row
+                using (var pen = new Pen(Color.FromArgb(229, 231, 235)))
+                {
+                    graphics.DrawRectangle(pen, leftMargin, yPosition, contentWidth, 50);
+                }
+
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString(_selectedItem.ProductName, normalFont, brush, leftMargin + 15, yPosition + 15);
+                    graphics.DrawString(_selectedItem.Quantity.ToString(), normalFont, brush, leftMargin + 315, yPosition + 15);
+                    graphics.DrawString(_selectedItem.UnitPrice.ToString("C"), normalFont, brush, leftMargin + 395, yPosition + 15);
+                    graphics.DrawString(_selectedItem.TotalPrice.ToString("C"), boldFont, brush, leftMargin + 515, yPosition + 15);
+                }
+
+                yPosition += 70;
+
+                // Payment Information
+                DrawSectionHeader(graphics, "PAYMENT INFORMATION:", subHeaderFont, darkGray, leftMargin, yPosition);
+                yPosition += 35;
+
+                using (var lightBrush = new SolidBrush(Color.FromArgb(249, 250, 251)))
+                {
+                    graphics.FillRectangle(lightBrush, leftMargin, yPosition, contentWidth, 60);
+                }
+
+                using (var pen = new Pen(Color.FromArgb(229, 231, 235)))
+                {
+                    graphics.DrawRectangle(pen, leftMargin, yPosition, contentWidth, 60);
+                }
+
+                using (var brush = new SolidBrush(darkGray))
+                {
+                    graphics.DrawString($"Payment Method: {_selectedItem.PaymentMethod}", normalFont, brush, leftMargin + 15, yPosition + 15);
+                    
+                    var totalText = $"TOTAL AMOUNT: {_selectedItem.TotalPrice:C}";
+                    var totalSize = graphics.MeasureString(totalText, headerFont);
+                    graphics.DrawString(totalText, headerFont, brush, rightMargin - totalSize.Width - 15, yPosition + 20);
+                }
+
+                yPosition += 80;
+
+                // Footer
+                yPosition = pageHeight - 120;
+                using (var brush = new SolidBrush(lightGray))
+                {
+                    var footerText = $"Generated on {DateTime.Now:dddd, MMMM dd, yyyy 'at' hh:mm tt} by InventoryPro System";
+                    var footerSize = graphics.MeasureString(footerText, smallFont);
+                    graphics.DrawString(footerText, smallFont, brush, (pageWidth - footerSize.Width) / 2, yPosition);
+                    
+                    graphics.DrawString("Thank you for your business!", smallFont, brush, 
+                        (pageWidth - graphics.MeasureString("Thank you for your business!", smallFont).Width) / 2, yPosition + 25);
+                }
+
+                // Dispose fonts
+                titleFont.Dispose();
+                headerFont.Dispose();
+                subHeaderFont.Dispose();
+                normalFont.Dispose();
+                smallFont.Dispose();
+                boldFont.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during invoice printing");
+            }
+        }
+
+        private void DrawSectionHeader(Graphics graphics, string text, Font font, Color color, int x, int y)
+        {
+            using (var brush = new SolidBrush(color))
+            {
+                graphics.DrawString(text, font, brush, x, y);
+            }
+            
+            using (var pen = new Pen(Color.FromArgb(229, 231, 235), 2))
+            {
+                var textSize = graphics.MeasureString(text, font);
+                graphics.DrawLine(pen, x + (int)textSize.Width + 10, y + (int)(textSize.Height / 2), 
+                    x + 600, y + (int)(textSize.Height / 2));
             }
         }
 
