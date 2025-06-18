@@ -202,7 +202,7 @@ namespace InventoryPro.WinForms.Forms
             btnSales = CreateNavButton("💰 New Sale", 3, false);
             btnSalesHistory = CreateNavButton("📈 Sales History", 4, false);
             btnReports = CreateNavButton("📊 Reports", 5, false);
-           // btnSettings = CreateNavButton("⚙ Settings", 6, false);
+            btnSettings = CreateNavButton("⚙ Settings", 6, false);
             
             navPanel.Controls.AddRange(new Control[] {
                 btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings
@@ -524,8 +524,7 @@ namespace InventoryPro.WinForms.Forms
             var btnProfile = CreateDropdownMenuItem("My Profile", 68, () =>
             {
                 HideUserDropdown();
-                MessageBox.Show("Profile settings will be implemented in future updates.", 
-                    "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                OpenMyProfileForm();
             });
 
             // Settings menu button
@@ -1763,7 +1762,7 @@ namespace InventoryPro.WinForms.Forms
             if (sender is Button clickedButton && clickedButton.Tag is int buttonIndex)
             {
                 // Reset all buttons
-                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports };
+                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings };
                 foreach (var btn in allNavButtons)
                 {
                     UpdateNavButtonStyle(btn, false);
@@ -1795,9 +1794,9 @@ namespace InventoryPro.WinForms.Forms
                     case 5: // Reports
                         OpenReportsForm();
                         break;
-                    //case 6: // Settings
-                    //    OpenSettingsForm();
-                    //    break;
+                    case 6: // Settings
+                        OpenSettingsForm();
+                        break;
                 }
             }
         }
@@ -1898,6 +1897,23 @@ namespace InventoryPro.WinForms.Forms
             {
                 _logger.LogError(ex, "Error opening settings form");
                 MessageBox.Show($"Error opening settings form: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        
+        private void OpenMyProfileForm()
+        {
+            try
+            {
+                using var profileForm = _serviceProvider.GetRequiredService<MyProfileForm>();
+                profileForm.ShowDialog();
+                // Refresh dashboard after closing profile form
+                _ = RefreshDashboardData();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening my profile form");
+                MessageBox.Show($"Error opening profile form: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
