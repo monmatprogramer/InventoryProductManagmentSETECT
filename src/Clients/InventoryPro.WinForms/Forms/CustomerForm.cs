@@ -103,7 +103,7 @@ namespace InventoryPro.WinForms.Forms
 
         private void InitializeComponent()
         {
-            this.Text = "👥 Customer Management - Inventory Pro";
+            this.Text = "Customer Management - Inventory Pro";
             this.Size = new Size(1400, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(245, 247, 250);
@@ -424,6 +424,7 @@ namespace InventoryPro.WinForms.Forms
             this.Controls.Add(pnlSearch);
             this.Controls.Add(toolStrip);
             this.Controls.Add(statusStrip);
+           
         }
 
         private async void InitializeAsync()
@@ -968,7 +969,7 @@ namespace InventoryPro.WinForms.Forms
             btnCancel = new Button();
 
             // Form properties - Modern design with larger size and professional styling
-            this.Text = _existingCustomer == null ? "➕ Add New Customer" : "✏️ Edit Customer";
+            this.Text = _existingCustomer == null ? "Add New Customer" : "Edit Customer";
             this.Size = new Size(620, 680);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -981,7 +982,7 @@ namespace InventoryPro.WinForms.Forms
             // Add form title at the top
             var titleLabel = new Label
             {
-                Text = _existingCustomer == null ? "👥 CREATE NEW CUSTOMER" : "📝 EDIT CUSTOMER DETAILS",
+                Text = _existingCustomer == null ? "CREATE NEW CUSTOMER" : "EDIT CUSTOMER DETAILS",
                 Location = new Point(40, 15),
                 Size = new Size(520, 45),
                 Font = new Font("Segoe UI", 18, FontStyle.Bold),
@@ -1002,14 +1003,38 @@ namespace InventoryPro.WinForms.Forms
             // Customer Name - Improved layout with bigger input and better spacing
             var lblName = new Label
             {
-                Text = "👤 Customer Name:",
+                Text = "",
                 Location = new Point(40, 80),
-                Size = new Size(200, 22),
+                Size = new Size(250, 22),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
+            lblName.Paint += (s, e) => {
+                var label = s as Label;
+                if (label != null)
+                {
+                    var fullText = "Customer Name: *";
+                    var asteriskIndex = fullText.LastIndexOf('*');
+                    if (asteriskIndex >= 0)
+                    {
+                        var beforeAsterisk = fullText.Substring(0, asteriskIndex);
+                        var asterisk = fullText.Substring(asteriskIndex);
+                        
+                        using (var normalBrush = new SolidBrush(Color.FromArgb(44, 62, 80)))
+                        using (var redBrush = new SolidBrush(Color.Red))
+                        {
+                            var normalSize = e.Graphics.MeasureString(beforeAsterisk, label.Font);
+                            e.Graphics.DrawString(beforeAsterisk, label.Font, normalBrush, 0, 0);
+                            e.Graphics.DrawString(asterisk, label.Font, redBrush, normalSize.Width, 0);
+                        }
+                    }
+                }
+            };
 
+       
+
+            this.Controls.Add(lblName);
             txtName = new TextBox
             {
                 Location = new Point(40, 108),
@@ -1114,7 +1139,7 @@ namespace InventoryPro.WinForms.Forms
 
             btnOK = new Button
             {
-                Text = "✅ SAVE CUSTOMER",
+                Text = "SAVE CUSTOMER",
                 Location = new Point(50, 20),
                 Size = new Size(180, 55),
                 DialogResult = DialogResult.OK,
@@ -1160,7 +1185,7 @@ namespace InventoryPro.WinForms.Forms
 
             btnCancel = new Button
             {
-                Text = "❌ CANCEL",
+                Text = "CANCEL",
                 Location = new Point(250, 20),
                 Size = new Size(180, 55),
                 DialogResult = DialogResult.Cancel,
@@ -1207,7 +1232,8 @@ namespace InventoryPro.WinForms.Forms
 
             // Add all controls to form
             this.Controls.AddRange(new Control[] {
-                lblName, txtName,
+                lblName,
+                txtName,
                 lblEmail, txtEmail,
                 lblPhone, txtPhone,
                 lblAddress, txtAddress,
@@ -1236,14 +1262,15 @@ namespace InventoryPro.WinForms.Forms
 
         private void BtnOK_Click(object? sender, EventArgs e)
         {
-            // Validate input
+            // Clear any existing validation errors first
+            ClearValidationErrors();
+
+            var validationErrors = new List<(Control control, string message)>();
+
+            // Validate input with modern inline validation
             if (string.IsNullOrWhiteSpace(txtName.Text))
             {
-                MessageBox.Show("Please enter a customer name.",
-                    "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtName.Focus();
-                this.DialogResult = DialogResult.None;
-                return;
+                validationErrors.Add((txtName, "Customer name is required"));
             }
 
             if (!string.IsNullOrWhiteSpace(txtEmail.Text))
@@ -1254,12 +1281,16 @@ namespace InventoryPro.WinForms.Forms
                 }
                 catch
                 {
-                    MessageBox.Show("Please enter a valid email address.",
-                        "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtEmail.Focus();
-                    this.DialogResult = DialogResult.None;
-                    return;
+                    validationErrors.Add((txtEmail, "Please enter a valid email address"));
                 }
+            }
+
+            // Show validation errors with modern UI
+            if (validationErrors.Any())
+            {
+                ShowValidationErrors(validationErrors);
+                this.DialogResult = DialogResult.None;
+                return;
             }
 
             // Create customer DTO
@@ -1271,6 +1302,223 @@ namespace InventoryPro.WinForms.Forms
                 Phone = txtPhone.Text.Trim(),
                 Address = txtAddress.Text.Trim()
             };
+        }
+
+        private void ShowValidationErrors(List<(Control control, string message)> errors)
+        {
+            foreach (var (control, message) in errors)
+            {
+                // Highlight the control with error styling
+                HighlightErrorControl(control);
+                
+                // Create and show inline error message
+                ShowInlineError(control, message);
+            }
+
+            // Focus on the first error control
+            errors.First().control.Focus();
+
+            // Show modern notification toast
+            ShowValidationToast(errors.Count > 1 
+                ? $"{errors.Count} validation errors found. Please check the highlighted fields." 
+                : errors.First().message);
+        }
+
+        private void HighlightErrorControl(Control control)
+        {
+            // Add red border and background tint
+            control.BackColor = Color.FromArgb(255, 242, 242);
+            
+            // Store original paint handler to restore later
+            if (!control.Tag?.ToString()?.Contains("error-highlighted") ?? true)
+            {
+                control.Tag = "error-highlighted";
+                
+                // Add red border effect
+                control.Paint += ErrorBorderPaint;
+                control.Invalidate();
+            }
+        }
+
+        private void ErrorBorderPaint(object? sender, PaintEventArgs e)
+        {
+            var control = sender as Control;
+            if (control != null)
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 53, 69), 2))
+                {
+                    var rect = new Rectangle(0, 0, control.Width - 1, control.Height - 1);
+                    e.Graphics.DrawRectangle(pen, rect);
+                }
+            }
+        }
+
+        private void ShowInlineError(Control control, string message)
+        {
+            // Remove existing error label if any
+            var existingError = this.Controls.OfType<Label>()
+                .FirstOrDefault(l => l.Name == $"error_{control.Name}");
+            if (existingError != null)
+            {
+                this.Controls.Remove(existingError);
+                existingError.Dispose();
+            }
+
+            // Create modern error label
+            var errorLabel = new Label
+            {
+                Name = $"error_{control.Name}",
+                Text = $"⚠️ {message}",
+                Location = new Point(control.Left, control.Bottom + 5),
+                Size = new Size(control.Width, 20),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 53, 69),
+                BackColor = Color.Transparent,
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            this.Controls.Add(errorLabel);
+            errorLabel.BringToFront();
+
+            // Auto-remove error after user starts typing
+            if (control is TextBox textBox)
+            {
+                textBox.TextChanged += (s, e) => ClearFieldError(control);
+            }
+        }
+
+        private void ShowValidationToast(string message)
+        {
+            // Create modern toast notification
+            var toast = new Form
+            {
+                FormBorderStyle = FormBorderStyle.None,
+                BackColor = Color.FromArgb(220, 53, 69),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                StartPosition = FormStartPosition.Manual,
+                TopMost = true,
+                ShowInTaskbar = false,
+                Size = new Size(400, 80)
+            };
+
+            // Position at top of parent form
+            var parentLocation = this.PointToScreen(Point.Empty);
+            toast.Location = new Point(
+                parentLocation.X + (this.Width - toast.Width) / 2,
+                parentLocation.Y + 60
+            );
+
+            // Add content to toast
+            var iconLabel = new Label
+            {
+                Text = "⚠️",
+                Font = new Font("Segoe UI", 16),
+                ForeColor = Color.White,
+                Location = new Point(15, 25),
+                Size = new Size(30, 30),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            var messageLabel = new Label
+            {
+                Text = message,
+                Location = new Point(50, 15),
+                Size = new Size(335, 50),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                ForeColor = Color.White,
+                TextAlign = ContentAlignment.MiddleLeft,
+                AutoSize = false
+            };
+
+            toast.Controls.AddRange(new Control[] { iconLabel, messageLabel });
+
+            // Round corners
+            toast.Paint += (s, e) =>
+            {
+                var path = new GraphicsPath();
+                var rect = new Rectangle(0, 0, toast.Width, toast.Height);
+                int radius = 10;
+                path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+                path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
+                path.AddArc(rect.X + rect.Width - radius, rect.Y + rect.Height - radius, radius, radius, 0, 90);
+                path.AddArc(rect.X, rect.Y + rect.Height - radius, radius, radius, 90, 90);
+                path.CloseFigure();
+                toast.Region = new Region(path);
+            };
+
+            // Show with fade-in animation
+            toast.Show();
+            toast.Opacity = 0;
+
+            var fadeTimer = new System.Windows.Forms.Timer { Interval = 30 };
+            var opacity = 0.0;
+            fadeTimer.Tick += (s, e) =>
+            {
+                opacity += 0.05;
+                toast.Opacity = Math.Min(opacity, 0.95);
+                if (opacity >= 0.95)
+                {
+                    fadeTimer.Stop();
+                    fadeTimer.Dispose();
+                }
+            };
+            fadeTimer.Start();
+
+            // Auto-hide after 3 seconds with fade-out
+            var hideTimer = new System.Windows.Forms.Timer { Interval = 3000 };
+            hideTimer.Tick += (s, e) =>
+            {
+                hideTimer.Stop();
+                hideTimer.Dispose();
+
+                var fadeOutTimer = new System.Windows.Forms.Timer { Interval = 30 };
+                fadeOutTimer.Tick += (s2, e2) =>
+                {
+                    toast.Opacity -= 0.05;
+                    if (toast.Opacity <= 0)
+                    {
+                        fadeOutTimer.Stop();
+                        fadeOutTimer.Dispose();
+                        toast.Close();
+                        toast.Dispose();
+                    }
+                };
+                fadeOutTimer.Start();
+            };
+            hideTimer.Start();
+        }
+
+        private void ClearFieldError(Control control)
+        {
+            // Remove error styling
+            if (control.Tag?.ToString()?.Contains("error-highlighted") ?? false)
+            {
+                control.BackColor = Color.FromArgb(255, 255, 255);
+                control.Paint -= ErrorBorderPaint;
+                control.Tag = null;
+                control.Invalidate();
+            }
+
+            // Remove error label
+            var errorLabel = this.Controls.OfType<Label>()
+                .FirstOrDefault(l => l.Name == $"error_{control.Name}");
+            if (errorLabel != null)
+            {
+                this.Controls.Remove(errorLabel);
+                errorLabel.Dispose();
+            }
+        }
+
+        private void ClearValidationErrors()
+        {
+            // Clear all error styling and labels
+            var textBoxes = new[] { txtName, txtEmail, txtPhone, txtAddress };
+            foreach (var textBox in textBoxes)
+            {
+                ClearFieldError(textBox);
+            }
         }
     }
 }
