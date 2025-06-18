@@ -328,6 +328,7 @@ namespace InventoryPro.WinForms.Forms
             };
             dgvCustomers.DoubleClick += DgvCustomers_DoubleClick;
             dgvCustomers.RowPostPaint += DgvCustomers_RowPostPaint;
+            dgvCustomers.CellFormatting += DgvCustomers_CellFormatting;
 
             // Create pagination panel
             pnlPagination = new Panel
@@ -586,6 +587,11 @@ namespace InventoryPro.WinForms.Forms
                     orderCountColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     orderCountColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
                     orderCountColumn.DefaultCellStyle.ForeColor = Color.FromArgb(0, 123, 255);
+                    
+                    // Force center alignment for all cell styles
+                    orderCountColumn.CellTemplate.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    orderCountColumn.CellTemplate.Style.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                    orderCountColumn.CellTemplate.Style.ForeColor = Color.FromArgb(0, 123, 255);
                 }
 
                 var lastOrderDateColumn = dgvCustomers.Columns["LastOrderDate"];
@@ -812,6 +818,21 @@ namespace InventoryPro.WinForms.Forms
                 };
                 
                 e.Graphics.DrawString(rowNumber, font, brush, bounds, sf);
+            }
+        }
+
+        private void DgvCustomers_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+        {
+            var dgv = sender as DataGridView;
+            if (dgv == null) return;
+
+            // Force center alignment for OrderCount column regardless of row style
+            if (dgv.Columns[e.ColumnIndex].Name == "OrderCount")
+            {
+                var cell = dgv.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                cell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                cell.Style.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                cell.Style.ForeColor = Color.FromArgb(0, 123, 255);
             }
         }
 
