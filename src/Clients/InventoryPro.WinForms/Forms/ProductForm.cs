@@ -1,9 +1,25 @@
-﻿using InventoryPro.Shared.DTOs;
+﻿using CsvHelper;
+using InventoryPro.Shared.DTOs;
 using InventoryPro.WinForms.Dialogs;
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
+using System.Globalization;
+using System.Text;
+using BaseColor = iTextSharp.text.BaseColor;
+using Element = iTextSharp.text.Element;
+using FontFactory = iTextSharp.text.FontFactory;
+using LicenseContext = OfficeOpenXml.LicenseContext;
+using PageSize = iTextSharp.text.PageSize;
+using Paragraph = iTextSharp.text.Paragraph;
+using PdfDocument = iTextSharp.text.Document;
+using PdfPCell = iTextSharp.text.pdf.PdfPCell;
+using PdfPTable = iTextSharp.text.pdf.PdfPTable;
+using PdfWriter = iTextSharp.text.pdf.PdfWriter;
+using Phrase = iTextSharp.text.Phrase;
 
 
 namespace InventoryPro.WinForms.Forms
@@ -114,7 +130,8 @@ namespace InventoryPro.WinForms.Forms
             this.Size = new Size(1400, 800);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(245, 247, 250);
-            this.Font = new Font("Segoe UI", 9F);
+            //this.Font = new Font("Segoe UI", 9F);
+            this.Font = new System.Drawing.Font("Segoe UI", 9F);
 
             // Create modern toolbar with better styling
             toolStrip = new ToolStrip
@@ -132,7 +149,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "➕ Add Product",
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(40, 167, 69),
                 Margin = new Padding(5, 0, 15, 0),
                 Padding = new Padding(15, 8, 15, 8)
@@ -143,7 +160,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "✏️ Edit Product",
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 123, 255),
                 Margin = new Padding(5, 0, 15, 0),
                 Padding = new Padding(15, 8, 15, 8)
@@ -154,7 +171,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "🗑️ Delete",
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(220, 53, 69),
                 Margin = new Padding(5, 0, 15, 0),
                 Padding = new Padding(15, 8, 15, 8)
@@ -172,7 +189,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "🔄 Refresh",
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(23, 162, 184),
                 Margin = new Padding(5, 0, 15, 0),
                 Padding = new Padding(15, 8, 15, 8)
@@ -183,7 +200,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "📤 Export Data",
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(102, 16, 242),
                 Margin = new Padding(5, 0, 15, 0),
                 Padding = new Padding(15, 8, 15, 8)
@@ -210,7 +227,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "🔍 Search Products:",
                 Location = new Point(25, 20),
                 Size = new Size(140, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Color.FromArgb(52, 58, 64)
             };
 
@@ -219,7 +236,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(175, 18),
                 Size = new Size(280, 28),
                 PlaceholderText = "Search by name, SKU, or description...",
-                Font = new Font("Segoe UI", 10),
+                Font = new System.Drawing.Font("Segoe UI", 10),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.White
             };
@@ -231,7 +248,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "📂 Category:",
                 Location = new Point(480, 20),
                 Size = new Size(100, 25),
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                 ForeColor = Color.FromArgb(52, 58, 64)
             };
 
@@ -240,7 +257,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(590, 18),
                 Size = new Size(200, 28),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10),
+                Font = new System.Drawing.Font("Segoe UI", 10),
                 BackColor = Color.White
             };
             cboCategory.SelectedIndexChanged += CboCategory_SelectedIndexChanged;
@@ -254,7 +271,7 @@ namespace InventoryPro.WinForms.Forms
                 BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnSearch.FlatAppearance.BorderSize = 0;
@@ -269,7 +286,7 @@ namespace InventoryPro.WinForms.Forms
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             btnClear.FlatAppearance.BorderSize = 0;
@@ -303,7 +320,7 @@ namespace InventoryPro.WinForms.Forms
                 EnableHeadersVisualStyles = false,
                 RowHeadersVisible = true,
                 RowHeadersWidth = 60,
-                Font = new Font("Segoe UI", 10),
+                Font = new System.Drawing.Font("Segoe UI", 10),
                 GridColor = Color.FromArgb(230, 235, 241),
                 Margin = new Padding(20),
                 RowTemplate = { Height = 55 },
@@ -317,7 +334,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     BackColor = Color.FromArgb(52, 58, 64),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                    Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     SelectionBackColor = Color.FromArgb(52, 58, 64),
                     Padding = new Padding(15, 18, 15, 18),
@@ -331,7 +348,7 @@ namespace InventoryPro.WinForms.Forms
                     SelectionForeColor = Color.White,
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     Padding = new Padding(12, 16, 12, 16),
-                    Font = new Font("Segoe UI", 10),
+                    Font = new System.Drawing.Font("Segoe UI", 10),
                     WrapMode = DataGridViewTriState.False
                 },
                 AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
@@ -342,7 +359,7 @@ namespace InventoryPro.WinForms.Forms
                     SelectionForeColor = Color.White,
                     Alignment = DataGridViewContentAlignment.MiddleLeft,
                     Padding = new Padding(12, 16, 12, 16),
-                    Font = new Font("Segoe UI", 10),
+                    Font = new System.Drawing.Font("Segoe UI", 10),
                     WrapMode = DataGridViewTriState.False
                 }
             };
@@ -357,21 +374,21 @@ namespace InventoryPro.WinForms.Forms
             {
                 BackColor = Color.FromArgb(248, 249, 250),
                 ForeColor = Color.FromArgb(73, 80, 87),
-                Font = new Font("Segoe UI", 9),
+                Font = new System.Drawing.Font("Segoe UI", 9),
                 SizingGrip = false
             };
             
             lblStatus = new ToolStripStatusLabel 
             { 
                 Text = "Ready",
-                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 9, FontStyle.Bold),
                 ForeColor = Color.FromArgb(40, 167, 69)
             };
             
             lblRecordCount = new ToolStripStatusLabel 
             { 
                 Text = "0 records",
-                Font = new Font("Segoe UI", 9),
+                Font = new System.Drawing.Font("Segoe UI", 9),
                 ForeColor = Color.FromArgb(73, 80, 87),
                 Spring = true,
                 TextAlign = ContentAlignment.MiddleRight
@@ -395,7 +412,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(20, 20),
                 Size = new Size(100, 25),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 9F, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -404,7 +421,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(125, 18),
                 Size = new Size(80, 28),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9F),
+                Font = new System.Drawing.Font("Segoe UI", 9F),
                 BackColor = Color.White,
                 ForeColor = Color.FromArgb(52, 58, 64)
             };
@@ -418,7 +435,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(230, 20),
                 Size = new Size(200, 25),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 9F, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleLeft
             };
 
@@ -593,7 +610,7 @@ namespace InventoryPro.WinForms.Forms
                 {
                     BackColor = Color.FromArgb(52, 58, 64),
                     ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                     Alignment = DataGridViewContentAlignment.MiddleCenter,
                     SelectionBackColor = Color.FromArgb(52, 58, 64),
                     Padding = new Padding(5, 5, 5, 5),
@@ -608,7 +625,7 @@ namespace InventoryPro.WinForms.Forms
                     {
                         BackColor = Color.FromArgb(52, 58, 64),
                         ForeColor = Color.White,
-                        Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                        Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                         Alignment = DataGridViewContentAlignment.MiddleCenter,
                         SelectionBackColor = Color.FromArgb(52, 58, 64),
                         Padding = new Padding(5, 5, 5, 5)
@@ -621,7 +638,7 @@ namespace InventoryPro.WinForms.Forms
                     skuColumn.HeaderText = "🏷️ SKU";
                     skuColumn.MinimumWidth = 80;
                     skuColumn.FillWeight = 15; // 15% of total width (increased since no ID column)
-                    skuColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Regular);
+                    skuColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9, FontStyle.Regular);
                     skuColumn.DefaultCellStyle.ForeColor = Color.FromArgb(108, 117, 125);
                     skuColumn.DefaultCellStyle.BackColor = Color.FromArgb(253, 254, 255);
                 }
@@ -632,7 +649,7 @@ namespace InventoryPro.WinForms.Forms
                     nameColumn.HeaderText = "📦 Product Name";
                     nameColumn.MinimumWidth = 150;
                     nameColumn.FillWeight = 30; // 30% of total width - largest column
-                    nameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                    nameColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold);
                     nameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(44, 62, 80);
                 }
 
@@ -644,7 +661,7 @@ namespace InventoryPro.WinForms.Forms
                     priceColumn.MinimumWidth = 80;
                     priceColumn.FillWeight = 13; // 13% of total width
                     priceColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
-                    priceColumn.DefaultCellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                    priceColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold);
                     priceColumn.DefaultCellStyle.ForeColor = Color.FromArgb(46, 125, 50);
                     priceColumn.DefaultCellStyle.BackColor = Color.FromArgb(248, 255, 248);
                 }
@@ -656,7 +673,7 @@ namespace InventoryPro.WinForms.Forms
                     stockColumn.MinimumWidth = 70;
                     stockColumn.FillWeight = 10; // 10% of total width (reduced to make room for MinStock)
                     stockColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    stockColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                    stockColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9, FontStyle.Bold);
                 }
 
                 var minStockColumn = dgvProducts.Columns["MinStock"];
@@ -666,7 +683,7 @@ namespace InventoryPro.WinForms.Forms
                     minStockColumn.MinimumWidth = 70;
                     minStockColumn.FillWeight = 8; // 8% of total width
                     minStockColumn.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    minStockColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+                    minStockColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9, FontStyle.Bold);
                     minStockColumn.DefaultCellStyle.ForeColor = Color.FromArgb(255, 140, 0);
                     minStockColumn.DefaultCellStyle.BackColor = Color.FromArgb(255, 248, 240);
                     minStockColumn.Visible = true; // Make sure it's visible
@@ -678,7 +695,7 @@ namespace InventoryPro.WinForms.Forms
                     categoryNameColumn.HeaderText = "📂 Category";
                     categoryNameColumn.MinimumWidth = 90;
                     categoryNameColumn.FillWeight = 13; // 13% of total width
-                    categoryNameColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
+                    categoryNameColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9);
                     categoryNameColumn.DefaultCellStyle.ForeColor = Color.FromArgb(102, 16, 242);
                     categoryNameColumn.DefaultCellStyle.BackColor = Color.FromArgb(248, 245, 255);
                 }
@@ -689,7 +706,7 @@ namespace InventoryPro.WinForms.Forms
                     descriptionColumn.HeaderText = "📝 Description";
                     descriptionColumn.MinimumWidth = 120;
                     descriptionColumn.FillWeight = 26; // 26% of total width
-                    descriptionColumn.DefaultCellStyle.Font = new Font("Segoe UI", 9);
+                    descriptionColumn.DefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9);
                     descriptionColumn.DefaultCellStyle.ForeColor = Color.FromArgb(73, 80, 87);
                     descriptionColumn.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
                 }
@@ -761,12 +778,12 @@ namespace InventoryPro.WinForms.Forms
             };
 
             // Get the row header rectangle
-            var headerBounds = new Rectangle(e.RowBounds.Left, e.RowBounds.Top, 
+            var headerBounds = new System.Drawing.Rectangle(e.RowBounds.Left, e.RowBounds.Top, 
                 grid.RowHeadersWidth, e.RowBounds.Height);
 
             // Draw the row number with modern styling
-            using (var headerBrush = new SolidBrush(Color.White))
-            using (var font = new Font("Segoe UI", 10, FontStyle.Bold))
+            using (var headerBrush = new SolidBrush(System.Drawing.Color.White))
+            using (var font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold))
             {
                 e.Graphics.DrawString(rowNumber, font, headerBrush, headerBounds, centerFormat);
             }
@@ -879,7 +896,7 @@ namespace InventoryPro.WinForms.Forms
                     e.Value = $"✅ {stock}";
                 }
 
-                e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                e.CellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold);
                 e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                 e.FormattingApplied = true;
             }
@@ -889,12 +906,12 @@ namespace InventoryPro.WinForms.Forms
                 if (product.Stock <= 0)
                 {
                     e.CellStyle.ForeColor = Color.FromArgb(108, 117, 125);
-                    e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Italic);
+                    e.CellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Italic);
                 }
                 else
                 {
                     e.CellStyle.ForeColor = Color.FromArgb(44, 62, 80);
-                    e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+                    e.CellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold);
                 }
             }
 
@@ -1081,11 +1098,528 @@ namespace InventoryPro.WinForms.Forms
             await LoadProductsAsync();
         }
 
-        private void BtnExport_Click(object? sender, EventArgs e)
+        private async void BtnExport_Click(object? sender, EventArgs e)
         {
-            // TODO: Implement export functionality
-            MessageBox.Show("Export functionality will be implemented soon.",
-                "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (_products == null || _products.Count == 0)
+            {
+                MessageBox.Show("No data available to export. Please load some products first.",
+                    "No Data", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            try
+            {
+                using (var exportDialog = new ProductExportDialog())
+                {
+                    if (exportDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        lblStatus.Text = "Exporting data...";
+                        
+                        var exportOptions = exportDialog.ExportOptions;
+                        var success = false;
+                        
+                        switch (exportOptions.Format)
+                        {
+                            case ExportFormat.CSV:
+                                success = await ExportToCsvAsync(exportOptions);
+                                break;
+                            case ExportFormat.Excel:
+                                success = await ExportToExcelAsync(exportOptions);
+                                break;
+                            case ExportFormat.PDF:
+                                success = await ExportToPdfAsync(exportOptions);
+                                break;
+                        }
+
+                        if (success)
+                        {
+                            lblStatus.Text = "Export completed successfully";
+                            
+                            var result = MessageBox.Show(
+                                $"Export completed successfully!\n\nFile saved to: {exportOptions.FilePath}\n\nWould you like to open the file location?",
+                                "Export Successful", 
+                                MessageBoxButtons.YesNo, 
+                                MessageBoxIcon.Information);
+                            
+                            if (result == DialogResult.Yes)
+                            {
+                                System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{exportOptions.FilePath}\"");
+                            }
+                        }
+                        else
+                        {
+                            lblStatus.Text = "Export failed";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during export operation");
+                lblStatus.Text = "Export failed";
+                MessageBox.Show($"Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async Task<bool> ExportToCsvAsync(ExportOptions options)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (var writer = new StringWriter())
+                    using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+                    {
+                        // Configure CSV options
+                        csv.Context.Configuration.HasHeaderRecord = options.IncludeHeaders;
+                        
+                        // Write headers if requested
+                        if (options.IncludeHeaders)
+                        {
+                            csv.WriteField("SKU");
+                            csv.WriteField("Product Name");
+                            csv.WriteField("Description");
+                            csv.WriteField("Category");
+                            csv.WriteField("Price");
+                            csv.WriteField("Current Stock");
+                            csv.WriteField("Minimum Stock");
+                            csv.WriteField("Stock Status");
+                            csv.WriteField("Stock Value");
+                            if (options.IncludeTimestamp)
+                            {
+                                csv.WriteField("Export Date");
+                            }
+                            csv.NextRecord();
+                        }
+
+                        // Write data rows
+                        foreach (var product in _products)
+                        {
+                            csv.WriteField(product.SKU);
+                            csv.WriteField(product.Name);
+                            csv.WriteField(product.Description);
+                            csv.WriteField(product.CategoryName);
+                            csv.WriteField(product.Price.ToString("C2"));
+                            csv.WriteField(product.Stock.ToString());
+                            csv.WriteField(product.MinStock.ToString());
+                            csv.WriteField(GetStockStatus(product));
+                            csv.WriteField((product.Price * product.Stock).ToString("C2"));
+                            if (options.IncludeTimestamp)
+                            {
+                                csv.WriteField(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                            }
+                            csv.NextRecord();
+                        }
+
+                        // Write summary if requested
+                        if (options.IncludeSummary)
+                        {
+                            csv.NextRecord();
+                            csv.WriteField("SUMMARY");
+                            csv.NextRecord();
+                            csv.WriteField("Total Products:");
+                            csv.WriteField(_products.Count.ToString());
+                            csv.NextRecord();
+                            csv.WriteField("Total Stock Value:");
+                            csv.WriteField(_products.Sum(p => p.Price * p.Stock).ToString("C2"));
+                            csv.NextRecord();
+                            csv.WriteField("Low Stock Items:");
+                            csv.WriteField(_products.Count(p => p.Stock <= p.MinStock).ToString());
+                            csv.NextRecord();
+                            csv.WriteField("Out of Stock Items:");
+                            csv.WriteField(_products.Count(p => p.Stock == 0).ToString());
+                        }
+
+                        File.WriteAllText(options.FilePath, writer.ToString(), Encoding.UTF8);
+                    }
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting to CSV");
+                MessageBox.Show($"CSV Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private async Task<bool> ExportToExcelAsync(ExportOptions options)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    // Set EPPlus license context
+                    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                    
+                    using (var package = new ExcelPackage())
+                    {
+                        var worksheet = package.Workbook.Worksheets.Add("Products");
+                        
+                        // Set up headers
+                        var headers = new[] 
+                        { 
+                            "SKU", "Product Name", "Description", "Category", 
+                            "Price", "Current Stock", "Minimum Stock", 
+                            "Stock Status", "Stock Value"
+                        };
+                        
+                        if (options.IncludeTimestamp)
+                        {
+                            headers = headers.Concat(new[] { "Export Date" }).ToArray();
+                        }
+
+                        // Apply header styling
+                        for (int i = 0; i < headers.Length; i++)
+                        {
+                            worksheet.Cells[1, i + 1].Value = headers[i];
+                            worksheet.Cells[1, i + 1].Style.Font.Bold = true;
+                            worksheet.Cells[1, i + 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[1, i + 1].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(52, 58, 64));
+                            worksheet.Cells[1, i + 1].Style.Font.Color.SetColor(Color.White);
+                            worksheet.Cells[1, i + 1].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                            worksheet.Cells[1, i + 1].Style.VerticalAlignment = ExcelVerticalAlignment.Center;
+                        }
+
+                        // Add data rows
+                        int row = 2;
+                        foreach (var product in _products)
+                        {
+                            int col = 1;
+                            worksheet.Cells[row, col++].Value = product.SKU;
+                            worksheet.Cells[row, col++].Value = product.Name;
+                            worksheet.Cells[row, col++].Value = product.Description;
+                            worksheet.Cells[row, col++].Value = product.CategoryName;
+                            worksheet.Cells[row, col++].Value = product.Price;
+                            worksheet.Cells[row, col++].Value = product.Stock;
+                            worksheet.Cells[row, col++].Value = product.MinStock;
+                            worksheet.Cells[row, col++].Value = GetStockStatus(product);
+                            worksheet.Cells[row, col++].Value = product.Price * product.Stock;
+                            
+                            if (options.IncludeTimestamp)
+                            {
+                                worksheet.Cells[row, col++].Value = DateTime.Now;
+                                worksheet.Cells[row, col - 1].Style.Numberformat.Format = "yyyy-mm-dd hh:mm:ss";
+                            }
+
+                            // Apply conditional formatting for stock status
+                            var stockStatusCell = worksheet.Cells[row, 8]; // Stock Status column
+                            var stockValueCell = worksheet.Cells[row, 9]; // Stock Value column
+                            
+                            if (product.Stock == 0)
+                            {
+                                stockStatusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                stockStatusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 235, 238));
+                                stockStatusCell.Style.Font.Color.SetColor(Color.FromArgb(220, 53, 69));
+                            }
+                            else if (product.Stock <= product.MinStock)
+                            {
+                                stockStatusCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                                stockStatusCell.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(255, 243, 205));
+                                stockStatusCell.Style.Font.Color.SetColor(Color.FromArgb(255, 140, 0));
+                            }
+
+                            // Format currency columns
+                            worksheet.Cells[row, 5].Style.Numberformat.Format = "$#,##0.00"; // Price
+                            worksheet.Cells[row, 9].Style.Numberformat.Format = "$#,##0.00"; // Stock Value
+
+                            row++;
+                        }
+
+                        // Add summary section if requested
+                        if (options.IncludeSummary)
+                        {
+                            row += 2; // Add some spacing
+                            
+                            // Summary header
+                            worksheet.Cells[row, 1].Value = "SUMMARY";
+                            worksheet.Cells[row, 1].Style.Font.Bold = true;
+                            worksheet.Cells[row, 1].Style.Font.Size = 14;
+                            worksheet.Cells[row, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[row, 1].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(25, 135, 84));
+                            worksheet.Cells[row, 1].Style.Font.Color.SetColor(Color.White);
+                            worksheet.Cells[row, 1, row, 3].Merge = true;
+                            worksheet.Cells[row, 1, row, 3].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                            row++;
+
+                            // Summary data
+                            worksheet.Cells[row, 1].Value = "Total Products:";
+                            worksheet.Cells[row, 2].Value = _products.Count;
+                            worksheet.Cells[row, 1].Style.Font.Bold = true;
+                            row++;
+
+                            worksheet.Cells[row, 1].Value = "Total Stock Value:";
+                            worksheet.Cells[row, 2].Value = _products.Sum(p => p.Price * p.Stock);
+                            worksheet.Cells[row, 2].Style.Numberformat.Format = "$#,##0.00";
+                            worksheet.Cells[row, 1].Style.Font.Bold = true;
+                            row++;
+
+                            worksheet.Cells[row, 1].Value = "Low Stock Items:";
+                            worksheet.Cells[row, 2].Value = _products.Count(p => p.Stock <= p.MinStock);
+                            worksheet.Cells[row, 1].Style.Font.Bold = true;
+                            row++;
+
+                            worksheet.Cells[row, 1].Value = "Out of Stock Items:";
+                            worksheet.Cells[row, 2].Value = _products.Count(p => p.Stock == 0);
+                            worksheet.Cells[row, 1].Style.Font.Bold = true;
+                        }
+
+                        // Auto-fit columns
+                        worksheet.Cells.AutoFitColumns();
+                        
+                        // Add borders to all data
+                        var dataRange = worksheet.Cells[1, 1, row, headers.Length];
+                        dataRange.Style.Border.Top.Style = ExcelBorderStyle.Thin;
+                        dataRange.Style.Border.Left.Style = ExcelBorderStyle.Thin;
+                        dataRange.Style.Border.Right.Style = ExcelBorderStyle.Thin;
+                        dataRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+
+                        // Save the file
+                        var fileInfo = new FileInfo(options.FilePath);
+                        package.SaveAs(fileInfo);
+                    }
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting to Excel");
+                MessageBox.Show($"Excel Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private async Task<bool> ExportToPdfAsync(ExportOptions options)
+        {
+            try
+            {
+                await Task.Run(() =>
+                {
+                    using (var stream = new FileStream(options.FilePath, FileMode.Create))
+                    {
+                        var document = new PdfDocument(PageSize.A4.Rotate()); // Landscape for better table fit
+                        var writer = PdfWriter.GetInstance(document, stream);
+                        
+                        document.Open();
+
+                        // Add title
+                        var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(169, 169, 169));//black
+                        var title = new Paragraph("📦 INVENTORY PRODUCTS REPORT", titleFont)
+                        {
+                            Alignment = Element.ALIGN_CENTER,
+                            SpacingAfter = 10f
+                        };
+                        document.Add(title);
+
+                        // Add export info
+                        var infoFont = FontFactory.GetFont(FontFactory.HELVETICA, 10, new BaseColor(128, 128, 128));//gray
+                        var exportInfo = new Paragraph($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Products: {_products.Count}", infoFont)
+                        {
+                            Alignment = Element.ALIGN_CENTER,
+                            SpacingAfter = 20f
+                        };
+                        document.Add(exportInfo);
+
+                        // Create table
+                        var table = new PdfPTable(8) { WidthPercentage = 100 };
+                        
+                        // Set column widths
+                        float[] widths = { 12f, 25f, 20f, 12f, 10f, 8f, 8f, 12f };
+                        table.SetWidths(widths);
+
+                        // Add headers
+                        var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, new BaseColor(255, 255, 255));//white
+                        var headers = new[] { "SKU", "Product Name", "Category", "Price", "Stock", "Min Stock", "Status", "Stock Value" };
+                        
+                        foreach (var header in headers)
+                        {
+                            var cell = new PdfPCell(new Phrase(header, headerFont))
+                            {
+                                BackgroundColor = new BaseColor(52, 58, 64),
+                                HorizontalAlignment = Element.ALIGN_CENTER,
+                                VerticalAlignment = Element.ALIGN_MIDDLE,
+                                Padding = 8f
+                            };
+                            table.AddCell(cell);
+                        }
+
+                        // Add data rows
+                        var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(0, 0, 0));//black
+                        var alternateColor = new BaseColor(248, 250, 252);
+                        
+                        for (int i = 0; i < _products.Count; i++)
+                        {
+                            var product = _products[i];
+                            var isAlternate = i % 2 == 1;
+                            var backgroundColor = isAlternate ? alternateColor : new BaseColor(255, 255, 255);
+
+                            // SKU
+                            var skuCell = new PdfPCell(new Phrase(product.SKU ?? "", dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_LEFT
+                            };
+                            table.AddCell(skuCell);
+
+                            // Product Name
+                            var nameCell = new PdfPCell(new Phrase(product.Name ?? "", dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_LEFT
+                            };
+                            table.AddCell(nameCell);
+
+                            // Category
+                            var categoryCell = new PdfPCell(new Phrase(product.CategoryName ?? "", dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_LEFT
+                            };
+                            table.AddCell(categoryCell);
+
+                            // Price
+                            var priceCell = new PdfPCell(new Phrase(product.Price.ToString("C2"), dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_RIGHT
+                            };
+                            table.AddCell(priceCell);
+
+                            // Stock
+                            var stockCell = new PdfPCell(new Phrase(product.Stock.ToString(), dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_CENTER
+                            };
+                            table.AddCell(stockCell);
+
+                            // Min Stock
+                            var minStockCell = new PdfPCell(new Phrase(product.MinStock.ToString(), dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_CENTER
+                            };
+                            table.AddCell(minStockCell);
+
+                            // Status with color coding
+                            var status = GetStockStatus(product);
+                            var statusFont = dataFont;
+                            if (product.Stock == 0)
+                            {
+                                statusFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(255, 0, 0));
+                            }
+                            else if (product.Stock <= product.MinStock)
+                            {
+                                statusFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(255, 140, 0));
+                            }
+
+                            var statusCell = new PdfPCell(new Phrase(status, statusFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_CENTER
+                            };
+                            table.AddCell(statusCell);
+
+                            // Stock Value
+                            var stockValueCell = new PdfPCell(new Phrase((product.Price * product.Stock).ToString("C2"), dataFont))
+                            {
+                                BackgroundColor = backgroundColor,
+                                Padding = 5f,
+                                HorizontalAlignment = Element.ALIGN_RIGHT
+                            };
+                            table.AddCell(stockValueCell);
+                        }
+
+                        document.Add(table);
+
+                        // Add summary if requested
+                        if (options.IncludeSummary)
+                        {
+                            document.Add(new Paragraph(" ")); // Spacing
+                            
+                            var summaryTitle = new Paragraph("📊 SUMMARY", titleFont)
+                            {
+                                Alignment = Element.ALIGN_CENTER,
+                                SpacingBefore = 20f,
+                                SpacingAfter = 10f
+                            };
+                            document.Add(summaryTitle);
+
+                            var summaryTable = new PdfPTable(2) { WidthPercentage = 50 };
+                            summaryTable.SetWidths(new float[] { 70f, 30f });
+
+                            var summaryHeaderFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(255, 255, 255));
+                            var summaryDataFont = FontFactory.GetFont(FontFactory.HELVETICA, 10, new BaseColor(0, 0, 0));
+
+                            // Summary rows
+                            var summaryData = new[]
+                            {
+                                ("Total Products:", _products.Count.ToString()),
+                                ("Total Stock Value:", _products.Sum(p => p.Price * p.Stock).ToString("C2")),
+                                ("Low Stock Items:", _products.Count(p => p.Stock <= p.MinStock).ToString()),
+                                ("Out of Stock Items:", _products.Count(p => p.Stock == 0).ToString())
+                            };
+
+                            foreach (var (label, value) in summaryData)
+                            {
+                                var labelCell = new PdfPCell(new Phrase(label, summaryDataFont))
+                                {
+                                    BackgroundColor = new BaseColor(248, 249, 250),
+                                    Padding = 8f,
+                                    HorizontalAlignment = Element.ALIGN_LEFT
+                                };
+                                summaryTable.AddCell(labelCell);
+
+                                var valueCell = new PdfPCell(new Phrase(value, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(0, 0, 0))))
+                                {
+                                    BackgroundColor = new BaseColor(255, 255, 255),
+                                    Padding = 8f,
+                                    HorizontalAlignment = Element.ALIGN_RIGHT
+                                };
+                                summaryTable.AddCell(valueCell);
+                            }
+
+                            summaryTable.HorizontalAlignment = Element.ALIGN_CENTER;
+                            document.Add(summaryTable);
+                        }
+
+                        document.Close();
+                    }
+                });
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting to PDF");
+                MessageBox.Show($"PDF Export failed: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private string GetStockStatus(ProductDto product)
+        {
+            if (product.Stock == 0)
+                return "OUT OF STOCK";
+            else if (product.Stock <= product.MinStock)
+                return "LOW STOCK";
+            else if (product.Stock <= product.MinStock * 2)
+                return "MODERATE";
+            else
+                return "IN STOCK";
         }
 
         private async void BtnSearch_Click(object? sender, EventArgs e)
@@ -1189,7 +1723,7 @@ namespace InventoryPro.WinForms.Forms
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.FromArgb(0, 123, 255),
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 9F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 UseVisualStyleBackColor = false
             };
@@ -1348,7 +1882,7 @@ namespace InventoryPro.WinForms.Forms
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.BackColor = Color.FromArgb(235, 240, 245);
-            this.Font = new Font("Segoe UI", 9F);
+            this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.Padding = new Padding(30, 30, 30, 30);
 
             // Add form title at the top
@@ -1357,15 +1891,15 @@ namespace InventoryPro.WinForms.Forms
                 Text = _existingProduct == null ? "🛍️ CREATE NEW PRODUCT" : "📝 EDIT PRODUCT DETAILS",
                 Location = new Point(40, 15),
                 Size = new Size(480, 45),
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 18, FontStyle.Bold),
                 ForeColor = Color.FromArgb(25, 135, 84),
                 BackColor = Color.Transparent,
                 TextAlign = ContentAlignment.MiddleCenter,
                 BorderStyle = BorderStyle.None
             };
             titleLabel.Paint += (s, e) => {
-                var rect = new Rectangle(0, titleLabel.Height - 3, titleLabel.Width, 3);
-                using (var brush = new LinearGradientBrush(rect, Color.FromArgb(25, 135, 84), Color.FromArgb(40, 167, 69), LinearGradientMode.Horizontal))
+                var rect = new System.Drawing.Rectangle(0, titleLabel.Height - 3, titleLabel.Width, 3);
+                using (var brush = new LinearGradientBrush(rect, System.Drawing.Color.FromArgb(25, 135, 84), System.Drawing.Color.FromArgb(40, 167, 69), LinearGradientMode.Horizontal))
                 {
                     e.Graphics.FillRectangle(brush, rect);
                 }
@@ -1378,7 +1912,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "📦 Product Name:",
                 Location = new Point(40, 80),
                 Size = new Size(200, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1387,7 +1921,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Location = new Point(40, 108),
                 Size = new Size(480, 42),
-                Font = new Font("Segoe UI", 13),
+                Font = new System.Drawing.Font("Segoe UI", 13),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(255, 255, 255),
                 ForeColor = Color.FromArgb(33, 37, 41),
@@ -1403,7 +1937,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "🏷️ SKU (Stock Keeping Unit):",
                 Location = new Point(40, 180),
                 Size = new Size(250, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1412,7 +1946,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Location = new Point(40, 208),
                 Size = new Size(480, 42),
-                Font = new Font("Segoe UI", 13),
+                Font = new System.Drawing.Font("Segoe UI", 13),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(255, 255, 255),
                 ForeColor = Color.FromArgb(33, 37, 41),
@@ -1428,7 +1962,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "📝 Description:",
                 Location = new Point(40, 280),
                 Size = new Size(150, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1439,7 +1973,7 @@ namespace InventoryPro.WinForms.Forms
                 Size = new Size(480, 95),
                 Multiline = true,
                 ScrollBars = ScrollBars.Vertical,
-                Font = new Font("Segoe UI", 12),
+                Font = new System.Drawing.Font("Segoe UI", 12),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(255, 255, 255),
                 ForeColor = Color.FromArgb(33, 37, 41),
@@ -1455,7 +1989,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "💰 Price ($):",
                 Location = new Point(40, 433),
                 Size = new Size(120, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1464,7 +1998,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Location = new Point(40, 461),
                 Size = new Size(220, 42),
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13, FontStyle.Bold),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(248, 255, 248),
                 ForeColor = Color.FromArgb(46, 125, 50),
@@ -1483,7 +2017,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "📊 Current Stock:",
                 Location = new Point(290, 433),
                 Size = new Size(150, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1494,7 +2028,7 @@ namespace InventoryPro.WinForms.Forms
                 Size = new Size(230, 42),
                 Maximum = 999999,
                 Minimum = 0,
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13, FontStyle.Bold),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(245, 250, 255),
                 ForeColor = Color.FromArgb(52, 144, 220),
@@ -1509,7 +2043,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "⚠️ Minimum Stock Alert:",
                 Location = new Point(40, 533),
                 Size = new Size(180, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1520,7 +2054,7 @@ namespace InventoryPro.WinForms.Forms
                 Size = new Size(220, 42),
                 Maximum = 999999,
                 Minimum = 0,
-                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 13, FontStyle.Bold),
                 BorderStyle = BorderStyle.FixedSingle,
                 BackColor = Color.FromArgb(255, 248, 240),
                 ForeColor = Color.FromArgb(255, 140, 0),
@@ -1535,7 +2069,7 @@ namespace InventoryPro.WinForms.Forms
                 Text = "📂 Category:",
                 Location = new Point(290, 533),
                 Size = new Size(120, 22),
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
             };
@@ -1545,7 +2079,7 @@ namespace InventoryPro.WinForms.Forms
                 Location = new Point(290, 561),
                 Size = new Size(230, 42),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 12),
+                Font = new System.Drawing.Font("Segoe UI", 12),
                 BackColor = Color.FromArgb(248, 245, 255),
                 ForeColor = Color.FromArgb(102, 16, 242),
                 FlatStyle = FlatStyle.Standard
@@ -1570,7 +2104,7 @@ namespace InventoryPro.WinForms.Forms
                 BackColor = Color.FromArgb(40, 167, 69),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 UseVisualStyleBackColor = false,
                 TextAlign = ContentAlignment.MiddleCenter
@@ -1584,7 +2118,7 @@ namespace InventoryPro.WinForms.Forms
                 if (btn != null)
                 {
                     var path = new GraphicsPath();
-                    var rect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var rect = new System.Drawing.Rectangle(0, 0, btn.Width, btn.Height);
                     int radius = 15;
                     path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
                     path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
@@ -1598,7 +2132,7 @@ namespace InventoryPro.WinForms.Forms
                         e.Graphics.FillPath(brush, path);
                     }
                     
-                    var textRect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var textRect = new System.Drawing.Rectangle(0, 0, btn.Width, btn.Height);
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     using (var textBrush = new SolidBrush(btn.ForeColor))
                     {
@@ -1616,7 +2150,7 @@ namespace InventoryPro.WinForms.Forms
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 UseVisualStyleBackColor = false,
                 TextAlign = ContentAlignment.MiddleCenter
@@ -1629,7 +2163,7 @@ namespace InventoryPro.WinForms.Forms
                 if (btn != null)
                 {
                     var path = new GraphicsPath();
-                    var rect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var rect = new System.Drawing.Rectangle(0, 0, btn.Width, btn.Height);
                     int radius = 15;
                     path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
                     path.AddArc(rect.X + rect.Width - radius, rect.Y, radius, radius, 270, 90);
@@ -1643,7 +2177,7 @@ namespace InventoryPro.WinForms.Forms
                         e.Graphics.FillPath(brush, path);
                     }
                     
-                    var textRect = new Rectangle(0, 0, btn.Width, btn.Height);
+                    var textRect = new System.Drawing.Rectangle(0, 0, btn.Width, btn.Height);
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     using (var textBrush = new SolidBrush(btn.ForeColor))
                     {
@@ -1783,6 +2317,422 @@ namespace InventoryPro.WinForms.Forms
                 CategoryName = selectedCategory.Name,
                 IsActive = true
             };
+        }
+    }
+
+    /// <summary>
+    /// Export format enumeration
+    /// </summary>
+    public enum ExportFormat
+    {
+        CSV,
+        Excel,
+        PDF
+    }
+
+    /// <summary>
+    /// Export options configuration
+    /// </summary>
+    public class ExportOptions
+    {
+        public ExportFormat Format { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public bool IncludeHeaders { get; set; } = true;
+        public bool IncludeSummary { get; set; } = true;
+        public bool IncludeTimestamp { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Modern Export Dialog with professional styling
+    /// </summary>
+    public class ProductExportDialog : Form
+    {
+        public ExportOptions ExportOptions { get; private set; } = new ExportOptions();
+
+        private RadioButton rbCSV = null!;
+        private RadioButton rbExcel = null!;
+        private RadioButton rbPDF = null!;
+        private TextBox txtFilePath = null!;
+        private Button btnBrowse = null!;
+        private CheckBox chkIncludeHeaders = null!;
+        private CheckBox chkIncludeSummary = null!;
+        private CheckBox chkIncludeTimestamp = null!;
+        private Button btnExport = null!;
+        private Button btnCancel = null!;
+        private Label lblPreview = null!;
+
+        public ProductExportDialog()
+        {
+            InitializeComponent();
+            SetupEventHandlers();
+            UpdatePreview();
+        }
+
+        private void InitializeComponent()
+        {
+            this.SuspendLayout();
+
+            // Form properties
+            this.Text = "📤 Export Product Data";
+            this.Size = new Size(650, 750);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.FromArgb(245, 247, 250);
+            this.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.Padding = new Padding(30, 30, 30, 30);
+
+            // Title
+            var titleLabel = new Label
+            {
+                Text = "📊 EXPORT PRODUCT DATA",
+                Location = new Point(30, 20),
+                Size = new Size(570, 40),
+                Font = new System.Drawing.Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.FromArgb(25, 135, 84),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            // Format Selection Group
+            var grpFormat = new GroupBox
+            {
+                Text = "📋 Export Format",
+                Location = new Point(40, 80),
+                Size = new Size(550, 130),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.White,
+                Padding = new Padding(20, 10, 20, 20)
+            };
+
+            rbCSV = new RadioButton
+            {
+                Text = "📄 CSV (Comma Separated Values) - Best for spreadsheet applications",
+                Location = new Point(25, 35),
+                Size = new Size(500, 22),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Checked = true
+            };
+
+            rbExcel = new RadioButton
+            {
+                Text = "📊 Excel (.xlsx) - Rich formatting with charts and styling",
+                Location = new Point(25, 60),
+                Size = new Size(500, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41)
+            };
+
+            rbPDF = new RadioButton
+            {
+                Text = "📋 PDF - Professional reports for printing and sharing",
+                Location = new Point(25, 85),
+                Size = new Size(500, 25),
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41)
+            };
+
+            grpFormat.Controls.AddRange(new Control[] { rbCSV, rbExcel, rbPDF });
+
+            // File Path Group
+            var grpFile = new GroupBox
+            {
+                Text = "💾 File Location",
+                Location = new Point(40, 220),
+                Size = new Size(550, 100),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.White,
+                Padding = new Padding(20, 10, 20, 20)
+            };
+
+            var lblFilePath = new Label
+            {
+                Text = "Save to:",
+                Location = new Point(25, 35),
+                Size = new Size(70, 22),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(73, 80, 87)
+            };
+
+            txtFilePath = new TextBox
+            {
+                Location = new Point(25, 60),
+                Size = new Size(400, 28),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White,
+                ReadOnly = true
+            };
+
+            btnBrowse = new Button
+            {
+                Text = "📁 Browse",
+                Location = new Point(440, 58),
+                Size = new Size(80, 32),
+                BackColor = Color.FromArgb(0, 123, 255),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new System.Drawing.Font("Segoe UI", 9, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            btnBrowse.FlatAppearance.BorderSize = 0;
+
+            grpFile.Controls.AddRange(new Control[] { lblFilePath, txtFilePath, btnBrowse });
+
+            // Options Group
+            var grpOptions = new GroupBox
+            {
+                Text = "⚙️ Export Options",
+                Location = new Point(40, 340),
+                Size = new Size(550, 130),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.White,
+                Padding = new Padding(20, 10, 20, 20)
+            };
+
+            chkIncludeHeaders = new CheckBox
+            {
+                Text = "Include column headers",
+                Location = new Point(25, 35),
+                Size = new Size(250, 22),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Checked = true
+            };
+
+            chkIncludeSummary = new CheckBox
+            {
+                Text = "Include summary statistics",
+                Location = new Point(25, 60),
+                Size = new Size(250, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Checked = true
+            };
+
+            chkIncludeTimestamp = new CheckBox
+            {
+                Text = "Include export timestamp",
+                Location = new Point(27, 85),
+                Size = new Size(250, 25),
+                Font = new System.Drawing.Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(33, 37, 41),
+                Checked = true
+            };
+
+            grpOptions.Controls.AddRange(new Control[] { chkIncludeHeaders, chkIncludeSummary, chkIncludeTimestamp });
+
+            // Preview Group
+            var grpPreview = new GroupBox
+            {
+                Text = "👁️ Export Preview",
+                Location = new Point(40, 490),
+                Size = new Size(550, 120),
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64),
+                BackColor = Color.White,
+                Padding = new Padding(20, 10, 20, 20)
+            };
+
+            lblPreview = new Label
+            {
+                Location = new Point(25, 30),
+                Size = new Size(500, 80),
+                Font = new System.Drawing.Font("Segoe UI", 9),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                BackColor = Color.FromArgb(248, 249, 250),
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(15),
+                TextAlign = ContentAlignment.TopLeft
+            };
+
+            grpPreview.Controls.Add(lblPreview);
+
+            // Action Buttons
+            var buttonPanel = new Panel
+            {
+                Location = new Point(150, 640),
+                Size = new Size(340, 60),
+                BackColor = Color.Transparent
+            };
+
+            btnExport = new Button
+            {
+                Text = "📤 EXPORT DATA",
+                Location = new Point(20, 15),
+                Size = new Size(170, 45),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(40, 167, 69),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnExport.FlatAppearance.BorderSize = 0;
+
+            btnCancel = new Button
+            {
+                Text = "❌ CANCEL",
+                Location = new Point(195, 15),
+                Size = new Size(130, 45),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new System.Drawing.Font("Segoe UI", 11, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnCancel.FlatAppearance.BorderSize = 0;
+
+            buttonPanel.Controls.AddRange(new Control[] { btnExport, btnCancel });
+
+            // Add all controls to form
+            this.Controls.AddRange(new Control[] {
+                titleLabel, grpFormat, grpFile, grpOptions, grpPreview, buttonPanel
+            });
+
+            this.AcceptButton = btnExport;
+            this.CancelButton = btnCancel;
+
+            this.ResumeLayout(false);
+        }
+
+        private void SetupEventHandlers()
+        {
+            rbCSV.CheckedChanged += FormatChanged;
+            rbExcel.CheckedChanged += FormatChanged;
+            rbPDF.CheckedChanged += FormatChanged;
+            btnBrowse.Click += BtnBrowse_Click;
+            chkIncludeHeaders.CheckedChanged += (s, e) => UpdatePreview();
+            chkIncludeSummary.CheckedChanged += (s, e) => UpdatePreview();
+            chkIncludeTimestamp.CheckedChanged += (s, e) => UpdatePreview();
+            btnExport.Click += BtnExport_Click;
+
+            // Set default file path
+            UpdateFilePath();
+        }
+
+        private void FormatChanged(object? sender, EventArgs e)
+        {
+            UpdateFilePath();
+            UpdatePreview();
+        }
+
+        private void UpdateFilePath()
+        {
+            string extension = GetFileExtension();
+            string fileName = $"Products_Export_{DateTime.Now:yyyyMMdd_HHmmss}{extension}";
+            string defaultPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+            txtFilePath.Text = defaultPath;
+        }
+
+        private string GetFileExtension()
+        {
+            if (rbCSV.Checked) return ".csv";
+            if (rbExcel.Checked) return ".xlsx";
+            if (rbPDF.Checked) return ".pdf";
+            return ".csv";
+        }
+
+        private ExportFormat GetSelectedFormat()
+        {
+            if (rbCSV.Checked) return ExportFormat.CSV;
+            if (rbExcel.Checked) return ExportFormat.Excel;
+            if (rbPDF.Checked) return ExportFormat.PDF;
+            return ExportFormat.CSV;
+        }
+
+        private void UpdatePreview()
+        {
+            var format = GetSelectedFormat();
+            var preview = new StringBuilder();
+            
+            preview.AppendLine($"📋 Export Format: {format}");
+            preview.AppendLine($"📁 File: {Path.GetFileName(txtFilePath.Text)}");
+            preview.AppendLine();
+            
+            preview.AppendLine("📊 Data Includes:");
+            if (chkIncludeHeaders.Checked) preview.AppendLine("   ✓ Column Headers");
+            if (chkIncludeSummary.Checked) preview.AppendLine("   ✓ Summary Statistics");
+            if (chkIncludeTimestamp.Checked) preview.AppendLine("   ✓ Export Timestamp");
+            
+            preview.AppendLine();
+            preview.AppendLine("📈 Columns: SKU, Name, Description, Category, Price, Stock, Min Stock, Status, Value");
+
+            lblPreview.Text = preview.ToString();
+        }
+
+        private void BtnBrowse_Click(object? sender, EventArgs e)
+        {
+            var format = GetSelectedFormat();
+            using (var saveDialog = new SaveFileDialog())
+            {
+                saveDialog.Title = "Select Export Location";
+                saveDialog.FileName = Path.GetFileNameWithoutExtension(txtFilePath.Text);
+                
+                switch (format)
+                {
+                    case ExportFormat.CSV:
+                        saveDialog.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*";
+                        saveDialog.DefaultExt = "csv";
+                        break;
+                    case ExportFormat.Excel:
+                        saveDialog.Filter = "Excel Files (*.xlsx)|*.xlsx|All Files (*.*)|*.*";
+                        saveDialog.DefaultExt = "xlsx";
+                        break;
+                    case ExportFormat.PDF:
+                        saveDialog.Filter = "PDF Files (*.pdf)|*.pdf|All Files (*.*)|*.*";
+                        saveDialog.DefaultExt = "pdf";
+                        break;
+                }
+
+                if (saveDialog.ShowDialog() == DialogResult.OK)
+                {
+                    txtFilePath.Text = saveDialog.FileName;
+                    UpdatePreview();
+                }
+            }
+        }
+
+        private void BtnExport_Click(object? sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(txtFilePath.Text))
+            {
+                MessageBox.Show("Please select a file location.", "File Path Required",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var directory = Path.GetDirectoryName(txtFilePath.Text);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                ExportOptions = new ExportOptions
+                {
+                    Format = GetSelectedFormat(),
+                    FilePath = txtFilePath.Text,
+                    IncludeHeaders = chkIncludeHeaders.Checked,
+                    IncludeSummary = chkIncludeSummary.Checked,
+                    IncludeTimestamp = chkIncludeTimestamp.Checked
+                };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error preparing export: {ex.Message}", "Export Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.DialogResult = DialogResult.None;
+            }
         }
     }
 }
