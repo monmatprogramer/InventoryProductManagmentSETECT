@@ -202,7 +202,7 @@ namespace InventoryPro.WinForms.Forms
             btnSales = CreateNavButton("💰 New Sale", 3, false);
             btnSalesHistory = CreateNavButton("📈 Sales History", 4, false);
             btnReports = CreateNavButton("📊 Reports", 5, false);
-            btnSettings = CreateNavButton("⚙ Settings", 6, false);
+           // btnSettings = CreateNavButton("⚙ Settings", 6, false);
             
             navPanel.Controls.AddRange(new Control[] {
                 btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings
@@ -1763,7 +1763,7 @@ namespace InventoryPro.WinForms.Forms
             if (sender is Button clickedButton && clickedButton.Tag is int buttonIndex)
             {
                 // Reset all buttons
-                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnSettings };
+                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports };
                 foreach (var btn in allNavButtons)
                 {
                     UpdateNavButtonStyle(btn, false);
@@ -1795,9 +1795,9 @@ namespace InventoryPro.WinForms.Forms
                     case 5: // Reports
                         OpenReportsForm();
                         break;
-                    case 6: // Settings
-                        OpenSettingsForm();
-                        break;
+                    //case 6: // Settings
+                    //    OpenSettingsForm();
+                    //    break;
                 }
             }
         }

@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using InventoryPro.Shared.DTOs;
 using InventoryPro.WinForms.Dialogs;
+
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
@@ -1115,7 +1116,7 @@ namespace InventoryPro.WinForms.Forms
                     {
                         lblStatus.Text = "Exporting data...";
                         
-                        var exportOptions = exportDialog.ExportOptions;
+                        var exportOptions = exportDialog.ExportOptionsForProduct;
                         var success = false;
                         
                         switch (exportOptions.Format)
@@ -1162,7 +1163,7 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
-        private async Task<bool> ExportToCsvAsync(ExportOptions options)
+        private async Task<bool> ExportToCsvAsync(ExportOptionsForProduct options)
         {
             try
             {
@@ -1246,7 +1247,7 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
-        private async Task<bool> ExportToExcelAsync(ExportOptions options)
+        private async Task<bool> ExportToExcelAsync(ExportOptionsForProduct options)
         {
             try
             {
@@ -1394,7 +1395,7 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
-        private async Task<bool> ExportToPdfAsync(ExportOptions options)
+        private async Task<bool> ExportToPdfAsync(ExportOptionsForProduct options)
         {
             try
             {
@@ -2016,7 +2017,7 @@ namespace InventoryPro.WinForms.Forms
             {
                 Text = "📊 Current Stock:",
                 Location = new Point(290, 433),
-                Size = new Size(150, 22),
+                Size = new Size(180, 22),
                 Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Bold),
                 ForeColor = Color.FromArgb(44, 62, 80),
                 BackColor = Color.Transparent
@@ -2097,7 +2098,7 @@ namespace InventoryPro.WinForms.Forms
 
             btnOK = new Button
             {
-                Text = "💾 SAVE PRODUCT",
+                Text = "🖫 SAVE PRODUCT",
                 Location = new Point(50, 20),
                 Size = new Size(170, 55),
                 DialogResult = DialogResult.OK,
@@ -2324,30 +2325,31 @@ namespace InventoryPro.WinForms.Forms
     /// Export format enumeration
     /// </summary>
     public enum ExportFormat
-    {
+        {
         CSV,
         Excel,
         PDF
-    }
+        }
 
     /// <summary>
     /// Export options configuration
     /// </summary>
-    public class ExportOptions
-    {
+    public class ExportOptionsForProduct
+        {
         public ExportFormat Format { get; set; }
         public string FilePath { get; set; } = string.Empty;
         public bool IncludeHeaders { get; set; } = true;
         public bool IncludeSummary { get; set; } = true;
         public bool IncludeTimestamp { get; set; } = true;
-    }
+        }
 
     /// <summary>
     /// Modern Export Dialog with professional styling
     /// </summary>
     public class ProductExportDialog : Form
     {
-        public ExportOptions ExportOptions { get; private set; } = new ExportOptions();
+        //public ExportOptionsForProduct ExportOptions { get; private set; } = new ExportOptionsForProduct();
+        public ExportOptionsForProduct ExportOptionsForProduct { get; private set; }
 
         private RadioButton rbCSV = null!;
         private RadioButton rbExcel = null!;
@@ -2718,8 +2720,8 @@ namespace InventoryPro.WinForms.Forms
                     Directory.CreateDirectory(directory);
                 }
 
-                ExportOptions = new ExportOptions
-                {
+                ExportOptionsForProduct = new ExportOptionsForProduct
+                    {
                     Format = GetSelectedFormat(),
                     FilePath = txtFilePath.Text,
                     IncludeHeaders = chkIncludeHeaders.Checked,
