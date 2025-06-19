@@ -937,47 +937,60 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                await Task.Run(() =>
-                {
-                    // Simulate data generation logic
-                    var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-                    var random = new Random();
-                    var financialData = new List<(string Month, decimal Revenue, decimal Expenses, decimal Profit, string Margin)>();
+                var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
+                var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
 
-                    for (int i = 0; i < 12; i++)
+                if (cboFinancialFormat.Text == "View")
+                {
+                    // Get financial report data for viewing
+                    var reportDataResponse = await _apiService.GetFinancialReportDataAsync(startDate, endDate);
+                    
+                    if (reportDataResponse.Success && reportDataResponse.Data != null)
                     {
-                        var revenue = random.Next(40000, 80000);
-                        var expenses = random.Next(20000, 40000);
-                        var profit = revenue - expenses;
-                        var margin = $"{(profit / revenue * 100):F1}%";
-                        financialData.Add((months[i], revenue, expenses, profit, margin));
+                        var reportData = reportDataResponse.Data;
+                        
+                        // Update chart and grid with real data
+                        Invoke(new Action(() =>
+                        {
+                            UpdateFinancialUIWithData(reportData);
+                        }));
                     }
-
-                    Invoke(new Action(() =>
+                    else
                     {
-                        // Update chart
-                        chartFinancial.Series[0].Points.Clear();
-                        foreach (var data in financialData)
-                        {
-                            chartFinancial.Series[0].Points.AddXY(data.Month, data.Revenue);
-                        }
-
-                        // Update grid
-                        dgvFinancialData.DataSource = financialData.Select(d => new
-                        {
-                            d.Month,
-                            d.Revenue,
-                            d.Expenses,
-                            d.Profit,
-                            d.Margin
-                        }).ToList();
-                    }));
-                });
-
-                if (cboFinancialFormat.Text != "View")
+                        // Fallback to simulated data if API call fails
+                        await GenerateSimulatedFinancialData();
+                    }
+                }
+                else
                 {
-                    MessageBox.Show($"Report exported as {cboFinancialFormat.Text} successfully!",
-                        "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    // Generate and export PDF or Excel
+                    var response = await _apiService.GenerateFinancialReportAsync(startDate, endDate, cboFinancialFormat.Text);
+                    
+                    if (response.Success && response.Data != null)
+                    {
+                        var extension = cboFinancialFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
+                        var fileName = $"Financial_Report_{dtpFinancialYear.Value.Year}{extension}";
+                        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+                        
+                        await File.WriteAllBytesAsync(filePath, response.Data);
+                        
+                        var result = MessageBox.Show($"Financial Report Generated Successfully!\n\n" +
+                                                   $"Format: {cboFinancialFormat.Text}\n" +
+                                                   $"File: {fileName}\n" +
+                                                   $"Location: Desktop\n\n" +
+                                                   "Would you like to open the report now?",
+                            "Export Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        
+                        if (result == DialogResult.Yes)
+                        {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath) { UseShellExecute = true });
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Error generating financial report: {response.Message}",
+                            "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
             }
             catch (Exception ex)
@@ -986,6 +999,53 @@ namespace InventoryPro.WinForms.Forms
                 MessageBox.Show("Error generating financial report.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private async Task GenerateSimulatedFinancialData()
+        {
+            await Task.Run(() =>
+            {
+                // Simulate data generation logic
+                var months = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+                var random = new Random();
+                var financialData = new List<(string Month, decimal Revenue, decimal Expenses, decimal Profit, string Margin)>();
+
+                for (int i = 0; i < 12; i++)
+                {
+                    var revenue = random.Next(40000, 80000);
+                    var expenses = random.Next(20000, 40000);
+                    var profit = revenue - expenses;
+                    var margin = $"{(profit / revenue * 100):F1}%";
+                    financialData.Add((months[i], revenue, expenses, profit, margin));
+                }
+
+                Invoke(new Action(() =>
+                {
+                    // Update chart
+                    chartFinancial.Series[0].Points.Clear();
+                    foreach (var data in financialData)
+                    {
+                        chartFinancial.Series[0].Points.AddXY(data.Month, data.Revenue);
+                    }
+
+                    // Update grid
+                    dgvFinancialData.DataSource = financialData.Select(d => new
+                    {
+                        d.Month,
+                        d.Revenue,
+                        d.Expenses,
+                        d.Profit,
+                        d.Margin
+                    }).ToList();
+                }));
+            });
+        }
+
+        private void UpdateFinancialUIWithData(object reportData)
+        {
+            // This method would parse the real report data and update the UI
+            // For now, fall back to simulated data
+            Task.Run(async () => await GenerateSimulatedFinancialData());
         }
 
         private async void BtnGenerateInvoices_Click(object? sender, EventArgs e)

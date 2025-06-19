@@ -10,17 +10,14 @@ using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Text;
-using BaseColor = iTextSharp.text.BaseColor;
-using Element = iTextSharp.text.Element;
-using FontFactory = iTextSharp.text.FontFactory;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Layout.Element;
+using iText.Layout.Properties;
+using iText.Kernel.Colors;
 using LicenseContext = OfficeOpenXml.LicenseContext;
-using PageSize = iTextSharp.text.PageSize;
-using Paragraph = iTextSharp.text.Paragraph;
-using PdfDocument = iTextSharp.text.Document;
-using PdfPCell = iTextSharp.text.pdf.PdfPCell;
-using PdfPTable = iTextSharp.text.pdf.PdfPTable;
-using PdfWriter = iTextSharp.text.pdf.PdfWriter;
-using Phrase = iTextSharp.text.Phrase;
+using Color = System.Drawing.Color;
+using HorizontalAlignment = System.Windows.Forms.HorizontalAlignment;
 
 
 namespace InventoryPro.WinForms.Forms
@@ -1401,202 +1398,177 @@ namespace InventoryPro.WinForms.Forms
             {
                 await Task.Run(() =>
                 {
-                    using (var stream = new FileStream(options.FilePath, FileMode.Create))
+                    using var writer = new PdfWriter(options.FilePath);
+                    using var pdf = new PdfDocument(writer);
+                    using var document = new Document(pdf, iText.Kernel.Geom.PageSize.A4.Rotate());
+                    document.SetMargins(30, 20, 30, 20);
+
+                    // Add title
+                    var title = new Paragraph("📦 INVENTORY PRODUCTS REPORT")
+                        .SetTextAlignment(TextAlignment.CENTER)
+                        .SetFontSize(18)
+                        .SetBold()
+                        .SetFontColor(new DeviceRgb(169, 169, 169))
+                        .SetMarginBottom(10);
+                    document.Add(title);
+
+                    // Add export info
+                    var exportInfo = new Paragraph($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Products: {_products.Count}")
+                        .SetTextAlignment(TextAlignment.CENTER)
+                        .SetFontSize(10)
+                        .SetFontColor(new DeviceRgb(128, 128, 128))
+                        .SetMarginBottom(20);
+                    document.Add(exportInfo);
+
+                    // Create table
+                    var table = new Table(8)
+                        .SetWidth(UnitValue.CreatePercentValue(100))
+                        .SetMarginTop(10)
+                        .SetMarginBottom(10);
+
+                    // Set column widths
+                    table.SetWidth(UnitValue.CreatePercentValue(100));
+
+                    // Add headers
+                    var headers = new[] { "SKU", "Product Name", "Category", "Price", "Stock", "Min Stock", "Status", "Stock Value" };
+                    
+                    foreach (var header in headers)
                     {
-                        var document = new PdfDocument(PageSize.A4.Rotate()); // Landscape for better table fit
-                        var writer = PdfWriter.GetInstance(document, stream);
-                        
-                        document.Open();
+                        var cell = new Cell()
+                            .Add(new Paragraph(header))
+                            .SetBackgroundColor(new DeviceRgb(52, 58, 64))
+                            .SetFontColor(DeviceRgb.WHITE)
+                            .SetTextAlignment(TextAlignment.CENTER)
+                            .SetBold()
+                            .SetFontSize(9)
+                            .SetPadding(8);
+                        table.AddCell(cell);
+                    }
 
-                        // Add title
-                        var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 18, new BaseColor(169, 169, 169));//black
-                        var title = new Paragraph("📦 INVENTORY PRODUCTS REPORT", titleFont)
+                    // Add data rows
+                    var alternateColor = new DeviceRgb(248, 250, 252);
+                    
+                    for (int i = 0; i < _products.Count; i++)
+                    {
+                        var product = _products[i];
+                        var isAlternate = i % 2 == 1;
+                        var backgroundColor = isAlternate ? alternateColor : DeviceRgb.WHITE;
+
+                        // SKU
+                        table.AddCell(new Cell().Add(new Paragraph(product.SKU ?? ""))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.LEFT));
+
+                        // Product Name
+                        table.AddCell(new Cell().Add(new Paragraph(product.Name ?? ""))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.LEFT));
+
+                        // Category
+                        table.AddCell(new Cell().Add(new Paragraph(product.CategoryName ?? ""))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.LEFT));
+
+                        // Price
+                        table.AddCell(new Cell().Add(new Paragraph(product.Price.ToString("C2")))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.RIGHT));
+
+                        // Stock
+                        table.AddCell(new Cell().Add(new Paragraph(product.Stock.ToString()))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.CENTER));
+
+                        // Min Stock
+                        table.AddCell(new Cell().Add(new Paragraph(product.MinStock.ToString()))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.CENTER));
+
+                        // Status with color coding
+                        var status = GetStockStatus(product);
+                        var statusParagraph = new Paragraph(status).SetFontSize(8);
+                        
+                        if (product.Stock == 0)
                         {
-                            Alignment = Element.ALIGN_CENTER,
-                            SpacingAfter = 10f
+                            statusParagraph.SetBold().SetFontColor(DeviceRgb.RED);
+                        }
+                        else if (product.Stock <= product.MinStock)
+                        {
+                            statusParagraph.SetBold().SetFontColor(new DeviceRgb(255, 140, 0));
+                        }
+
+                        table.AddCell(new Cell().Add(statusParagraph)
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetTextAlignment(TextAlignment.CENTER));
+
+                        // Stock Value
+                        table.AddCell(new Cell().Add(new Paragraph((product.Price * product.Stock).ToString("C2")))
+                            .SetBackgroundColor(backgroundColor)
+                            .SetPadding(5)
+                            .SetFontSize(8)
+                            .SetTextAlignment(TextAlignment.RIGHT));
+                    }
+
+                    document.Add(table);
+
+                    // Add summary if requested
+                    if (options.IncludeSummary)
+                    {
+                        document.Add(new Paragraph(" ")); // Spacing
+                        
+                        var summaryTitle = new Paragraph("📊 SUMMARY")
+                            .SetTextAlignment(TextAlignment.CENTER)
+                            .SetFontSize(18)
+                            .SetBold()
+                            .SetFontColor(new DeviceRgb(169, 169, 169))
+                            .SetMarginTop(20)
+                            .SetMarginBottom(10);
+                        document.Add(summaryTitle);
+
+                        var summaryTable = new Table(2)
+                            .SetWidth(UnitValue.CreatePercentValue(50))
+                            .SetHorizontalAlignment((iText.Layout.Properties.HorizontalAlignment?)HorizontalAlignment.Center);
+                        summaryTable.SetWidth(UnitValue.CreatePercentValue(100));
+
+                        // Summary rows
+                        var summaryData = new[]
+                        {
+                            ("Total Products:", _products.Count.ToString()),
+                            ("Total Stock Value:", _products.Sum(p => p.Price * p.Stock).ToString("C2")),
+                            ("Low Stock Items:", _products.Count(p => p.Stock <= p.MinStock).ToString()),
+                            ("Out of Stock Items:", _products.Count(p => p.Stock == 0).ToString())
                         };
-                        document.Add(title);
 
-                        // Add export info
-                        var infoFont = FontFactory.GetFont(FontFactory.HELVETICA, 10, new BaseColor(128, 128, 128));//gray
-                        var exportInfo = new Paragraph($"Generated on: {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Products: {_products.Count}", infoFont)
+                        foreach (var (label, value) in summaryData)
                         {
-                            Alignment = Element.ALIGN_CENTER,
-                            SpacingAfter = 20f
-                        };
-                        document.Add(exportInfo);
+                            summaryTable.AddCell(new Cell().Add(new Paragraph(label))
+                                .SetBackgroundColor(new DeviceRgb(248, 249, 250))
+                                .SetPadding(8)
+                                .SetFontSize(10)
+                                .SetTextAlignment(TextAlignment.LEFT));
 
-                        // Create table
-                        var table = new PdfPTable(8) { WidthPercentage = 100 };
-                        
-                        // Set column widths
-                        float[] widths = { 12f, 25f, 20f, 12f, 10f, 8f, 8f, 12f };
-                        table.SetWidths(widths);
-
-                        // Add headers
-                        var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 9, new BaseColor(255, 255, 255));//white
-                        var headers = new[] { "SKU", "Product Name", "Category", "Price", "Stock", "Min Stock", "Status", "Stock Value" };
-                        
-                        foreach (var header in headers)
-                        {
-                            var cell = new PdfPCell(new Phrase(header, headerFont))
-                            {
-                                BackgroundColor = new BaseColor(52, 58, 64),
-                                HorizontalAlignment = Element.ALIGN_CENTER,
-                                VerticalAlignment = Element.ALIGN_MIDDLE,
-                                Padding = 8f
-                            };
-                            table.AddCell(cell);
+                            summaryTable.AddCell(new Cell().Add(new Paragraph(value))
+                                .SetBackgroundColor(DeviceRgb.WHITE)
+                                .SetPadding(8)
+                                .SetFontSize(10)
+                                .SetBold()
+                                .SetTextAlignment(TextAlignment.RIGHT));
                         }
 
-                        // Add data rows
-                        var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 8, new BaseColor(0, 0, 0));//black
-                        var alternateColor = new BaseColor(248, 250, 252);
-                        
-                        for (int i = 0; i < _products.Count; i++)
-                        {
-                            var product = _products[i];
-                            var isAlternate = i % 2 == 1;
-                            var backgroundColor = isAlternate ? alternateColor : new BaseColor(255, 255, 255);
-
-                            // SKU
-                            var skuCell = new PdfPCell(new Phrase(product.SKU ?? "", dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_LEFT
-                            };
-                            table.AddCell(skuCell);
-
-                            // Product Name
-                            var nameCell = new PdfPCell(new Phrase(product.Name ?? "", dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_LEFT
-                            };
-                            table.AddCell(nameCell);
-
-                            // Category
-                            var categoryCell = new PdfPCell(new Phrase(product.CategoryName ?? "", dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_LEFT
-                            };
-                            table.AddCell(categoryCell);
-
-                            // Price
-                            var priceCell = new PdfPCell(new Phrase(product.Price.ToString("C2"), dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_RIGHT
-                            };
-                            table.AddCell(priceCell);
-
-                            // Stock
-                            var stockCell = new PdfPCell(new Phrase(product.Stock.ToString(), dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_CENTER
-                            };
-                            table.AddCell(stockCell);
-
-                            // Min Stock
-                            var minStockCell = new PdfPCell(new Phrase(product.MinStock.ToString(), dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_CENTER
-                            };
-                            table.AddCell(minStockCell);
-
-                            // Status with color coding
-                            var status = GetStockStatus(product);
-                            var statusFont = dataFont;
-                            if (product.Stock == 0)
-                            {
-                                statusFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(255, 0, 0));
-                            }
-                            else if (product.Stock <= product.MinStock)
-                            {
-                                statusFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 8, new BaseColor(255, 140, 0));
-                            }
-
-                            var statusCell = new PdfPCell(new Phrase(status, statusFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_CENTER
-                            };
-                            table.AddCell(statusCell);
-
-                            // Stock Value
-                            var stockValueCell = new PdfPCell(new Phrase((product.Price * product.Stock).ToString("C2"), dataFont))
-                            {
-                                BackgroundColor = backgroundColor,
-                                Padding = 5f,
-                                HorizontalAlignment = Element.ALIGN_RIGHT
-                            };
-                            table.AddCell(stockValueCell);
-                        }
-
-                        document.Add(table);
-
-                        // Add summary if requested
-                        if (options.IncludeSummary)
-                        {
-                            document.Add(new Paragraph(" ")); // Spacing
-                            
-                            var summaryTitle = new Paragraph("📊 SUMMARY", titleFont)
-                            {
-                                Alignment = Element.ALIGN_CENTER,
-                                SpacingBefore = 20f,
-                                SpacingAfter = 10f
-                            };
-                            document.Add(summaryTitle);
-
-                            var summaryTable = new PdfPTable(2) { WidthPercentage = 50 };
-                            summaryTable.SetWidths(new float[] { 70f, 30f });
-
-                            var summaryHeaderFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(255, 255, 255));
-                            var summaryDataFont = FontFactory.GetFont(FontFactory.HELVETICA, 10, new BaseColor(0, 0, 0));
-
-                            // Summary rows
-                            var summaryData = new[]
-                            {
-                                ("Total Products:", _products.Count.ToString()),
-                                ("Total Stock Value:", _products.Sum(p => p.Price * p.Stock).ToString("C2")),
-                                ("Low Stock Items:", _products.Count(p => p.Stock <= p.MinStock).ToString()),
-                                ("Out of Stock Items:", _products.Count(p => p.Stock == 0).ToString())
-                            };
-
-                            foreach (var (label, value) in summaryData)
-                            {
-                                var labelCell = new PdfPCell(new Phrase(label, summaryDataFont))
-                                {
-                                    BackgroundColor = new BaseColor(248, 249, 250),
-                                    Padding = 8f,
-                                    HorizontalAlignment = Element.ALIGN_LEFT
-                                };
-                                summaryTable.AddCell(labelCell);
-
-                                var valueCell = new PdfPCell(new Phrase(value, FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(0, 0, 0))))
-                                {
-                                    BackgroundColor = new BaseColor(255, 255, 255),
-                                    Padding = 8f,
-                                    HorizontalAlignment = Element.ALIGN_RIGHT
-                                };
-                                summaryTable.AddCell(valueCell);
-                            }
-
-                            summaryTable.HorizontalAlignment = Element.ALIGN_CENTER;
-                            document.Add(summaryTable);
-                        }
-
-                        document.Close();
+                        document.Add(summaryTable);
                     }
                 });
 

@@ -6,20 +6,15 @@ using System.Drawing.Drawing2D;
 using CsvHelper;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
-using iTextSharp.text;
-using BaseColor = iTextSharp.text.BaseColor;
-using Element = iTextSharp.text.Element;
-using FontFactory = iTextSharp.text.FontFactory;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Layout.Element;
+using iText.Layout.Properties;
+using iText.Kernel.Colors;
 using LicenseContext = OfficeOpenXml.LicenseContext;
-using PageSize = iTextSharp.text.PageSize;
-using Paragraph = iTextSharp.text.Paragraph;
-using PdfDocument = iTextSharp.text.Document;
-using PdfPCell = iTextSharp.text.pdf.PdfPCell;
-using PdfPTable = iTextSharp.text.pdf.PdfPTable;
-using PdfWriter = iTextSharp.text.pdf.PdfWriter;
-using Phrase = iTextSharp.text.Phrase;
 using Font = System.Drawing.Font;
 using Rectangle = System.Drawing.Rectangle;
+using Color = System.Drawing.Color;
 
 
 namespace InventoryPro.WinForms.Forms
@@ -81,6 +76,9 @@ namespace InventoryPro.WinForms.Forms
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
+
+            // Set EPPlus license context
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             // Initialize non-nullable fields
             dgvCustomers = new DataGridView();
@@ -1186,30 +1184,24 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                using var document = new Document(PageSize.A4.Rotate(), 20, 20, 30, 30);
-                using var writer = PdfWriter.GetInstance(document, new FileStream(options.FilePath, FileMode.Create));
-                
-                document.Open();
+                using var writer = new PdfWriter(options.FilePath);
+                using var pdf = new PdfDocument(writer);
+                using var document = new Document(pdf, iText.Kernel.Geom.PageSize.A4.Rotate());
+                document.SetMargins(30, 20, 30, 20);
 
-                var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16,new BaseColor(0,0,0));
-                var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, new BaseColor(255,255,255));
-                var cellFont = FontFactory.GetFont(FontFactory.HELVETICA, 9, new BaseColor(0,0,0));
-
-                var title = new Paragraph("Customer Report", titleFont)
-                {
-                    Alignment = Element.ALIGN_CENTER,
-                    SpacingAfter = 20
-                };
+                var title = new Paragraph("Customer Report")
+                    .SetTextAlignment(TextAlignment.CENTER)
+                    .SetFontSize(16)
+                    .SetBold()
+                    .SetMarginBottom(20);
                 document.Add(title);
 
-                var table = new PdfPTable(7)
-                {
-                    WidthPercentage = 100,
-                    SpacingBefore = 10,
-                    SpacingAfter = 10
-                };
+                var table = new Table(7)
+                    .SetWidth(UnitValue.CreatePercentValue(100))
+                    .SetMarginTop(10)
+                    .SetMarginBottom(10);
 
-                table.SetWidths(new float[] { 20, 25, 15, 25, 12, 8, 15 });
+                table.SetWidth(UnitValue.CreatePercentValue(100));
 
                 if (options.IncludeHeaders)
                 {
@@ -1218,72 +1210,71 @@ namespace InventoryPro.WinForms.Forms
                     
                     foreach (var header in headers)
                     {
-                        var cell = new PdfPCell(new Phrase(header, headerFont))
-                        {
-                            BackgroundColor = new BaseColor(52, 58, 64),
-                            HorizontalAlignment = Element.ALIGN_CENTER,
-                            VerticalAlignment = Element.ALIGN_MIDDLE,
-                            Padding = 8
-                        };
+                        var cell = new Cell()
+                            .Add(new Paragraph(header))
+                            .SetBackgroundColor(DeviceRgb.BLACK)
+                            .SetFontColor(DeviceRgb.WHITE)
+                            .SetTextAlignment(TextAlignment.CENTER)
+                            .SetBold()
+                            .SetFontSize(10)
+                            .SetPadding(8);
                         table.AddCell(cell);
                     }
                 }
 
                 foreach (var customer in _customers)
                 {
-                    table.AddCell(new PdfPCell(new Phrase(customer.Name ?? "", cellFont)) { Padding = 5 });
-                    table.AddCell(new PdfPCell(new Phrase(customer.Email ?? "", cellFont)) { Padding = 5 });
-                    table.AddCell(new PdfPCell(new Phrase(customer.Phone ?? "", cellFont)) { Padding = 5 });
-                    table.AddCell(new PdfPCell(new Phrase(customer.Address ?? "", cellFont)) { Padding = 5 });
-                    table.AddCell(new PdfPCell(new Phrase(customer.TotalPurchases.ToString("C2"), cellFont)) 
-                        { Padding = 5, HorizontalAlignment = Element.ALIGN_RIGHT });
-                    table.AddCell(new PdfPCell(new Phrase(customer.OrderCount.ToString(), cellFont)) 
-                        { Padding = 5, HorizontalAlignment = Element.ALIGN_CENTER });
-                    table.AddCell(new PdfPCell(new Phrase(customer.LastOrderDate?.ToString("MMM dd, yyyy") ?? "", cellFont)) 
-                        { Padding = 5 });
+                    table.AddCell(new Cell().Add(new Paragraph(customer.Name ?? "")).SetPadding(5).SetFontSize(9));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.Email ?? "")).SetPadding(5).SetFontSize(9));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.Phone ?? "")).SetPadding(5).SetFontSize(9));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.Address ?? "")).SetPadding(5).SetFontSize(9));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.TotalPurchases.ToString("C2")))
+                        .SetPadding(5).SetFontSize(9).SetTextAlignment(TextAlignment.RIGHT));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.OrderCount.ToString()))
+                        .SetPadding(5).SetFontSize(9).SetTextAlignment(TextAlignment.CENTER));
+                    table.AddCell(new Cell().Add(new Paragraph(customer.LastOrderDate?.ToString("MMM dd, yyyy") ?? ""))
+                        .SetPadding(5).SetFontSize(9));
                 }
 
                 document.Add(table);
 
                 if (options.IncludeSummary)
                 {
-                    var summaryTitle = new Paragraph("Summary", FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 12))
-                    {
-                        SpacingBefore = 20,
-                        SpacingAfter = 10
-                    };
+                    var summaryTitle = new Paragraph("Summary")
+                        .SetBold()
+                        .SetFontSize(12)
+                        .SetMarginTop(20)
+                        .SetMarginBottom(10);
                     document.Add(summaryTitle);
 
-                    var summaryTable = new PdfPTable(2) { WidthPercentage = 50 };
-                    summaryTable.SetWidths(new float[] { 60, 40 });
+                    var summaryTable = new Table(2)
+    .SetWidth(UnitValue.CreatePercentValue(50));
 
-                    summaryTable.AddCell(new PdfPCell(new Phrase("Total Customers:", cellFont)) { Border = 0, Padding = 3 });
-                    summaryTable.AddCell(new PdfPCell(new Phrase(_customers.Count.ToString(), cellFont)) { Border = 0, Padding = 3 });
+                    summaryTable.AddCell(new Cell().Add(new Paragraph("Total Customers:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                    summaryTable.AddCell(new Cell().Add(new Paragraph(_customers.Count.ToString())).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
 
-                    summaryTable.AddCell(new PdfPCell(new Phrase("Total Customer Value:", cellFont)) { Border = 0, Padding = 3 });
-                    summaryTable.AddCell(new PdfPCell(new Phrase(_customers.Sum(c => c.TotalPurchases).ToString("C2"), cellFont)) { Border = 0, Padding = 3 });
+                    summaryTable.AddCell(new Cell().Add(new Paragraph("Total Customer Value:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                    summaryTable.AddCell(new Cell().Add(new Paragraph(_customers.Sum(c => c.TotalPurchases).ToString("C2"))).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
 
-                    summaryTable.AddCell(new PdfPCell(new Phrase("Average Customer Value:", cellFont)) { Border = 0, Padding = 3 });
-                    summaryTable.AddCell(new PdfPCell(new Phrase((_customers.Any() ? _customers.Average(c => c.TotalPurchases) : 0).ToString("C2"), cellFont)) { Border = 0, Padding = 3 });
+                    summaryTable.AddCell(new Cell().Add(new Paragraph("Average Customer Value:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                    summaryTable.AddCell(new Cell().Add(new Paragraph((_customers.Any() ? _customers.Average(c => c.TotalPurchases) : 0).ToString("C2"))).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
 
-                    summaryTable.AddCell(new PdfPCell(new Phrase("Active Customers:", cellFont)) { Border = 0, Padding = 3 });
-                    summaryTable.AddCell(new PdfPCell(new Phrase(_customers.Count(c => c.OrderCount > 0).ToString(), cellFont)) { Border = 0, Padding = 3 });
+                    summaryTable.AddCell(new Cell().Add(new Paragraph("Active Customers:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                    summaryTable.AddCell(new Cell().Add(new Paragraph(_customers.Count(c => c.OrderCount > 0).ToString())).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
 
                     document.Add(summaryTable);
                 }
 
                 if (options.IncludeTimestamp)
                 {
-                    var timestamp = new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", 
-                        FontFactory.GetFont(FontFactory.HELVETICA_OBLIQUE, 8))
-                    {
-                        Alignment = Element.ALIGN_RIGHT,
-                        SpacingBefore = 20
-                    };
+                    var timestamp = new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+                        .SetTextAlignment(TextAlignment.RIGHT)
+                        .SetFontSize(8)
+                        .SetItalic()
+                        .SetMarginTop(20);
                     document.Add(timestamp);
                 }
 
-                document.Close();
                 return true;
             }
             catch (Exception ex)

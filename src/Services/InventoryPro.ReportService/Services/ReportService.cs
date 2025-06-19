@@ -343,6 +343,8 @@ namespace InventoryPro.ReportService.Services
                             PdfGenerator.GenerateSalesReportPdf(salesReport),
                         "inventory report" when report is InventoryReport inventoryReport => 
                             PdfGenerator.GenerateInventoryReportPdf(inventoryReport),
+                        "financial report" when report is FinancialReport financialReport => 
+                            PdfGenerator.GenerateFinancialReportPdf(financialReport),
                         "custom report" when report is CustomReport customReport => 
                             PdfGenerator.GenerateCustomReportPdf(customReport),
                         _ => GenerateFallbackPdf(report, reportType)
@@ -372,19 +374,36 @@ namespace InventoryPro.ReportService.Services
             {
             try
                 {
-                // In a real implementation, this would use an Excel library like EPPlus or similar
-                // For now, return mock Excel data
-                var excelContent = $"Excel Report - {reportType}\n" +
-                                  $"Generated at: {DateTime.Now}\n" +
-                                  $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
-
-                return await Task.FromResult(Encoding.UTF8.GetBytes(excelContent));
+                return await Task.Run(() =>
+                {
+                    return reportType.ToLower() switch
+                    {
+                        "sales report" when report is SalesReport salesReport => 
+                            ExcelGenerator.GenerateSalesReportExcel(salesReport),
+                        "inventory report" when report is InventoryReport inventoryReport => 
+                            ExcelGenerator.GenerateInventoryReportExcel(inventoryReport),
+                        "financial report" when report is FinancialReport financialReport => 
+                            ExcelGenerator.GenerateFinancialReportExcel(financialReport),
+                        "custom report" when report is CustomReport customReport => 
+                            ExcelGenerator.GenerateCustomReportExcel(customReport),
+                        _ => GenerateFallbackExcel(report, reportType)
+                    };
+                });
                 }
             catch (Exception ex)
                 {
                 _logger.LogError(ex, "Error exporting report to Excel");
                 throw;
                 }
+            }
+
+        private byte[] GenerateFallbackExcel(object report, string reportType)
+            {
+            // Fallback for unsupported report types
+            var excelContent = $"Excel Report - {reportType}\n" +
+                              $"Generated at: {DateTime.Now}\n" +
+                              $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
+            return Encoding.UTF8.GetBytes(excelContent);
             }
 
         /// <summary>
