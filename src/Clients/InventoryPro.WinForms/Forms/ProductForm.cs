@@ -1125,7 +1125,7 @@ namespace InventoryPro.WinForms.Forms
                                 success = await ExportToExcelAsync(exportOptions);
                                 break;
                             case ExportFormat.PDF:
-                                success = await ExportToPdfAsync(exportOptions);
+                                success = await ExportToPdfWithFallbackAsync(exportOptions);
                                 break;
                         }
 
@@ -1388,6 +1388,71 @@ namespace InventoryPro.WinForms.Forms
                 _logger.LogError(ex, "Error exporting to Excel");
                 MessageBox.Show($"Excel Export failed: {ex.Message}",
                     "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private async Task<bool> ExportToPdfWithFallbackAsync(ExportOptionsForProduct options)
+        {
+            try
+            {
+                return await ExportToPdfAsync(options);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PDF export failed, attempting Excel fallback");
+                
+                // Check if this is a BouncyCastle-related error
+                if (ex.Message.Contains("BouncyCastle") || ex.Message.Contains("iText") || 
+                    ex.InnerException?.Message.Contains("BouncyCastle") == true)
+                {
+                    var result = MessageBox.Show(
+                        "PDF generation is currently experiencing technical issues due to missing dependencies.\n\n" +
+                        "Would you like to export as Excel instead? Excel provides similar formatting and can be converted to PDF later.",
+                        "PDF Export Issue", 
+                        MessageBoxButtons.YesNo, 
+                        MessageBoxIcon.Warning);
+                    
+                    if (result == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            // Create Excel export options with same settings
+                            var excelOptions = new ExportOptionsForProduct
+                            {
+                                FilePath = Path.ChangeExtension(options.FilePath, ".xlsx"),
+                                Format = ExportFormat.Excel,
+                                IncludeSummary = options.IncludeSummary,
+                                //IncludeImages = options.IncludeImages
+                            };
+                            
+                            var success = await ExportToExcelAsync(excelOptions);
+                            if (success)
+                            {
+                                MessageBox.Show(
+                                    $"Successfully exported as Excel!\n\nFile: {Path.GetFileName(excelOptions.FilePath)}\n\n" +
+                                    "You can convert this Excel file to PDF using Microsoft Excel or online converters.",
+                                    "Export Complete", 
+                                    MessageBoxButtons.OK, 
+                                    MessageBoxIcon.Information);
+                            }
+                            return success;
+                        }
+                        catch (Exception excelEx)
+                        {
+                            _logger.LogError(excelEx, "Excel fallback also failed");
+                            MessageBox.Show($"Both PDF and Excel export failed:\n\nPDF: {ex.Message}\nExcel: {excelEx.Message}",
+                                "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    MessageBox.Show($"PDF Export failed: {ex.Message}",
+                        "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                
                 return false;
             }
         }
