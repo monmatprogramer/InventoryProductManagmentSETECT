@@ -1,8 +1,10 @@
 using InventoryPro.Shared.DTOs;
 using InventoryPro.WinForms.Services;
+using InventoryPro.ReportService.Services;
 using Microsoft.Extensions.Logging;
 using System.Drawing.Printing;
 using System.Text;
+using System.Diagnostics;
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -14,6 +16,7 @@ namespace InventoryPro.WinForms.Forms
         private readonly ILogger<InvoiceForm> _logger;
         private readonly IApiService _apiService;
         private CompanyInfoDto _companyInfo;
+        private SaleDto? _currentSale;
 
         public InvoiceForm(ILogger<InvoiceForm> logger, IApiService apiService)
         {
@@ -70,6 +73,7 @@ namespace InventoryPro.WinForms.Forms
                     throw new ArgumentNullException(nameof(sale), "Sale data cannot be null");
                 }
 
+                _currentSale = sale; // Store the sale data for PDF generation
                 _logger.LogInformation("Loading sale data for invoice. Sale ID: {SaleId}", sale.Id);
 
                 // Update invoice details
@@ -129,78 +133,222 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                var printDialog = new PrintDialog();
-                var printDocument = new PrintDocument();
-                printDocument.PrintPage += PrintDocument_PrintPage;
-
-                if (printDialog.ShowDialog() == DialogResult.OK)
+                if (_currentSale == null)
                 {
-                    printDocument.PrinterSettings = printDialog.PrinterSettings;
-                    printDocument.Print();
+                    MessageBox.Show("No invoice data available for printing.", "Print Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _logger.LogInformation("Generating PDF for printing invoice {SaleId}", _currentSale.Id);
+
+                // Generate PDF in memory
+                var pdfBytes = PdfGenerator.GenerateInvoicePdf(
+                    _currentSale,
+                    _companyInfo.Name,
+                    _companyInfo.Address,
+                    _companyInfo.Phone,
+                    _companyInfo.Email
+                );
+
+                // Create a temporary file for printing
+                var tempPath = Path.Combine(Path.GetTempPath(), $"Invoice_{_currentSale.Id:D6}_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+                File.WriteAllBytes(tempPath, pdfBytes);
+
+                _logger.LogInformation("PDF generated successfully. Opening for printing: {TempPath}", tempPath);
+
+                // Open the PDF with the default application for printing
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = tempPath,
+                    UseShellExecute = true,
+                    Verb = "print"
+                };
+
+                var process = Process.Start(startInfo);
+                if (process != null)
+                {
+                    // Clean up temp file after some time
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(2));
+                        try
+                        {
+                            if (File.Exists(tempPath))
+                                File.Delete(tempPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not delete temporary PDF file: {TempPath}", tempPath);
+                        }
+                    });
+
+                    MessageBox.Show("Invoice PDF has been generated and sent to your default PDF viewer for printing.", 
+                        "Print Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    MessageBox.Show($"PDF generated successfully but could not open automatically.\nFile saved to: {tempPath}",
+                        "Print Ready", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error printing invoice");
-                MessageBox.Show("Error printing invoice", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error printing invoice: {ex.Message}", "Print Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void PrintDocument_PrintPage(object? sender, PrintPageEventArgs e)
-        {
-            // Create a bitmap of the invoice form
-            var bmp = new Bitmap(this.Width, this.Height);
-            this.DrawToBitmap(bmp, new Rectangle(0, 0, this.Width, this.Height));
-
-            // Scale and draw the bitmap to fit the page
-            var graphics = e.Graphics!;
-            var pageRect = e.PageBounds;
-            var scale = Math.Min((float)pageRect.Width / bmp.Width, (float)pageRect.Height / bmp.Height);
-            
-            var scaledWidth = (int)(bmp.Width * scale);
-            var scaledHeight = (int)(bmp.Height * scale);
-            var x = (pageRect.Width - scaledWidth) / 2;
-            var y = (pageRect.Height - scaledHeight) / 2;
-
-            graphics.DrawImage(bmp, x, y, scaledWidth, scaledHeight);
-            bmp.Dispose();
         }
 
         private void BtnSave_Click(object? sender, EventArgs e)
         {
             try
             {
+                if (_currentSale == null)
+                {
+                    MessageBox.Show("No invoice data available for saving.", "Save Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 var saveDialog = new SaveFileDialog
                 {
                     Filter = "PDF Files (*.pdf)|*.pdf",
-                    FileName = $"Invoice_{lblInvoiceNumber.Text.Replace("Invoice #: ", "").Replace("-", "_")}.pdf"
+                    FileName = $"Invoice_INV-{_currentSale.Id:D6}.pdf",
+                    Title = "Save Invoice as PDF"
                 };
 
                 if (saveDialog.ShowDialog() == DialogResult.OK)
                 {
-                    // For now, save as image since PDF generation requires additional libraries
-                    var bmp = new Bitmap(this.Width, this.Height);
-                    this.DrawToBitmap(bmp, new Rectangle(0, 0, this.Width, this.Height));
-                    
-                    var pngPath = saveDialog.FileName.Replace(".pdf", ".png");
-                    bmp.Save(pngPath, System.Drawing.Imaging.ImageFormat.Png);
-                    bmp.Dispose();
-                    
-                    MessageBox.Show($"Invoice saved as PNG: {pngPath}\n\n(PDF generation requires additional libraries)",
-                        "Invoice Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _logger.LogInformation("Generating PDF for saving invoice {SaleId} to {FilePath}", 
+                        _currentSale.Id, saveDialog.FileName);
+
+                    // Generate PDF in memory
+                    var pdfBytes = PdfGenerator.GenerateInvoicePdf(
+                        _currentSale,
+                        _companyInfo.Name,
+                        _companyInfo.Address,
+                        _companyInfo.Phone,
+                        _companyInfo.Email
+                    );
+
+                    // Save the PDF to the selected file
+                    File.WriteAllBytes(saveDialog.FileName, pdfBytes);
+
+                    _logger.LogInformation("PDF saved successfully to {FilePath}", saveDialog.FileName);
+
+                    // Ask if user wants to open the saved PDF
+                    var result = MessageBox.Show(
+                        $"Invoice saved successfully as PDF!\n\nFile: {saveDialog.FileName}\n\nWould you like to open the file now?",
+                        "Invoice Saved", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            var startInfo = new ProcessStartInfo
+                            {
+                                FileName = saveDialog.FileName,
+                                UseShellExecute = true
+                            };
+                            Process.Start(startInfo);
+                        }
+                        catch (Exception openEx)
+                        {
+                            _logger.LogWarning(openEx, "Could not open saved PDF file");
+                            MessageBox.Show("PDF saved successfully, but could not open automatically.",
+                                "File Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving invoice");
-                MessageBox.Show("Error saving invoice", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error saving invoice: {ex.Message}", "Save Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private void BtnEmail_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show("Email functionality will be implemented in a future update",
-                "Email Invoice", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            try
+            {
+                if (_currentSale == null)
+                {
+                    MessageBox.Show("No invoice data available for emailing.", "Email Error", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _logger.LogInformation("Generating PDF for emailing invoice {SaleId}", _currentSale.Id);
+
+                // Generate PDF in memory
+                var pdfBytes = PdfGenerator.GenerateInvoicePdf(
+                    _currentSale,
+                    _companyInfo.Name,
+                    _companyInfo.Address,
+                    _companyInfo.Phone,
+                    _companyInfo.Email
+                );
+
+                // Create a temporary file for emailing
+                var tempPath = Path.Combine(Path.GetTempPath(), $"Invoice_INV-{_currentSale.Id:D6}.pdf");
+                File.WriteAllBytes(tempPath, pdfBytes);
+
+                // Create mailto URL with attachment (note: many email clients don't support attachments via mailto)
+                var customerEmail = ""; // Customer email would be fetched from customer data
+                var subject = Uri.EscapeDataString($"Invoice INV-{_currentSale.Id:D6} from {_companyInfo.Name}");
+                var body = Uri.EscapeDataString($"Dear {_currentSale.CustomerName ?? "Valued Customer"},\n\n" +
+                    $"Please find attached your invoice INV-{_currentSale.Id:D6}.\n\n" +
+                    $"Invoice Details:\n" +
+                    $"- Invoice Number: INV-{_currentSale.Id:D6}\n" +
+                    $"- Date: {_currentSale.Date:MMM dd, yyyy}\n" +
+                    $"- Amount: {_currentSale.TotalAmount:C}\n\n" +
+                    $"Thank you for your business!\n\n" +
+                    $"Best regards,\n{_companyInfo.Name}");
+
+                var mailtoUrl = $"mailto:{customerEmail}?subject={subject}&body={body}";
+
+                // Show instructions to user
+                var result = MessageBox.Show(
+                    $"Invoice PDF has been generated and saved to:\n{tempPath}\n\n" +
+                    $"Click OK to open your default email client.\n" +
+                    $"You will need to manually attach the PDF file to your email.\n\n" +
+                    $"Note: Some email clients may not auto-populate all fields.",
+                    "Email Invoice", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+
+                if (result == DialogResult.OK)
+                {
+                    try
+                    {
+                        var startInfo = new ProcessStartInfo
+                        {
+                            FileName = mailtoUrl,
+                            UseShellExecute = true
+                        };
+                        Process.Start(startInfo);
+
+                        // Also open the folder containing the PDF for easy attachment
+                        Process.Start("explorer.exe", $"/select,\"{tempPath}\"");
+                    }
+                    catch (Exception emailEx)
+                    {
+                        _logger.LogWarning(emailEx, "Could not open email client");
+                        MessageBox.Show(
+                            $"Could not open email client automatically.\n\n" +
+                            $"The invoice PDF has been saved to:\n{tempPath}\n\n" +
+                            $"Please attach this file to your email manually.",
+                            "Email Client Not Available", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error preparing invoice for email");
+                MessageBox.Show($"Error preparing invoice for email: {ex.Message}", "Email Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void BtnClose_Click(object? sender, EventArgs e)

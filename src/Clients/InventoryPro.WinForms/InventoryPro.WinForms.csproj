@@ -8,6 +8,7 @@
 		<UseWindowsForms>true</UseWindowsForms>	
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<EnableWindowsTargeting>true</EnableWindowsTargeting>
 
 		<!-- Application Metadata -->
 		<AssemblyTitle>InventoryPro Windows Forms Client</AssemblyTitle>
@@ -41,7 +42,7 @@
 		<PackageReference Include="Serilog" Version="4.2.0" />
 		<PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
 		<PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-		<PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+		<PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
 
 		<!-- JSON Serialization -->
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
@@ -63,6 +64,7 @@
 	<!-- Project References -->
 	<ItemGroup>
 		<ProjectReference Include="..\..\Shared\InventoryPro.Shared\InventoryPro.Shared.csproj" />
+		<ProjectReference Include="..\..\Services\InventoryPro.ReportService\InventoryPro.ReportService.csproj" />
 	</ItemGroup>
 
 	<!-- Application Settings -->

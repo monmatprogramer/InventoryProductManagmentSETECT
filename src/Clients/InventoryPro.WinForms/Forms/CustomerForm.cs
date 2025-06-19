@@ -470,7 +470,29 @@ namespace InventoryPro.WinForms.Forms
                     _totalPages = (int)Math.Ceiling((double)_totalRecords / _pageSize);
 
                     dgvCustomers.DataSource = null;
-                    dgvCustomers.DataSource = _customers;
+                    
+                    if (_customers == null || !_customers.Any())
+                    {
+                        // Show "No data found" message
+                        var emptyData = new List<CustomerDto>
+                        {
+                            new CustomerDto
+                            {
+                                Id = 0,
+                                Name = "No customers found",
+                                Email = "Please adjust your search criteria or add new customers",
+                                Phone = "",
+                                Address = "",
+                                CreatedAt = DateTime.MinValue
+                            }
+                        };
+                        dgvCustomers.DataSource = emptyData;
+                    }
+                    else
+                    {
+                        dgvCustomers.DataSource = _customers;
+                    }
+                    
                     ConfigureGridColumns();
 
                     UpdatePaginationInfo();
@@ -681,6 +703,12 @@ namespace InventoryPro.WinForms.Forms
 
             var selectedCustomer = dgvCustomers.SelectedRows[0].DataBoundItem as CustomerDto;
             if (selectedCustomer == null) return;
+            
+            // Prevent editing the "No customers found" placeholder
+            if (selectedCustomer.Name == "No customers found")
+            {
+                return;
+            }
 
             using (var dialog = new CustomerEditDialog(selectedCustomer))
                 {
@@ -723,6 +751,12 @@ namespace InventoryPro.WinForms.Forms
 
             var selectedCustomer = dgvCustomers.SelectedRows[0].DataBoundItem as CustomerDto;
             if (selectedCustomer == null) return;
+            
+            // Prevent deleting the "No customers found" placeholder
+            if (selectedCustomer.Name == "No customers found")
+            {
+                return;
+            }
 
             var result = MessageBox.Show(
                 $"Are you sure you want to delete customer '{selectedCustomer.Name}'?\n\n" +
@@ -767,6 +801,12 @@ namespace InventoryPro.WinForms.Forms
 
             var selectedCustomer = dgvCustomers.SelectedRows[0].DataBoundItem as CustomerDto;
             if (selectedCustomer == null) return;
+            
+            // Prevent viewing purchases for the "No customers found" placeholder
+            if (selectedCustomer.Name == "No customers found")
+            {
+                return;
+            }
 
             // TODO: Open a form to show customer purchase history
             MessageBox.Show($"📊 Purchase History for {selectedCustomer.Name}\n\n" +
@@ -895,7 +935,32 @@ namespace InventoryPro.WinForms.Forms
         private void DgvCustomers_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
             {
             var dgv = sender as DataGridView;
-            if (dgv == null) return;
+            if (dgv == null || dgv.Rows.Count <= e.RowIndex || e.RowIndex < 0) return;
+
+            var customer = dgv.Rows[e.RowIndex].DataBoundItem as CustomerDto;
+            if (customer == null) return;
+
+            // Check if this is the "No data found" row
+            if (customer.Name == "No customers found")
+            {
+                e.CellStyle.BackColor = Color.FromArgb(249, 250, 251);
+                e.CellStyle.ForeColor = Color.FromArgb(107, 114, 128);
+                e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Italic);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                
+                // Hide values for numeric/date columns in empty data row
+                if (dgv.Columns[e.ColumnIndex].Name == "CreatedAt" && customer.CreatedAt == DateTime.MinValue)
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (dgv.Columns[e.ColumnIndex].Name == "OrderCount")
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
 
             // Force center alignment for OrderCount column regardless of row style
             if (dgv.Columns[e.ColumnIndex].Name == "OrderCount")

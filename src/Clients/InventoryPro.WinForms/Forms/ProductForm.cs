@@ -558,7 +558,35 @@ namespace InventoryPro.WinForms.Forms
                     _totalPages = (int)Math.Ceiling((double)_totalRecords / _pageSize);
                     
                     dgvProducts.DataSource = null;
-                    dgvProducts.DataSource = _products;
+                    
+                    if (_products == null || !_products.Any())
+                    {
+                        // Show "No data found" message
+                        var emptyData = new List<ProductDto>
+                        {
+                            new ProductDto
+                            {
+                                Id = 0,
+                                Name = "No products found",
+                                SKU = "",
+                                Description = "Please adjust your search criteria or add new products",
+                                CategoryId = 0,
+                                CategoryName = "",
+                                Price = 0,
+                                Stock = 0,
+                                MinStock = 0,
+                                CreatedAt = DateTime.MinValue,
+                                UpdatedAt = DateTime.MinValue,
+                                IsActive = false
+                            }
+                        };
+                        dgvProducts.DataSource = emptyData;
+                    }
+                    else
+                    {
+                        dgvProducts.DataSource = _products;
+                    }
+                    
                     ConfigureGridColumns();
                     
                     UpdatePaginationInfo();
@@ -864,6 +892,27 @@ namespace InventoryPro.WinForms.Forms
             var product = grid.Rows[e.RowIndex].DataBoundItem as ProductDto;
             if (product == null) return;
 
+            // Check if this is the "No data found" row
+            if (product.Name == "No products found")
+            {
+                e.CellStyle.BackColor = Color.FromArgb(249, 250, 251);
+                e.CellStyle.ForeColor = Color.FromArgb(107, 114, 128);
+                e.CellStyle.Font = new System.Drawing.Font("Segoe UI", 10, FontStyle.Italic);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                
+                // Hide values for numeric/date columns in empty data row
+                if ((grid.Columns[e.ColumnIndex].Name == "CreatedAt" && product.CreatedAt == DateTime.MinValue) ||
+                    grid.Columns[e.ColumnIndex].Name == "Price" ||
+                    grid.Columns[e.ColumnIndex].Name == "Stock" ||
+                    grid.Columns[e.ColumnIndex].Name == "MinStock" ||
+                    grid.Columns[e.ColumnIndex].Name == "Id")
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
+
             if (grid.Columns[e.ColumnIndex].Name == "Stock")
             {
                 var stock = product.Stock;
@@ -990,6 +1039,11 @@ namespace InventoryPro.WinForms.Forms
                 var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto; // Declare 'selectedProduct' here
                 if (selectedProduct != null)
                     {
+                    // Prevent editing the "No products found" placeholder
+                    if (selectedProduct.Name == "No products found")
+                    {
+                        return;
+                    }
                     using (var dialog = new ProductEditDialog(_categories, selectedProduct))
                         {
                         if (dialog.ShowDialog() == DialogResult.OK)
@@ -1046,6 +1100,11 @@ namespace InventoryPro.WinForms.Forms
                 var selectedProduct = dgvProducts.SelectedRows[0].DataBoundItem as ProductDto;
                 if (selectedProduct != null)
                 {
+                    // Prevent deleting the "No products found" placeholder
+                    if (selectedProduct.Name == "No products found")
+                    {
+                        return;
+                    }
                     var productInfo =
                         $"Product: {selectedProduct.Name}\n" +
                         $"SKU: {selectedProduct.SKU}\n" +

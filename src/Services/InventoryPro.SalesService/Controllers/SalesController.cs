@@ -106,6 +106,10 @@ namespace InventoryPro.SalesService.Controllers
                 var sale = new Sale
                     {
                     CustomerId = dto.CustomerId,
+                    SubtotalAmount = dto.SubtotalAmount,
+                    TaxRate = dto.TaxRate,
+                    TaxAmount = dto.TaxAmount,
+                    TotalAmount = dto.TotalAmount,
                     PaymentMethod = dto.PaymentMethod,
                     PaidAmount = dto.PaidAmount,
                     Notes = dto.Notes,
@@ -296,6 +300,9 @@ namespace InventoryPro.SalesService.Controllers
                 CustomerId = sale.CustomerId,
                 CustomerName = sale.Customer?.Name ?? "Unknown",
                 Date = sale.SaleDate,
+                SubtotalAmount = sale.SubtotalAmount,
+                TaxRate = sale.TaxRate,
+                TaxAmount = sale.TaxAmount,
                 TotalAmount = sale.TotalAmount,
                 Status = sale.Status,
                 PaymentMethod = sale.PaymentMethod,

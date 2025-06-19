@@ -689,7 +689,31 @@ namespace InventoryPro.WinForms.Forms
             try
             {
                 dgvSalesHistory.DataSource = null;
-                dgvSalesHistory.DataSource = _filteredData;
+                
+                if (_filteredData == null || !_filteredData.Any())
+                {
+                    // Show "No data found" message
+                    var emptyData = new List<SaleItemDisplayDto>
+                    {
+                        new SaleItemDisplayDto
+                        {
+                            Date = DateTime.MinValue,
+                            ProductName = "No data found",
+                            CustomerName = "Please adjust your search criteria",
+                            Quantity = 0,
+                            UnitPrice = 0,
+                            TotalPrice = 0,
+                            InvoiceNumber = 0,
+                            PaymentMethod = "",
+                            Status = ""
+                        }
+                    };
+                    dgvSalesHistory.DataSource = emptyData;
+                }
+                else
+                {
+                    dgvSalesHistory.DataSource = _filteredData;
+                }
 
                 if (dgvSalesHistory.Columns.Count > 0)
                 {
@@ -712,9 +736,17 @@ namespace InventoryPro.WinForms.Forms
 
         private void UpdateStatusBar()
         {
-            lblCount.Text = $"📊 {_filteredData.Count} transactions found";
-            var totalAmount = _filteredData.Sum(s => s.TotalPrice);
-            lblTotal.Text = $"💰 Total Sales: {totalAmount:C}";
+            if (_filteredData == null || !_filteredData.Any())
+            {
+                lblCount.Text = "📊 0 transactions found";
+                lblTotal.Text = "💰 Total Sales: $0.00";
+            }
+            else
+            {
+                lblCount.Text = $"📊 {_filteredData.Count} transactions found";
+                var totalAmount = _filteredData.Sum(s => s.TotalPrice);
+                lblTotal.Text = $"💰 Total Sales: {totalAmount:C}";
+            }
         }
 
         private void ConfigureColumn(string columnName, string headerText, int width, string format = "")
@@ -790,6 +822,31 @@ namespace InventoryPro.WinForms.Forms
             var item = grid.Rows[e.RowIndex].DataBoundItem as SaleItemDisplayDto;
             if (item == null) return;
 
+            // Check if this is the "No data found" row
+            if (item.ProductName == "No data found")
+            {
+                e.CellStyle.BackColor = Color.FromArgb(249, 250, 251);
+                e.CellStyle.ForeColor = Color.FromArgb(107, 114, 128);
+                e.CellStyle.Font = new Font("Segoe UI", 10, FontStyle.Italic);
+                e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                
+                // Hide values for numeric columns in empty data row
+                if (grid.Columns[e.ColumnIndex].Name == "Date" && item.Date == DateTime.MinValue)
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                else if (grid.Columns[e.ColumnIndex].Name == "Quantity" ||
+                         grid.Columns[e.ColumnIndex].Name == "UnitPrice" ||
+                         grid.Columns[e.ColumnIndex].Name == "TotalPrice" ||
+                         grid.Columns[e.ColumnIndex].Name == "InvoiceNumber")
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
+
             // Modern status formatting
             if (grid.Columns[e.ColumnIndex].Name == "Status")
             {
@@ -846,18 +903,26 @@ namespace InventoryPro.WinForms.Forms
             if (dgvSalesHistory.SelectedRows.Count > 0)
             {
                 var selectedItem = dgvSalesHistory.SelectedRows[0].DataBoundItem as SaleItemDisplayDto;
-                if (selectedItem != null)
+                if (selectedItem != null && selectedItem.ProductName != "No data found")
                 {
                     ShowDetailsPanel(selectedItem);
+                }
+                else if (selectedItem?.ProductName == "No data found")
+                {
+                    HideDetailsPanel();
                 }
             }
         }
 
         private void DgvSalesHistory_CellClick(object? sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0 && e.RowIndex < _filteredData.Count)
+            if (e.RowIndex >= 0 && _filteredData != null && _filteredData.Any() && e.RowIndex < _filteredData.Count)
             {
-                ShowDetailsPanel(_filteredData[e.RowIndex]);
+                var selectedItem = _filteredData[e.RowIndex];
+                if (selectedItem.ProductName != "No data found")
+                {
+                    ShowDetailsPanel(selectedItem);
+                }
             }
         }
 

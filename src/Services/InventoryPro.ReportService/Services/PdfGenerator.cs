@@ -7,6 +7,7 @@ using iText.Kernel.Font;
 using iText.IO.Font.Constants;
 using iText.IO.Image;
 using InventoryPro.ReportService.Models;
+using InventoryPro.Shared.DTOs;
 
 namespace InventoryPro.ReportService.Services
     {
@@ -747,6 +748,283 @@ namespace InventoryPro.ReportService.Services
 
             document.Close();
             return stream.ToArray();
+            }
+
+        /// <summary>
+        /// Generates a professional PDF invoice from sale data
+        /// </summary>
+        public static byte[] GenerateInvoicePdf(SaleDto sale, string companyName = "InventoryPro", string companyAddress = "", string companyPhone = "", string companyEmail = "")
+            {
+            using var stream = new MemoryStream();
+            var writer = new PdfWriter(stream);
+            var pdf = new PdfDocument(writer);
+            var document = new Document(pdf);
+
+            // Fonts
+            var titleFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            var headerFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            var normalFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+
+            // Colors
+            var primaryColor = new DeviceRgb(52, 58, 64);
+            var secondaryColor = new DeviceRgb(108, 117, 125);
+            var accentColor = new DeviceRgb(0, 123, 255);
+
+            // Header section with company info and invoice title
+            var headerTable = new Table(2);
+            headerTable.SetWidth(UnitValue.CreatePercentValue(100));
+            headerTable.SetMarginBottom(30);
+
+            // Company info cell
+            var companyCell = new Cell();
+            companyCell.Add(new Paragraph(companyName)
+                .SetFont(titleFont)
+                .SetFontSize(24)
+                .SetFontColor(primaryColor)
+                .SetMarginBottom(5));
+            
+            if (!string.IsNullOrEmpty(companyAddress))
+                companyCell.Add(new Paragraph(companyAddress).SetFont(normalFont).SetFontSize(10).SetMarginBottom(2));
+            if (!string.IsNullOrEmpty(companyPhone))
+                companyCell.Add(new Paragraph($"Phone: {companyPhone}").SetFont(normalFont).SetFontSize(10).SetMarginBottom(2));
+            if (!string.IsNullOrEmpty(companyEmail))
+                companyCell.Add(new Paragraph($"Email: {companyEmail}").SetFont(normalFont).SetFontSize(10));
+            
+            companyCell.SetBorder(iText.Layout.Borders.Border.NO_BORDER);
+            
+            // Invoice title cell
+            var invoiceCell = new Cell();
+            invoiceCell.Add(new Paragraph("INVOICE")
+                .SetFont(titleFont)
+                .SetFontSize(28)
+                .SetFontColor(accentColor)
+                .SetTextAlignment(TextAlignment.RIGHT)
+                .SetMarginBottom(5));
+            invoiceCell.Add(new Paragraph($"#{sale.Id:D6}")
+                .SetFont(headerFont)
+                .SetFontSize(16)
+                .SetFontColor(secondaryColor)
+                .SetTextAlignment(TextAlignment.RIGHT));
+            invoiceCell.SetBorder(iText.Layout.Borders.Border.NO_BORDER);
+
+            headerTable.AddCell(companyCell);
+            headerTable.AddCell(invoiceCell);
+            document.Add(headerTable);
+
+            // Invoice details and customer info section
+            var detailsTable = new Table(2);
+            detailsTable.SetWidth(UnitValue.CreatePercentValue(100));
+            detailsTable.SetMarginBottom(30);
+
+            // Customer billing info
+            var billingCell = new Cell();
+            billingCell.Add(new Paragraph("BILL TO:")
+                .SetFont(headerFont)
+                .SetFontSize(12)
+                .SetFontColor(primaryColor)
+                .SetMarginBottom(8));
+            
+            var customerName = sale.CustomerName ?? "Walk-in Customer";
+            billingCell.Add(new Paragraph(customerName)
+                .SetFont(headerFont)
+                .SetFontSize(14)
+                .SetMarginBottom(5));
+            
+            // Add placeholder for customer details (in real implementation, these would come from customer lookup)
+            billingCell.Add(new Paragraph("Customer contact information would be displayed here").SetFont(normalFont).SetFontSize(10).SetMarginBottom(2));
+            
+            billingCell.SetBorder(iText.Layout.Borders.Border.NO_BORDER);
+            billingCell.SetBackgroundColor(new DeviceRgb(248, 249, 250));
+            billingCell.SetPadding(15);
+
+            // Invoice details
+            var invoiceDetailsCell = new Cell();
+            invoiceDetailsCell.Add(new Paragraph("INVOICE DETAILS:")
+                .SetFont(headerFont)
+                .SetFontSize(12)
+                .SetFontColor(primaryColor)
+                .SetMarginBottom(8));
+
+            var detailsInnerTable = new Table(2);
+            detailsInnerTable.SetWidth(UnitValue.CreatePercentValue(100));
+            
+            AddInvoiceDetailRow(detailsInnerTable, "Invoice Date:", sale.Date.ToString("MMM dd, yyyy"), headerFont, normalFont);
+            AddInvoiceDetailRow(detailsInnerTable, "Due Date:", sale.Date.AddDays(30).ToString("MMM dd, yyyy"), headerFont, normalFont);
+            AddInvoiceDetailRow(detailsInnerTable, "Payment Method:", sale.PaymentMethod ?? "N/A", headerFont, normalFont);
+            AddInvoiceDetailRow(detailsInnerTable, "Sales Rep:", "System", headerFont, normalFont);
+
+            invoiceDetailsCell.Add(detailsInnerTable);
+            invoiceDetailsCell.SetBorder(iText.Layout.Borders.Border.NO_BORDER);
+
+            detailsTable.AddCell(billingCell);
+            detailsTable.AddCell(invoiceDetailsCell);
+            document.Add(detailsTable);
+
+            // Items table
+            document.Add(new Paragraph("ITEMS")
+                .SetFont(headerFont)
+                .SetFontSize(14)
+                .SetFontColor(primaryColor)
+                .SetMarginBottom(15));
+
+            var itemsTable = new Table(5);
+            itemsTable.SetWidth(UnitValue.CreatePercentValue(100));
+
+            // Header row with styling
+            var headerStyle = new Style()
+                .SetBackgroundColor(primaryColor)
+                .SetFontColor(ColorConstants.WHITE)
+                .SetFont(headerFont)
+                .SetFontSize(11)
+                .SetPadding(12)
+                .SetTextAlignment(TextAlignment.CENTER);
+
+            itemsTable.AddHeaderCell(new Cell().Add(new Paragraph("ITEM").SetTextAlignment(TextAlignment.LEFT)).AddStyle(headerStyle));
+            itemsTable.AddHeaderCell(new Cell().Add(new Paragraph("SKU")).AddStyle(headerStyle));
+            itemsTable.AddHeaderCell(new Cell().Add(new Paragraph("QTY")).AddStyle(headerStyle));
+            itemsTable.AddHeaderCell(new Cell().Add(new Paragraph("UNIT PRICE")).AddStyle(headerStyle));
+            itemsTable.AddHeaderCell(new Cell().Add(new Paragraph("TOTAL")).AddStyle(headerStyle));
+
+            // Data rows
+            var rowStyle = new Style()
+                .SetFont(normalFont)
+                .SetFontSize(10)
+                .SetPadding(10);
+
+            var alternateRowStyle = new Style()
+                .SetFont(normalFont)
+                .SetFontSize(10)
+                .SetPadding(10)
+                .SetBackgroundColor(new DeviceRgb(248, 249, 250));
+
+            for (int i = 0; i < sale.Items.Count; i++)
+                {
+                var item = sale.Items[i];
+                var currentRowStyle = i % 2 == 0 ? rowStyle : alternateRowStyle;
+                
+                itemsTable.AddCell(new Cell().Add(new Paragraph(item.ProductName ?? "Unknown Product")
+                    .SetTextAlignment(TextAlignment.LEFT)).AddStyle(currentRowStyle));
+                itemsTable.AddCell(new Cell().Add(new Paragraph(item.ProductSKU ?? "N/A")
+                    .SetTextAlignment(TextAlignment.CENTER)).AddStyle(currentRowStyle));
+                itemsTable.AddCell(new Cell().Add(new Paragraph(item.Quantity.ToString("N0"))
+                    .SetTextAlignment(TextAlignment.CENTER)).AddStyle(currentRowStyle));
+                itemsTable.AddCell(new Cell().Add(new Paragraph($"${item.UnitPrice:N2}")
+                    .SetTextAlignment(TextAlignment.RIGHT)).AddStyle(currentRowStyle));
+                itemsTable.AddCell(new Cell().Add(new Paragraph($"${item.FinalAmount:N2}")
+                    .SetTextAlignment(TextAlignment.RIGHT)).AddStyle(currentRowStyle));
+                }
+
+            document.Add(itemsTable);
+
+            // Totals section
+            document.Add(new Paragraph("\n"));
+            
+            var totalsTable = new Table(2);
+            totalsTable.SetWidth(UnitValue.CreatePercentValue(50));
+            totalsTable.SetHorizontalAlignment(HorizontalAlignment.RIGHT);
+            totalsTable.SetMarginTop(20);
+
+            // Use stored tax information from the sale
+            var subtotal = sale.SubtotalAmount;
+            var taxAmount = sale.TaxAmount;
+            var taxRate = sale.TaxRate;
+
+            AddTotalRow(totalsTable, "Subtotal:", $"${subtotal:N2}", normalFont, normalFont, false);
+            AddTotalRow(totalsTable, $"Tax ({taxRate:P0}):", $"${taxAmount:N2}", normalFont, normalFont, false);
+            AddTotalRow(totalsTable, "TOTAL:", $"${sale.TotalAmount:N2}", titleFont, titleFont, true);
+            AddTotalRow(totalsTable, "Amount Paid:", $"${sale.PaidAmount:N2}", normalFont, normalFont, false);
+            
+            var changeAmount = sale.PaidAmount - sale.TotalAmount;
+            var changeColor = changeAmount >= 0 ? new DeviceRgb(40, 167, 69) : new DeviceRgb(220, 53, 69);
+            AddTotalRow(totalsTable, "Change:", $"${changeAmount:N2}", normalFont, normalFont, false, changeColor);
+
+            document.Add(totalsTable);
+
+            // Footer section
+            document.Add(new Paragraph("\n\n"));
+            
+            // Payment terms and notes
+            var footerTable = new Table(1);
+            footerTable.SetWidth(UnitValue.CreatePercentValue(100));
+            footerTable.SetMarginTop(30);
+            
+            var footerCell = new Cell();
+            footerCell.Add(new Paragraph("PAYMENT TERMS & CONDITIONS")
+                .SetFont(headerFont)
+                .SetFontSize(10)
+                .SetFontColor(primaryColor)
+                .SetMarginBottom(5));
+            footerCell.Add(new Paragraph("• Payment is due within 30 days of invoice date")
+                .SetFont(normalFont)
+                .SetFontSize(9)
+                .SetMarginBottom(2));
+            footerCell.Add(new Paragraph("• Late payments may be subject to fees")
+                .SetFont(normalFont)
+                .SetFontSize(9)
+                .SetMarginBottom(2));
+            footerCell.Add(new Paragraph("• Please include invoice number with payment")
+                .SetFont(normalFont)
+                .SetFontSize(9));
+            
+            if (!string.IsNullOrEmpty(sale.Notes))
+                {
+                footerCell.Add(new Paragraph($"\nNotes: {sale.Notes}")
+                    .SetFont(normalFont)
+                    .SetFontSize(9)
+                    .SetFontColor(secondaryColor)
+                    .SetMarginTop(10));
+                }
+            
+            footerCell.SetBorder(iText.Layout.Borders.Border.NO_BORDER);
+            footerCell.SetBackgroundColor(new DeviceRgb(248, 249, 250));
+            footerCell.SetPadding(15);
+            footerTable.AddCell(footerCell);
+            document.Add(footerTable);
+
+            // Final footer with generation info
+            document.Add(new Paragraph($"Invoice generated on {DateTime.Now:MMM dd, yyyy 'at' HH:mm}")
+                .SetFont(normalFont)
+                .SetFontSize(8)
+                .SetFontColor(secondaryColor)
+                .SetTextAlignment(TextAlignment.CENTER)
+                .SetMarginTop(20));
+
+            document.Close();
+            return stream.ToArray();
+            }
+
+        private static void AddInvoiceDetailRow(Table table, string label, string value, PdfFont labelFont, PdfFont valueFont)
+            {
+            table.AddCell(new Cell().Add(new Paragraph(label).SetFont(labelFont).SetFontSize(10))
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(2));
+            table.AddCell(new Cell().Add(new Paragraph(value).SetFont(valueFont).SetFontSize(10))
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(2));
+            }
+
+        private static void AddTotalRow(Table table, string label, string value, PdfFont labelFont, PdfFont valueFont, bool isTotal, DeviceRgb? valueColor = null)
+            {
+            var labelCell = new Cell().Add(new Paragraph(label).SetFont(labelFont).SetFontSize(isTotal ? 14 : 11))
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+                .SetPadding(8)
+                .SetTextAlignment(TextAlignment.RIGHT);
+            
+            var valueCell = new Cell().Add(new Paragraph(value).SetFont(valueFont).SetFontSize(isTotal ? 14 : 11))
+                .SetBorder(iText.Layout.Borders.Border.NO_BORDER)
+                .SetPadding(8)
+                .SetTextAlignment(TextAlignment.RIGHT);
+
+            if (isTotal)
+                {
+                labelCell.SetBackgroundColor(new DeviceRgb(52, 58, 64)).SetFontColor(ColorConstants.WHITE);
+                valueCell.SetBackgroundColor(new DeviceRgb(52, 58, 64)).SetFontColor(ColorConstants.WHITE);
+                }
+            else if (valueColor != null)
+                {
+                valueCell.SetFontColor(valueColor);
+                }
+
+            table.AddCell(labelCell);
+            table.AddCell(valueCell);
             }
 
         private static void AddTableRow(Table table, string label, string value, PdfFont labelFont, PdfFont valueFont)

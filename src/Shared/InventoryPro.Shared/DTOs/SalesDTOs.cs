@@ -40,7 +40,13 @@ namespace InventoryPro.Shared.DTOs
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
         public DateTime Date { get; set; }
+        
+        // Amount breakdown
+        public decimal SubtotalAmount { get; set; }
+        public decimal TaxRate { get; set; } = 0.10m; // Default 10% tax rate
+        public decimal TaxAmount { get; set; }
         public decimal TotalAmount { get; set; }
+        
         public string Status { get; set; } = "Pending"; // Pending, Completed, Cancelled
         public List<SaleItemDto> Items { get; set; } = new();
 
@@ -83,6 +89,12 @@ namespace InventoryPro.Shared.DTOs
         [Required(ErrorMessage = "At least one item is required")]
         [MinLength(1, ErrorMessage = "At least one item is required")]
         public List<CreateSaleItemDto> Items { get; set; } = new();
+
+        // Tax information
+        public decimal TaxRate { get; set; } = 0.10m; // Default 10% tax rate
+        public decimal SubtotalAmount { get; set; }
+        public decimal TaxAmount { get; set; }
+        public decimal TotalAmount { get; set; }
 
         public string PaymentMethod { get; set; } = "Cash";
         public decimal PaidAmount { get; set; }

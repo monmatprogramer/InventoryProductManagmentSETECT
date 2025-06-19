@@ -1675,10 +1675,12 @@ namespace InventoryPro.WinForms.Forms
                     return;
                 }
 
-                decimal total = 0;
+                // Calculate tax and totals properly
+                decimal subtotal = 0;
                 for (int i = 0; i < _cartItems.Count; i++)
-                    total += _cartItems[i].Total;
-                total *= (1 + _taxRate);
+                    subtotal += _cartItems[i].Total;
+                var taxAmount = subtotal * _taxRate;
+                var total = subtotal + taxAmount;
 
                 if (nudPaidAmount.Value < total)
                 {
@@ -1696,6 +1698,10 @@ namespace InventoryPro.WinForms.Forms
                 var sale = new CreateSaleDto
                 {
                     CustomerId = customerId,
+                    TaxRate = _taxRate,
+                    SubtotalAmount = subtotal,
+                    TaxAmount = taxAmount,
+                    TotalAmount = total,
                     PaymentMethod = cboPaymentMethod.Text,
                     PaidAmount = nudPaidAmount.Value,
                     Notes = "",
@@ -1880,11 +1886,12 @@ namespace InventoryPro.WinForms.Forms
                     return;
                 }
 
-                // Validate totals
-                decimal total = 0;
+                // Calculate tax and totals properly
+                decimal subtotal = 0;
                 for (int i = 0; i < _cartItems.Count; i++)
-                    total += _cartItems[i].Total;
-                total *= (1 + _taxRate);
+                    subtotal += _cartItems[i].Total;
+                var taxAmount = subtotal * _taxRate;
+                var total = subtotal + taxAmount;
 
                 if (nudPaidAmount.Value < total)
                 {
@@ -1903,6 +1910,10 @@ namespace InventoryPro.WinForms.Forms
                 var sale = new CreateSaleDto
                 {
                     CustomerId = customerId,
+                    TaxRate = _taxRate,
+                    SubtotalAmount = subtotal,
+                    TaxAmount = taxAmount,
+                    TotalAmount = total,
                     PaymentMethod = cboPaymentMethod.Text,
                     PaidAmount = nudPaidAmount.Value,
                     Notes = "Invoice Generated",

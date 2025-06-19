@@ -52,6 +52,19 @@ namespace InventoryPro.SalesService.Models
         [Required]
         public DateTime SaleDate { get; set; } = DateTime.UtcNow;
 
+        // Amount breakdown with tax information
+        [Required]
+        [Column(TypeName = "decimal(10,2)")]
+        public decimal SubtotalAmount { get; set; }
+
+        [Required]
+        [Column(TypeName = "decimal(5,4)")]
+        public decimal TaxRate { get; set; } = 0.10m; // Default 10% tax rate
+
+        [Required]
+        [Column(TypeName = "decimal(10,2)")]
+        public decimal TaxAmount { get; set; }
+
         [Required]
         [Column(TypeName = "decimal(10,2)")]
         public decimal TotalAmount { get; set; }

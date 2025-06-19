@@ -261,8 +261,29 @@ namespace InventoryPro.SalesService.Services
                     }
                 }
 
-                // Calculate totals
-                sale.TotalAmount = sale.SaleItems.Sum(i => i.FinalAmount);
+                // Validate totals (tax information is already calculated by frontend)
+                // Verify that the passed total matches the calculation for security
+                var calculatedSubtotal = sale.SaleItems.Sum(i => i.FinalAmount);
+                var calculatedTaxAmount = calculatedSubtotal * sale.TaxRate;
+                var calculatedTotal = calculatedSubtotal + calculatedTaxAmount;
+                
+                // Log discrepancies for debugging
+                if (Math.Abs(sale.SubtotalAmount - calculatedSubtotal) > 0.01m)
+                {
+                    _logger.LogWarning("Subtotal mismatch: passed {PassedSubtotal}, calculated {CalculatedSubtotal}", 
+                        sale.SubtotalAmount, calculatedSubtotal);
+                }
+                if (Math.Abs(sale.TaxAmount - calculatedTaxAmount) > 0.01m)
+                {
+                    _logger.LogWarning("Tax amount mismatch: passed {PassedTax}, calculated {CalculatedTax}", 
+                        sale.TaxAmount, calculatedTaxAmount);
+                }
+                if (Math.Abs(sale.TotalAmount - calculatedTotal) > 0.01m)
+                {
+                    _logger.LogWarning("Total amount mismatch: passed {PassedTotal}, calculated {CalculatedTotal}", 
+                        sale.TotalAmount, calculatedTotal);
+                }
+                
                 sale.ChangeAmount = sale.PaidAmount - sale.TotalAmount;
 
                 if (sale.PaidAmount < sale.TotalAmount)
