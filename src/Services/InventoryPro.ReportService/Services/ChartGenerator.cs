@@ -114,13 +114,21 @@ namespace InventoryPro.ReportService.Services
             
             if (salesByCategory.Any())
             {
-                var values = salesByCategory.Values.Select(v => (double)v).ToArray();
-                var labels = salesByCategory.Keys.ToArray();
-                
+                var values = salesByCategory.Values.Select(v => Math.Round((double)v, 2)).ToArray();
+                //var labels = salesByCategory.Keys.ToArray();
+                //            var labels = salesByCategory.Keys
+                //.Zip(values, (category, value) => $"{category}\n${value:N2}")
+                //.ToArray();
+                var categories = salesByCategory.Keys.ToArray();
+
                 // Add pie chart
                 var pie = plt.AddPie(values);
-                pie.SliceLabels = labels;
-                pie.ShowValues = true;
+                pie.SliceLabels = salesByCategory.Keys
+                    .Zip(values, (category, value) => $"{category}\n${value:N2}")
+                    .ToArray();
+                pie.ShowValues = false;
+                pie.ShowLabels = true;
+                //pie.ValueFormatter = v => $"${v:N2}";
                 pie.ShowPercentages = true;
                 
                 // Formatting

@@ -511,6 +511,7 @@ namespace InventoryPro.ReportService.Services
                 {
                     try
                     {
+<<<<<<< HEAD
                         var normalizedReportType = reportType.ToLower();
                         return normalizedReportType switch
                         {
@@ -528,6 +529,18 @@ namespace InventoryPro.ReportService.Services
                         _logger.LogError(pdfEx, "Error in PDF generation for {ReportType}", reportType);
                         return GenerateFallbackPdf(report, reportType, $"PDF generation failed: {pdfEx.Message}");
                     }
+=======
+                        "sales report" when report is SalesReport salesReport => 
+                            PdfGenerator.GenerateSalesReportPdf(salesReport),
+                        "inventory report" when report is InventoryReport inventoryReport => 
+                            PdfGenerator.GenerateInventoryReportPdf(inventoryReport),
+                        "financial report" when report is FinancialReport financialReport => 
+                            PdfGenerator.GenerateFinancialReportPdf(financialReport),
+                        "custom report" when report is CustomReport customReport => 
+                            PdfGenerator.GenerateCustomReportPdf(customReport),
+                        _ => GenerateFallbackPdf(report, reportType)
+                    };
+>>>>>>> feature/display-ministock
                 });
                 }
             catch (Exception ex)
@@ -659,6 +672,7 @@ namespace InventoryPro.ReportService.Services
             {
             try
                 {
+<<<<<<< HEAD
                 // Validate report data before generation
                 if (report == null)
                 {
@@ -691,6 +705,22 @@ namespace InventoryPro.ReportService.Services
                         _logger.LogError(excelEx, "Error in Excel generation for {ReportType}", reportType);
                         return GenerateFallbackExcel(report, reportType, $"Excel generation failed: {excelEx.Message}");
                     }
+=======
+                return await Task.Run(() =>
+                {
+                    return reportType.ToLower() switch
+                    {
+                        "sales report" when report is SalesReport salesReport => 
+                            ExcelGenerator.GenerateSalesReportExcel(salesReport),
+                        "inventory report" when report is InventoryReport inventoryReport => 
+                            ExcelGenerator.GenerateInventoryReportExcel(inventoryReport),
+                        "financial report" when report is FinancialReport financialReport => 
+                            ExcelGenerator.GenerateFinancialReportExcel(financialReport),
+                        "custom report" when report is CustomReport customReport => 
+                            ExcelGenerator.GenerateCustomReportExcel(customReport),
+                        _ => GenerateFallbackExcel(report, reportType)
+                    };
+>>>>>>> feature/display-ministock
                 });
                 }
             catch (Exception ex)
@@ -698,6 +728,15 @@ namespace InventoryPro.ReportService.Services
                 _logger.LogError(ex, "Error exporting report to Excel");
                 throw;
                 }
+            }
+
+        private byte[] GenerateFallbackExcel(object report, string reportType)
+            {
+            // Fallback for unsupported report types
+            var excelContent = $"Excel Report - {reportType}\n" +
+                              $"Generated at: {DateTime.Now}\n" +
+                              $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
+            return Encoding.UTF8.GetBytes(excelContent);
             }
 
         /// <summary>

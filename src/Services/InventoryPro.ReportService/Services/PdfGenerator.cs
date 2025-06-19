@@ -391,6 +391,156 @@ namespace InventoryPro.ReportService.Services
         }
 
         /// <summary>
+        /// Generates a PDF for financial report
+        /// </summary>
+        public static byte[] GenerateFinancialReportPdf(FinancialReport report)
+        {
+            using var stream = new MemoryStream();
+            var writer = new PdfWriter(stream);
+            var pdf = new PdfDocument(writer);
+            var document = new Document(pdf);
+
+            // Fonts
+            var titleFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            var headerFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            var normalFont = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+
+            // Title
+            document.Add(new Paragraph("FINANCIAL REPORT")
+                .SetFont(titleFont)
+                .SetFontSize(20)
+                .SetTextAlignment(TextAlignment.CENTER)
+                .SetMarginBottom(20));
+
+            // Report period
+            document.Add(new Paragraph($"Period: {report.StartDate:MMM dd, yyyy} - {report.EndDate:MMM dd, yyyy}")
+                .SetFont(normalFont)
+                .SetFontSize(12)
+                .SetTextAlignment(TextAlignment.CENTER)
+                .SetMarginBottom(20));
+
+            // Financial Summary section
+            document.Add(new Paragraph("FINANCIAL SUMMARY")
+                .SetFont(headerFont)
+                .SetFontSize(14)
+                .SetMarginBottom(10));
+
+            var summaryTable = new Table(2);
+            summaryTable.SetWidth(UnitValue.CreatePercentValue(100));
+            
+            AddTableRow(summaryTable, "Gross Revenue:", $"${report.GrossRevenue:N2}", headerFont, normalFont);
+            AddTableRow(summaryTable, "Total Discounts:", $"${report.TotalDiscounts:N2}", headerFont, normalFont);
+            AddTableRow(summaryTable, "Net Revenue:", $"${report.NetRevenue:N2}", headerFont, normalFont);
+            AddTableRow(summaryTable, "Total Transactions:", report.TotalTransactions.ToString("N0"), headerFont, normalFont);
+            AddTableRow(summaryTable, "Average Transaction Value:", $"${report.AverageTransactionValue:N2}", headerFont, normalFont);
+
+            document.Add(summaryTable);
+            document.Add(new Paragraph("\n"));
+
+            // Monthly Revenue Chart
+            if (report.MonthlyRevenue.Any())
+            {
+                document.Add(new Paragraph("MONTHLY REVENUE TREND")
+                    .SetFont(headerFont)
+                    .SetFontSize(14)
+                    .SetMarginBottom(10));
+
+                try
+                {
+                    var chartBytes = ChartGenerator.GenerateMonthlyRevenueChart(report.MonthlyRevenue);
+                    var chartImage = ImageDataFactory.Create(chartBytes);
+                    var image = new Image(chartImage);
+                    image.SetWidth(UnitValue.CreatePercentValue(80));
+                    image.SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                    document.Add(image);
+                    document.Add(new Paragraph("\n"));
+                }
+                catch (Exception ex)
+                {
+                    document.Add(new Paragraph($"Monthly revenue chart generation failed: {ex.Message}")
+                        .SetFont(normalFont)
+                        .SetFontSize(10)
+                        .SetFontColor(ColorConstants.RED));
+                }
+
+                // Monthly Revenue Table
+                var monthlyTable = new Table(4);
+                monthlyTable.SetWidth(UnitValue.CreatePercentValue(100));
+                
+                // Headers
+                monthlyTable.AddHeaderCell(new Cell().Add(new Paragraph("Month").SetFont(headerFont)));
+                monthlyTable.AddHeaderCell(new Cell().Add(new Paragraph("Revenue").SetFont(headerFont)));
+                monthlyTable.AddHeaderCell(new Cell().Add(new Paragraph("Transactions").SetFont(headerFont)));
+                monthlyTable.AddHeaderCell(new Cell().Add(new Paragraph("Growth %").SetFont(headerFont)));
+
+                // Data rows
+                foreach (var monthlyRevenue in report.MonthlyRevenue)
+                {
+                    monthlyTable.AddCell(new Cell().Add(new Paragraph($"{monthlyRevenue.Year}-{monthlyRevenue.Month:00}").SetFont(normalFont)));
+                    monthlyTable.AddCell(new Cell().Add(new Paragraph($"${monthlyRevenue.Revenue:N2}").SetFont(normalFont)));
+                    monthlyTable.AddCell(new Cell().Add(new Paragraph(monthlyRevenue.TransactionCount.ToString("N0")).SetFont(normalFont)));
+                    monthlyTable.AddCell(new Cell().Add(new Paragraph($"{monthlyRevenue.Growth:F1}%").SetFont(normalFont)));
+                }
+
+                document.Add(monthlyTable);
+                document.Add(new Paragraph("\n"));
+            }
+
+            // Revenue by Category section
+            if (report.RevenueByCategory.Any())
+            {
+                document.Add(new Paragraph("REVENUE BY CATEGORY")
+                    .SetFont(headerFont)
+                    .SetFontSize(14)
+                    .SetMarginBottom(10));
+
+                var categoryTable = new Table(2);
+                categoryTable.SetWidth(UnitValue.CreatePercentValue(100));
+                
+                // Headers
+                categoryTable.AddHeaderCell(new Cell().Add(new Paragraph("Category").SetFont(headerFont)));
+                categoryTable.AddHeaderCell(new Cell().Add(new Paragraph("Revenue").SetFont(headerFont)));
+
+                // Data rows
+                foreach (var category in report.RevenueByCategory)
+                {
+                    categoryTable.AddCell(new Cell().Add(new Paragraph(category.Key).SetFont(normalFont)));
+                    categoryTable.AddCell(new Cell().Add(new Paragraph($"${category.Value:N2}").SetFont(normalFont)));
+                }
+
+                document.Add(categoryTable);
+                
+                // Revenue by Category Chart
+                try
+                {
+                    var chartBytes = ChartGenerator.GenerateSalesByCategoryChart(report.RevenueByCategory);
+                    var chartImage = ImageDataFactory.Create(chartBytes);
+                    var image = new Image(chartImage);
+                    image.SetWidth(UnitValue.CreatePercentValue(60));
+                    image.SetHorizontalAlignment(HorizontalAlignment.CENTER);
+                    document.Add(image);
+                }
+                catch (Exception ex)
+                {
+                    document.Add(new Paragraph($"Revenue category chart generation failed: {ex.Message}")
+                        .SetFont(normalFont)
+                        .SetFontSize(10)
+                        .SetFontColor(ColorConstants.RED));
+                }
+            }
+
+            // Footer
+            document.Add(new Paragraph($"\nGenerated on: {DateTime.Now:MMM dd, yyyy HH:mm}")
+                .SetFont(normalFont)
+                .SetFontSize(10)
+                .SetTextAlignment(TextAlignment.RIGHT)
+                .SetMarginTop(30));
+
+            document.Close();
+            return stream.ToArray();
+        }
+
+        /// <summary>
         /// Generates a PDF for custom report
         /// </summary>
         public static byte[] GenerateCustomReportPdf(CustomReport report)
