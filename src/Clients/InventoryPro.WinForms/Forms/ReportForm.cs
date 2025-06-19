@@ -1234,57 +1234,69 @@ namespace InventoryPro.WinForms.Forms
             {
             try
                 {
-                btnGenerateFinancial.Enabled = false;
-                btnGenerateFinancial.Text = "Generating...";
+                var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
+                var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
 
                 if (cboFinancialFormat.Text == "View")
                     {
-                    // Get financial data for viewing
-                    var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
-                    var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
-                    var dataResponse = await _apiService.GetFinancialReportDataAsync(startDate, endDate);
+                    // Get financial report data for viewing
+                    var reportDataResponse = await _apiService.GetFinancialReportDataAsync(startDate, endDate);
 
-                    if (dataResponse.Success && dataResponse.Data != null)
+                    if (reportDataResponse.Success && reportDataResponse.Data != null)
                         {
-                        // Process and display the data
-                        var financialData = dataResponse.Data as dynamic;
+                        var reportData = reportDataResponse.Data;
 
-                        // Update chart with real data
-                        chartFinancial.Series[0].Points.Clear();
-                        if (financialData?.MonthlyRevenue != null)
-                            {
-                            foreach (var data in financialData.MonthlyRevenue)
-                                {
-                                var monthName = new DateTime(data.Year, data.Month, 1).ToString("MMM");
-                                chartFinancial.Series[0].Points.AddXY(monthName, data.Revenue);
-                                }
-                            }
+                        // Update chart and grid with real data
+                        Invoke(new Action(() =>
+                        {
+                            UpdateFinancialUIWithData(reportData);
+                        }));
+                        }
+                    else
+                        {
+                        // Fallback to simulated data if API call fails
+                        await GenerateSimulatedFinancialData();
+                        }
+                    }
+                else
+                    {
+                    // Generate and export PDF or Excel
+                    var response = await _apiService.GenerateFinancialReportAsync(startDate, endDate, cboFinancialFormat.Text);
 
-                        // Update grid with real data
-                        if (financialData?.MonthlyRevenue != null)
+                    if (response.Success && response.Data != null)
+                        {
+                        var extension = cboFinancialFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
+                        var fileName = $"Financial_Report_{dtpFinancialYear.Value.Year}{extension}";
+                        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
+
+                        await File.WriteAllBytesAsync(filePath, response.Data);
+
+                        var result = MessageBox.Show($"Financial Report Generated Successfully!\n\n" +
+                                                   $"Format: {cboFinancialFormat.Text}\n" +
+                                                   $"File: {fileName}\n" +
+                                                   $"Location: Desktop\n\n" +
+                                                   "Would you like to open the report now?",
+                            "Export Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+
+                        if (result == DialogResult.Yes)
                             {
-                            dgvFinancialData.DataSource = financialData.MonthlyRevenue;
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath) { UseShellExecute = true });
                             }
                         }
                     else
                         {
-                        MessageBox.Show($"Failed to load financial data: {dataResponse.Message}",
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        MessageBox.Show($"Error generating financial report: {response.Message}",
+                            "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         }
                     }
                 }
-             catch (Exception ex)
+            catch (Exception ex)
                 {
                 _logger.LogError(ex, "Error generating financial report");
-                MessageBox.Show("An unexpected error occurred while generating the financial report. Please try again.",
+                MessageBox.Show("Error generating financial report.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
-            finally
-                {
-                btnGenerateFinancial.Enabled = true;
-                btnGenerateFinancial.Text = "Generate Report";
-                }
-        }
+            }
 
         private async Task GenerateSimulatedFinancialData()
         {
