@@ -1231,227 +1231,61 @@ namespace InventoryPro.WinForms.Forms
         }
 
         private async void BtnGenerateFinancial_Click(object? sender, EventArgs e)
-        {
-            try
             {
-<<<<<<< HEAD
+            try
+                {
                 btnGenerateFinancial.Enabled = false;
                 btnGenerateFinancial.Text = "Generating...";
 
                 if (cboFinancialFormat.Text == "View")
-                {
+                    {
                     // Get financial data for viewing
                     var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
                     var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
                     var dataResponse = await _apiService.GetFinancialReportDataAsync(startDate, endDate);
-                    
+
                     if (dataResponse.Success && dataResponse.Data != null)
-                    {
+                        {
                         // Process and display the data
                         var financialData = dataResponse.Data as dynamic;
-                        
+
                         // Update chart with real data
                         chartFinancial.Series[0].Points.Clear();
                         if (financialData?.MonthlyRevenue != null)
-                        {
-                            foreach (var data in financialData.MonthlyRevenue)
                             {
+                            foreach (var data in financialData.MonthlyRevenue)
+                                {
                                 var monthName = new DateTime(data.Year, data.Month, 1).ToString("MMM");
                                 chartFinancial.Series[0].Points.AddXY(monthName, data.Revenue);
+                                }
                             }
-                        }
 
                         // Update grid with real data
                         if (financialData?.MonthlyRevenue != null)
-                        {
+                            {
                             dgvFinancialData.DataSource = financialData.MonthlyRevenue;
+                            }
                         }
-                    }
                     else
-                    {
+                        {
                         MessageBox.Show($"Failed to load financial data: {dataResponse.Message}",
                             "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-=======
-                var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
-                var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
-
-                if (cboFinancialFormat.Text == "View")
-                {
-                    // Get financial report data for viewing
-                    var reportDataResponse = await _apiService.GetFinancialReportDataAsync(startDate, endDate);
-                    
-                    if (reportDataResponse.Success && reportDataResponse.Data != null)
-                    {
-                        var reportData = reportDataResponse.Data;
-                        
-                        // Update chart and grid with real data
-                        Invoke(new Action(() =>
-                        {
-                            UpdateFinancialUIWithData(reportData);
-                        }));
-                    }
-                    else
-                    {
-                        // Fallback to simulated data if API call fails
-                        await GenerateSimulatedFinancialData();
->>>>>>> feature/display-ministock
+                        }
                     }
                 }
-                else
+             catch (Exception ex)
                 {
-<<<<<<< HEAD
-                    try
-                    {
-                        // Generate and export file (PDF or Excel)
-                        var startDate = new DateTime(dtpFinancialYear.Value.Year, 1, 1);
-                        var endDate = new DateTime(dtpFinancialYear.Value.Year, 12, 31);
-                        var exportResponse = await _apiService.GenerateFinancialReportAsync(startDate, endDate, cboFinancialFormat.Text);
-                        
-                        if (exportResponse.Success && exportResponse.Data != null)
-                        {
-                            // Determine file extension
-                            var extension = cboFinancialFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
-                            var fileName = $"FinancialReport_{dtpFinancialYear.Value.Year}_{DateTime.Now:yyyyMMdd_HHmm}{extension}";
-                            var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                            var filePath = Path.Combine(documentsPath, fileName);
-                            
-                            // Save file
-                            await File.WriteAllBytesAsync(filePath, exportResponse.Data);
-                            
-                            var result = MessageBox.Show(
-                                $"Financial report exported successfully!\n\nFile: {fileName}\nLocation: Documents folder\n\nWould you like to open the file?",
-                                "Export Complete", 
-                                MessageBoxButtons.YesNo, 
-                                MessageBoxIcon.Information);
-                            
-                            if (result == DialogResult.Yes)
-                            {
-                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath) 
-                                { 
-                                    UseShellExecute = true 
-                                });
-                            }
-                        }
-                        else
-                        {
-                            var errorMessage = exportResponse.Message ?? "Unknown error occurred";
-                            
-                            // Check if this is a PDF-specific error and offer alternative
-                            if (cboFinancialFormat.Text.ToLower() == "pdf" && 
-                                (errorMessage.Contains("BouncyCastle") || errorMessage.Contains("iText")))
-                            {
-                                var result = MessageBox.Show(
-                                    "PDF generation is currently experiencing technical issues.\n\n" +
-                                    "Would you like to export as Excel instead?",
-                                    "PDF Export Issue", 
-                                    MessageBoxButtons.YesNo, 
-                                    MessageBoxIcon.Warning);
-                                
-                                if (result == DialogResult.Yes)
-                                {
-                                    // Retry with Excel format
-                                    var excelResponse = await _apiService.GenerateFinancialReportAsync(startDate, endDate, "Excel");
-                                    if (excelResponse.Success && excelResponse.Data != null)
-                                    {
-                                        var fileName = $"FinancialReport_{dtpFinancialYear.Value.Year}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
-                                        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                                        var filePath = Path.Combine(documentsPath, fileName);
-                                        
-                                        await File.WriteAllBytesAsync(filePath, excelResponse.Data);
-                                        
-                                        MessageBox.Show(
-                                            $"Financial report exported as Excel!\n\nFile: {fileName}\nLocation: Documents folder",
-                                            "Export Complete", 
-                                            MessageBoxButtons.OK, 
-                                            MessageBoxIcon.Information);
-                                    }
-                                    else
-                                    {
-                                        MessageBox.Show("Excel export also failed. Please try again later or contact support.",
-                                            "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                MessageBox.Show($"Failed to export financial report: {errorMessage}",
-                                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                            }
-                        }
-                    }
-                    catch (HttpRequestException httpEx)
-                    {
-                        _logger.LogError(httpEx, "Network error during financial report export");
-                        MessageBox.Show(
-                            "Network connection error. Please check your connection and try again.",
-                            "Connection Error", 
-                            MessageBoxButtons.OK, 
-                            MessageBoxIcon.Error);
-                    }
-                    catch (TaskCanceledException tcEx)
-                    {
-                        _logger.LogError(tcEx, "Request timeout during financial report export");
-                        MessageBox.Show(
-                            "Request timed out. The server may be busy. Please try again.",
-                            "Timeout Error", 
-                            MessageBoxButtons.OK, 
-                            MessageBoxIcon.Warning);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Unexpected error during financial report export");
-                        MessageBox.Show(
-                            "An unexpected error occurred during export. Please try again or contact support.",
-                            "Export Error", 
-                            MessageBoxButtons.OK, 
-                            MessageBoxIcon.Error);
-=======
-                    // Generate and export PDF or Excel
-                    var response = await _apiService.GenerateFinancialReportAsync(startDate, endDate, cboFinancialFormat.Text);
-                    
-                    if (response.Success && response.Data != null)
-                    {
-                        var extension = cboFinancialFormat.Text.ToLower() == "pdf" ? ".pdf" : ".xlsx";
-                        var fileName = $"Financial_Report_{dtpFinancialYear.Value.Year}{extension}";
-                        var filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), fileName);
-                        
-                        await File.WriteAllBytesAsync(filePath, response.Data);
-                        
-                        var result = MessageBox.Show($"Financial Report Generated Successfully!\n\n" +
-                                                   $"Format: {cboFinancialFormat.Text}\n" +
-                                                   $"File: {fileName}\n" +
-                                                   $"Location: Desktop\n\n" +
-                                                   "Would you like to open the report now?",
-                            "Export Complete", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-                        
-                        if (result == DialogResult.Yes)
-                        {
-                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(filePath) { UseShellExecute = true });
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show($"Error generating financial report: {response.Message}",
-                            "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
->>>>>>> feature/display-ministock
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
                 _logger.LogError(ex, "Error generating financial report");
                 MessageBox.Show("An unexpected error occurred while generating the financial report. Please try again.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                }
             finally
-            {
+                {
                 btnGenerateFinancial.Enabled = true;
                 btnGenerateFinancial.Text = "Generate Report";
-            }
+                }
         }
 
-<<<<<<< HEAD
-=======
         private async Task GenerateSimulatedFinancialData()
         {
             await Task.Run(() =>
@@ -1546,7 +1380,7 @@ namespace InventoryPro.WinForms.Forms
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
->>>>>>> feature/display-ministock
+
 
         private async void BtnGenerateCustom_Click(object? sender, EventArgs e)
         {
