@@ -16,7 +16,7 @@ namespace InventoryPro.WinForms.Dialogs
         public ModernDeleteConfirmationDialog(string message)
         {
             this.Text = "Confirm Delete";
-            this.Size = new Size(400, 220);
+            this.Size = new Size(400, 300);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -39,7 +39,7 @@ namespace InventoryPro.WinForms.Dialogs
             {
                 Text = "Yes",
                 DialogResult = DialogResult.Yes,
-                Size = new Size(100, 36),
+                Size = new Size(100, 40),
                 Location = new Point(80, 90),
                 BackColor = Color.FromArgb(220, 53, 69),
                 ForeColor = Color.White,
@@ -53,7 +53,7 @@ namespace InventoryPro.WinForms.Dialogs
             {
                 Text = "No",
                 DialogResult = DialogResult.No,
-                Size = new Size(100, 36),
+                Size = new Size(100, 40),
                 Location = new Point(220, 90),
                 BackColor = Color.FromArgb(108, 117, 125),
                 ForeColor = Color.White,
