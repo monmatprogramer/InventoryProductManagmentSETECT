@@ -3,7 +3,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using InventoryPro.ReportService.Services;
+using InventoryPro.ReportService.Data;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Microsoft.EntityFrameworkCore;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,10 @@ builder.Host.UseSerilog();
 
 // Add services to the container
 builder.Services.AddControllers();
+
+// Configure Database
+builder.Services.AddDbContext<ReportDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure JWT Authentication
 ConfigureJwtAuthentication(builder.Services, builder.Configuration);
@@ -38,6 +44,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options => ConfigureSwagger(options));
 
 var app = builder.Build();
+
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ReportDbContext>();
+    try
+    {
+        context.Database.EnsureCreated();
+        Log.Information("Report database created/verified successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Failed to create/verify report database - continuing without database functionality");
+    }
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

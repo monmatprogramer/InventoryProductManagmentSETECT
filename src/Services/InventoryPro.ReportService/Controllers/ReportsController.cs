@@ -322,5 +322,59 @@ namespace InventoryPro.ReportService.Controllers
                 return StatusCode(500, "Internal server error");
                 }
             }
+
+        /// <summary>
+        /// Get sales report data for viewing (used by WinForms client)
+        /// </summary>
+        [HttpGet("sales/data")]
+        public async Task<IActionResult> GetSalesReportData([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+            {
+            try
+                {
+                var reportData = await _reportService.GetSalesReportDataAsync(startDate, endDate);
+                return Ok(reportData);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting sales report data");
+                return StatusCode(500, "Internal server error");
+                }
+            }
+
+        /// <summary>
+        /// Get inventory report data for viewing (used by WinForms client)
+        /// </summary>
+        [HttpGet("inventory/data")]
+        public async Task<IActionResult> GetInventoryReportData()
+            {
+            try
+                {
+                var reportData = await _reportService.GetInventoryReportDataAsync();
+                return Ok(reportData);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting inventory report data");
+                return StatusCode(500, "Internal server error");
+                }
+            }
+
+        /// <summary>
+        /// Get financial report data for viewing (used by WinForms client)
+        /// </summary>
+        [HttpGet("financial/data")]
+        public async Task<IActionResult> GetFinancialReportData([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+            {
+            try
+                {
+                var reportData = await _reportService.GetFinancialReportDataAsync(startDate, endDate);
+                return Ok(reportData);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting financial report data");
+                return StatusCode(500, "Internal server error");
+                }
+            }
         }
     }

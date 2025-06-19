@@ -770,17 +770,8 @@ namespace InventoryPro.WinForms.Services
                 {
                 await AddAuthorizationHeader();
 
-                var requestData = new
-                    {
-                    StartDate = startDate,
-                    EndDate = endDate,
-                    Format = "View"
-                    };
-
-                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("reports/sales", content);
+                var queryParams = $"?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+                var response = await _httpClient.GetAsync($"reports/sales/data{queryParams}");
                 return await HandleResponse<object>(response);
                 }
             catch (Exception ex)
@@ -799,11 +790,7 @@ namespace InventoryPro.WinForms.Services
                 {
                 await AddAuthorizationHeader();
 
-                var requestData = new { Format = "View" };
-                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("reports/inventory", content);
+                var response = await _httpClient.GetAsync("reports/inventory/data");
                 return await HandleResponse<object>(response);
                 }
             catch (Exception ex)
@@ -822,17 +809,8 @@ namespace InventoryPro.WinForms.Services
                 {
                 await AddAuthorizationHeader();
 
-                var requestData = new
-                    {
-                    StartDate = startDate,
-                    EndDate = endDate,
-                    Format = "View"
-                    };
-
-                var json = JsonSerializer.Serialize(requestData, _jsonOptions);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var response = await _httpClient.PostAsync("reports/financial", content);
+                var queryParams = $"?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+                var response = await _httpClient.GetAsync($"reports/financial/data{queryParams}");
                 return await HandleResponse<object>(response);
                 }
             catch (Exception ex)

@@ -35,5 +35,10 @@ namespace InventoryPro.ReportService.Services
 
         // Custom Reports
         Task<CustomReport> GenerateCustomReportAsync(CustomReportParameters parameters);
+
+        // Report Data for WinForms Client
+        Task<object> GetSalesReportDataAsync(DateTime startDate, DateTime endDate);
+        Task<object> GetInventoryReportDataAsync();
+        Task<object> GetFinancialReportDataAsync(DateTime startDate, DateTime endDate);
         }
     }

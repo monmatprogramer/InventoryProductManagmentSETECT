@@ -1,9 +1,70 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
+using System.Reflection;
 using InventoryPro.WinForms.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using InventoryPro.Shared.DTOs;
+using OfficeOpenXml;
+using Polly;
+
+// Extension methods for modern UI drawing
+public static class GraphicsExtensions
+{
+    public static void FillRoundedRectangle(this Graphics graphics, Brush brush, Rectangle bounds, int cornerRadius)
+    {
+        if (graphics == null) throw new ArgumentNullException(nameof(graphics));
+        if (brush == null) throw new ArgumentNullException(nameof(brush));
+        
+        using (GraphicsPath path = CreateRoundedRectanglePath(bounds, cornerRadius))
+        {
+            graphics.FillPath(brush, path);
+        }
+    }
+    
+    public static void DrawRoundedRectangle(this Graphics graphics, Pen pen, Rectangle bounds, int cornerRadius)
+    {
+        if (graphics == null) throw new ArgumentNullException(nameof(graphics));
+        if (pen == null) throw new ArgumentNullException(nameof(pen));
+        
+        using (GraphicsPath path = CreateRoundedRectanglePath(bounds, cornerRadius))
+        {
+            graphics.DrawPath(pen, path);
+        }
+    }
+    
+    private static GraphicsPath CreateRoundedRectanglePath(Rectangle bounds, int cornerRadius)
+    {
+        int diameter = cornerRadius * 2;
+        Size size = new Size(diameter, diameter);
+        Rectangle arc = new Rectangle(bounds.Location, size);
+        GraphicsPath path = new GraphicsPath();
+        
+        if (cornerRadius == 0)
+        {
+            path.AddRectangle(bounds);
+            return path;
+        }
+        
+        // top left arc
+        path.AddArc(arc, 180, 90);
+        
+        // top right arc
+        arc.X = bounds.Right - diameter;
+        path.AddArc(arc, 270, 90);
+        
+        // bottom right arc
+        arc.Y = bounds.Bottom - diameter;
+        path.AddArc(arc, 0, 90);
+        
+        // bottom left arc
+        arc.X = bounds.Left;
+        path.AddArc(arc, 90, 90);
+        
+        path.CloseFigure();
+        return path;
+    }
+}
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -29,6 +90,7 @@ namespace InventoryPro.WinForms.Forms
         private Button btnSales;
         private Button btnSalesHistory;
         private Button btnReports;
+        private Button btnAbout;
         
         // Top bar controls
         private Label lblWelcome;
@@ -48,6 +110,7 @@ namespace InventoryPro.WinForms.Forms
         private Button btnQuickSale;
         private Button btnAddProduct;
         private Button btnAddCustomer;
+        private Button btnRefreshDashboard;
         
         // Charts and data visualization
         private Panel chartSalesPanel;
@@ -61,6 +124,9 @@ namespace InventoryPro.WinForms.Forms
         // Sales data for charts
         private List<SaleDto> _recentSales = new();
         private decimal[] _weeklySalesData = new decimal[7];
+        
+        // Low stock data
+        private List<ProductDto> _lowStockItems = new();
         
         public MainForm(ILogger<MainForm> logger, IApiService apiService, IServiceProvider serviceProvider)
         {
@@ -78,6 +144,7 @@ namespace InventoryPro.WinForms.Forms
             btnSales = new Button();
             btnSalesHistory = new Button();
             btnReports = new Button();
+            btnAbout = new Button();
             lblWelcome = new Label();
             lblDateTime = new Label();
             lblSystemStatus = new Label();
@@ -91,6 +158,7 @@ namespace InventoryPro.WinForms.Forms
             btnQuickSale = new Button();
             btnAddProduct = new Button();
             btnAddCustomer = new Button();
+            btnRefreshDashboard = new Button();
             chartSalesPanel = new Panel();
             chartProductsPanel = new Panel();
             stockAlertsPanel = new Panel();
@@ -103,22 +171,30 @@ namespace InventoryPro.WinForms.Forms
             SetupRealtimeUpdates();
             LoadDashboardDataAsync();
             SetupClickOutsideHandler();
+            
+            // Ensure data is loaded when form is shown
+            this.Shown += MainForm_Shown;
         }
         
         private void InitializeComponent()
         {
             this.SuspendLayout();
             
-            // Form properties - Modern full-screen design
-            this.Text = "📊 InventoryPro Dashboard - Modern Management System";
+            // Form properties - Ultra-Modern Premium Design
+            this.Text = "🚀 InventoryPro v2.0 - Professional Inventory Management System";
             this.WindowState = FormWindowState.Maximized;
-            this.MinimumSize = new Size(1200, 700);
-            this.BackColor = Color.FromArgb(245, 247, 250);
-            this.Font = new Font("Segoe UI", 9F);
+            this.MinimumSize = new Size(1400, 800);
+            this.BackColor = Color.FromArgb(248, 250, 252); // Modern light gray background
+            this.Font = new Font("Segoe UI", 9F, FontStyle.Regular); // Premium font family
             this.Icon = SystemIcons.Application;
+            this.FormBorderStyle = FormBorderStyle.None; // Borderless modern design
             
-            // Enable double buffering for smooth animations
-            this.SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
+            // Enable double buffering for smooth animations and scrolling
+            this.SetStyle(ControlStyles.AllPaintingInWmPaint | 
+                         ControlStyles.UserPaint | 
+                         ControlStyles.DoubleBuffer | 
+                         ControlStyles.ResizeRedraw | 
+                         ControlStyles.OptimizedDoubleBuffer, true);
             
             CreateSidebar();
             CreateTopBar();
@@ -139,9 +215,9 @@ namespace InventoryPro.WinForms.Forms
             pnlSidebar = new Panel
             {
                 Dock = DockStyle.Left,
-                Width = 280,
-                BackColor = Color.FromArgb(33, 37, 41),
-                Padding = new Padding(0, 20, 0, 20)
+                Width = 300, // Slightly wider for better spacing
+                BackColor = Color.FromArgb(30, 33, 38), // Darker, more premium sidebar
+                Padding = new Padding(0, 25, 0, 25) // Increased padding for better spacing
             };
             
             // Sidebar gradient background
@@ -149,8 +225,8 @@ namespace InventoryPro.WinForms.Forms
             {
                 using (var brush = new LinearGradientBrush(
                     new Rectangle(0, 0, pnlSidebar.Width, pnlSidebar.Height),
-                    Color.FromArgb(33, 37, 41),
-                    Color.FromArgb(52, 58, 64),
+                    Color.FromArgb(30, 33, 38), // Modern dark gradient start
+                    Color.FromArgb(45, 50, 57), // Modern dark gradient end
                     LinearGradientMode.Vertical))
                 {
                     e.Graphics.FillRectangle(brush, new Rectangle(0, 0, pnlSidebar.Width, pnlSidebar.Height));
@@ -160,16 +236,16 @@ namespace InventoryPro.WinForms.Forms
             // Logo section
             var logoPanel = new Panel
             {
-                Height = 100,
+                Height = 110, // Increased height for better proportions
                 Dock = DockStyle.Top,
                 BackColor = Color.Transparent
             };
             
             var lblLogo = new Label
             {
-                Text = "📦 InventoryPro",
-                Font = new Font("Segoe UI", 18, FontStyle.Bold),
-                ForeColor = Color.White,
+                Text = "🚀 InventoryPro",
+                Font = new Font("Segoe UI", 20, FontStyle.Bold), // Larger, more modern font
+                ForeColor = Color.FromArgb(255, 255, 255),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Dock = DockStyle.Fill
             };
@@ -177,9 +253,9 @@ namespace InventoryPro.WinForms.Forms
             
             var lblVersion = new Label
             {
-                Text = "v2.0 Professional",
-                Font = new Font("Segoe UI", 9, FontStyle.Italic),
-                ForeColor = Color.FromArgb(173, 181, 189),
+                Text = "v2.0 • Professional Edition",
+                Font = new Font("Segoe UI", 10, FontStyle.Regular), // Modern subtle styling
+                ForeColor = Color.FromArgb(190, 197, 208), // Softer version text
                 TextAlign = ContentAlignment.MiddleCenter,
                 Height = 25,
                 Dock = DockStyle.Bottom
@@ -194,15 +270,16 @@ namespace InventoryPro.WinForms.Forms
                 Padding = new Padding(20, 20, 20, 20)
             };
             
-            btnDashboard = CreateNavButton("🏠 Dashboard", 0, true);
-            btnProducts = CreateNavButton("📦 Products", 1, false);
-            btnCustomers = CreateNavButton("👥 Customers", 2, false);
-            btnSales = CreateNavButton("💰 New Sale", 3, false);
-            btnSalesHistory = CreateNavButton("📈 Sales History", 4, false);
-            btnReports = CreateNavButton("📊 Reports", 5, false);
+            btnDashboard = CreateNavButton("🏠  Dashboard", 0, true);
+            btnProducts = CreateNavButton("📦  Products", 1, false);
+            btnCustomers = CreateNavButton("👥  Customers", 2, false);
+            btnSales = CreateNavButton("💰  New Sale", 3, false);
+            btnSalesHistory = CreateNavButton("📈  Sales History", 4, false);
+            btnReports = CreateNavButton("📊  Reports", 5, false);
+            btnAbout = CreateNavButton("ℹ️  About", 6, false);
             
             navPanel.Controls.AddRange(new Control[] {
-                btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports
+                btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnAbout
             });
             
             pnlSidebar.Controls.Add(navPanel);
@@ -214,14 +291,14 @@ namespace InventoryPro.WinForms.Forms
             var button = new Button
             {
                 Text = text,
-                Height = 55,
-                Top = index * 65,
+                Height = 60, // Increased height for better touch targets
+                Top = index * 70, // Increased spacing between buttons
                 Left = 0,
-                Width = 240,
+                Width = 260, // Increased width to match new sidebar width
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold), // Modern font with medium weight
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(20, 0, 0, 0),
+                Padding = new Padding(25, 0, 0, 0), // Increased left padding
                 Cursor = Cursors.Hand,
                 Tag = index
             };
@@ -233,8 +310,8 @@ namespace InventoryPro.WinForms.Forms
             {
                 if (!IsActiveNavButton(button))
                 {
-                    button.BackColor = Color.FromArgb(73, 80, 87);
-                    button.ForeColor = Color.White;
+                    button.BackColor = Color.FromArgb(65, 72, 80); // Modern hover state
+                    button.ForeColor = Color.FromArgb(255, 255, 255);
                 }
             };
             button.MouseLeave += (s, e) =>
@@ -252,22 +329,22 @@ namespace InventoryPro.WinForms.Forms
         {
             if (isActive)
             {
-                button.BackColor = Color.FromArgb(0, 123, 255);
+                button.BackColor = Color.FromArgb(16, 185, 129); // Modern teal/green accent
                 button.ForeColor = Color.White;
                 button.FlatAppearance.BorderSize = 0;
-                button.FlatAppearance.BorderColor = Color.FromArgb(0, 123, 255);
+                button.FlatAppearance.BorderColor = Color.FromArgb(16, 185, 129);
             }
             else
             {
                 button.BackColor = Color.Transparent;
-                button.ForeColor = Color.FromArgb(173, 181, 189);
+                button.ForeColor = Color.FromArgb(190, 197, 208); // Softer inactive text
                 button.FlatAppearance.BorderSize = 0;
             }
         }
         
         private bool IsActiveNavButton(Button button)
         {
-            return button.BackColor == Color.FromArgb(0, 123, 255);
+            return button.BackColor == Color.FromArgb(16, 185, 129);
         }
         
         private void CreateTopBar()
@@ -275,9 +352,9 @@ namespace InventoryPro.WinForms.Forms
             pnlTopBar = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 80,
-                BackColor = Color.White,
-                Padding = new Padding(30, 15, 30, 15)
+                Height = 90, // Increased height for better proportions
+                BackColor = Color.FromArgb(255, 255, 255), // Pure white for modern look
+                Padding = new Padding(35, 20, 35, 20) // Increased padding
             };
             
             // Top bar shadow effect
@@ -289,38 +366,38 @@ namespace InventoryPro.WinForms.Forms
                 }
             };
             
-            // Welcome message
+            // Welcome message with modern styling
             lblWelcome = new Label
             {
                 Text = "Welcome back! 👋",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 37, 41),
-                Location = new Point(30, 5),
-                Size = new Size(300, 30),
+                Font = new Font("Segoe UI", 18, FontStyle.Bold), // Larger, modern font
+                ForeColor = Color.FromArgb(17, 24, 39), // Darker, modern text color
+                Location = new Point(35, 8),
+                Size = new Size(350, 35),
                 BackColor = Color.Transparent
             };
             
-            // Date and time
+            // Date and time with enhanced styling
             lblDateTime = new Label
             {
-                Text = DateTime.Now.ToString("dddd, MMMM dd, yyyy - HH:mm"),
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.FromArgb(108, 117, 125),
-                Location = new Point(35, 45),
-                Size = new Size(350, 20),
+                Text = DateTime.Now.ToString("dddd, MMMM dd, yyyy • HH:mm"),
+                Font = new Font("Segoe UI", 11, FontStyle.Regular), // Slightly larger
+                ForeColor = Color.FromArgb(75, 85, 99), // Modern muted color
+                Location = new Point(40, 50),
+                Size = new Size(400, 25),
                 BackColor = Color.Transparent
             };
             
-            // System status
+            // System status with modern indicator
             lblSystemStatus = new Label
             {
-                Text = "🟢 System Online",
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = Color.FromArgb(40, 167, 69),
+                Text = "✓ System Online", // Check mark instead of green circle
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(16, 185, 129), // Matching brand color
                 TextAlign = ContentAlignment.MiddleRight,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(pnlTopBar.Width - 350, 20),
-                Size = new Size(150, 40),
+                Location = new Point(pnlTopBar.Width - 380, 25),
+                Size = new Size(180, 45),
                 BackColor = Color.Transparent
             };
 
@@ -332,38 +409,38 @@ namespace InventoryPro.WinForms.Forms
 
         private void CreateUserProfileSection()
         {
-            // User profile container
+            // User profile container with modern dimensions
             pnlUserProfile = new Panel
             {
-                Width = 90,
-                Height = 80,
+                Width = 100, // Slightly wider
+                Height = 90, // Increased height to match new top bar
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
                 BackColor = Color.Transparent
             };
             
             // Set location after the form is properly sized
-            pnlUserProfile.Location = new Point(this.Width - 110, 0);
+            pnlUserProfile.Location = new Point(this.Width - 120, 0);
 
-            // User profile button with premium design
+            // User profile button with ultra-modern design
             btnUserProfile = new Button
             {
-                Width = 70,
-                Height = 55,
-                Top = 12,
+                Width = 80, // Increased width
+                Height = 60, // Increased height
+                Top = 15,
                 Left = 10,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(33, 37, 41),
+                BackColor = Color.FromArgb(249, 250, 251), // Very light background
+                ForeColor = Color.FromArgb(17, 24, 39),
                 Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 Text = "",
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(50, 0, 35, 0),
+                Padding = new Padding(55, 0, 40, 0),
                 Cursor = Cursors.Hand
             };
 
-            btnUserProfile.FlatAppearance.BorderSize = 1;
-            btnUserProfile.FlatAppearance.BorderColor = Color.FromArgb(0, 123, 255);
-            btnUserProfile.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 248, 255);
+            btnUserProfile.FlatAppearance.BorderSize = 2;
+            btnUserProfile.FlatAppearance.BorderColor = Color.FromArgb(16, 185, 129); // Brand color border
+            btnUserProfile.FlatAppearance.MouseOverBackColor = Color.FromArgb(240, 253, 250); // Subtle hover
 
             // Add user avatar, name and dropdown arrow with premium styling
             btnUserProfile.Paint += (s, e) =>
@@ -378,22 +455,22 @@ namespace InventoryPro.WinForms.Forms
                     g.FillRoundedRectangle(brush, buttonRect, 12);
                 }
                 
-                // Draw border
-                using (var borderPen = new Pen(Color.FromArgb(0, 123, 255), 2))
+                // Draw modern border with brand color
+                using (var borderPen = new Pen(Color.FromArgb(16, 185, 129), 2))
                 {
-                    g.DrawRoundedRectangle(borderPen, new Rectangle(1, 1, btnUserProfile.Width - 3, btnUserProfile.Height - 3), 12);
+                    g.DrawRoundedRectangle(borderPen, new Rectangle(1, 1, btnUserProfile.Width - 3, btnUserProfile.Height - 3), 15); // More rounded corners
                 }
 
-                // Draw user avatar circle
-                var avatarRect = new Rectangle(12, 12, 31, 31);
-                using (var avatarBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                // Draw modern user avatar circle
+                var avatarRect = new Rectangle(15, 15, 35, 35); // Larger avatar
+                using (var avatarBrush = new SolidBrush(Color.FromArgb(16, 185, 129)))
                 {
                     g.FillEllipse(avatarBrush, avatarRect);
                 }
                 
-                // Draw user icon in avatar
+                // Draw user icon in avatar with modern font
                 using (var iconBrush = new SolidBrush(Color.White))
-                using (var iconFont = new Font("Segoe UI", 10, FontStyle.Bold))
+                using (var iconFont = new Font("Segoe UI", 11, FontStyle.Bold))
                 {
                     var iconRect = new Rectangle(avatarRect.X, avatarRect.Y, avatarRect.Width, avatarRect.Height);
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
@@ -403,12 +480,12 @@ namespace InventoryPro.WinForms.Forms
                 // Note: Username and role text are intentionally removed from main button
                 // to avoid duplication with the dropdown. Only avatar and arrow are shown.
 
-                // Draw dropdown arrow
-                var arrowSize = 6;
-                var arrowX = btnUserProfile.Width - 18;
+                // Draw modern dropdown arrow
+                var arrowSize = 7; // Slightly larger
+                var arrowX = btnUserProfile.Width - 20;
                 var arrowY = (btnUserProfile.Height - arrowSize) / 2;
                 
-                using (var arrowBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                using (var arrowBrush = new SolidBrush(Color.FromArgb(16, 185, 129)))
                 {
                     var arrowPoints = new Point[]
                     {
@@ -420,13 +497,13 @@ namespace InventoryPro.WinForms.Forms
                 }
             };
 
-            // Create dropdown panel (initially hidden)
+            // Create modern dropdown panel (initially hidden)
             pnlUserDropdown = new Panel
             {
-                Width = 200,
-                Height = 195,
-                Top = 50, // Position it below the button
-                Left = -20, // Align it with the button
+                Width = 220, // Wider for better content spacing
+                Height = 210, // Taller for better proportions
+                Top = 55, // Position it below the button
+                Left = -25, // Align it with the button
                 BackColor = Color.White,
                 Visible = false,
                 BorderStyle = BorderStyle.None
@@ -439,111 +516,111 @@ namespace InventoryPro.WinForms.Forms
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
 
-                // Draw shadow
-                using (var shadowBrush = new SolidBrush(Color.FromArgb(80, 0, 0, 0)))
+                // Draw modern shadow with blur effect
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(60, 0, 0, 0)))
                 {
-                    g.FillRoundedRectangle(shadowBrush, new Rectangle(3, 3, pnlUserDropdown.Width - 3, pnlUserDropdown.Height - 3), 8);
+                    g.FillRoundedRectangle(shadowBrush, new Rectangle(4, 4, pnlUserDropdown.Width - 4, pnlUserDropdown.Height - 4), 12);
                 }
 
-                // Draw dropdown background
+                // Draw modern dropdown background
                 using (var backgroundBrush = new SolidBrush(Color.White))
                 {
-                    g.FillRoundedRectangle(backgroundBrush, new Rectangle(0, 0, pnlUserDropdown.Width - 3, pnlUserDropdown.Height - 3), 8);
+                    g.FillRoundedRectangle(backgroundBrush, new Rectangle(0, 0, pnlUserDropdown.Width - 4, pnlUserDropdown.Height - 4), 12);
                 }
 
-                // Draw border
-                using (var borderPen = new Pen(Color.FromArgb(220, 224, 229), 1))
+                // Draw modern subtle border
+                using (var borderPen = new Pen(Color.FromArgb(229, 231, 235), 1.5f))
                 {
-                    g.DrawRoundedRectangle(borderPen, new Rectangle(0, 0, pnlUserDropdown.Width - 4, pnlUserDropdown.Height - 4), 8);
+                    g.DrawRoundedRectangle(borderPen, new Rectangle(0, 0, pnlUserDropdown.Width - 5, pnlUserDropdown.Height - 5), 12);
                 }
             };
 
-            // User info section with enhanced styling
+            // User info section with ultra-modern styling
             var userInfoPanel = new Panel
             {
-                Width = 170,
-                Height = 48,
-                Top = 10,
+                Width = 190, // Wider to match new dropdown width
+                Height = 52, // Slightly taller
+                Top = 12,
                 Left = 15,
-                BackColor = Color.FromArgb(248, 249, 250)
+                BackColor = Color.FromArgb(249, 250, 251) // Lighter modern background
             };
             
             userInfoPanel.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var brush = new SolidBrush(Color.FromArgb(248, 249, 250)))
+                using (var brush = new SolidBrush(Color.FromArgb(249, 250, 251)))
                 {
-                    g.FillRoundedRectangle(brush, new Rectangle(0, 0, userInfoPanel.Width, userInfoPanel.Height), 6);
+                    g.FillRoundedRectangle(brush, new Rectangle(0, 0, userInfoPanel.Width, userInfoPanel.Height), 8); // More rounded
                 }
                 
-                // Draw user avatar circle
-                var avatarRect = new Rectangle(10, 10, 30, 30);
-                using (var avatarBrush = new SolidBrush(Color.FromArgb(0, 123, 255)))
+                // Draw modern user avatar circle
+                var avatarRect = new Rectangle(12, 12, 32, 32); // Slightly larger
+                using (var avatarBrush = new SolidBrush(Color.FromArgb(16, 185, 129)))
                 {
                     g.FillEllipse(avatarBrush, avatarRect);
                 }
                 
-                // Draw user icon in avatar
+                // Draw user icon in avatar with modern font
                 using (var iconBrush = new SolidBrush(Color.White))
-                using (var iconFont = new Font("Segoe UI", 9, FontStyle.Bold))
+                using (var iconFont = new Font("Segoe UI", 10, FontStyle.Bold))
                 {
                     var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     g.DrawString("JD", iconFont, iconBrush, avatarRect, sf);
                 }
                 
-                // Draw username
-                using (var textBrush = new SolidBrush(Color.FromArgb(33, 37, 41)))
-                using (var textFont = new Font("Segoe UI", 9, FontStyle.Bold))
+                // Draw username with modern typography
+                using (var textBrush = new SolidBrush(Color.FromArgb(17, 24, 39)))
+                using (var textFont = new Font("Segoe UI", 10, FontStyle.Bold))
                 {
-                    g.DrawString("John Doe", textFont, textBrush, new Point(48, 12));
+                    g.DrawString("John Doe", textFont, textBrush, new Point(52, 14));
                 }
                 
-                // Draw role
-                using (var roleBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
-                using (var roleFont = new Font("Segoe UI", 8))
+                // Draw role with modern typography
+                using (var roleBrush = new SolidBrush(Color.FromArgb(75, 85, 99)))
+                using (var roleFont = new Font("Segoe UI", 9, FontStyle.Regular))
                 {
-                    g.DrawString("System Administrator", roleFont, roleBrush, new Point(48, 26));
+                    g.DrawString("System Administrator", roleFont, roleBrush, new Point(52, 30));
                 }
             };
 
-            // Separator line
+            // Modern separator line
             var separator = new Panel
             {
                 Height = 1,
-                Width = 170,
-                Top = 63,
+                Width = 190, // Match new dropdown width
+                Top = 70,
                 Left = 15,
-                BackColor = Color.FromArgb(220, 224, 229)
+                BackColor = Color.FromArgb(229, 231, 235) // Softer separator color
             };
 
-            // Profile menu button
-            var btnProfile = CreateDropdownMenuItem("My Profile", 68, () =>
+            // Profile menu button with modern styling
+            var btnProfile = CreateDropdownMenuItem("👤  My Profile", 75, () =>
             {
                 HideUserDropdown();
                 OpenMyProfileForm();
             });
 
 
-            // Modern logout button with sleek design
+            // Ultra-modern logout button with premium design
             var btnLogout = new Button
             {
-                Text = "Sign Out",
-                Width = 170,
-                Height = 38,
-                Top = 143,
+                Text = "🚪  Sign Out",
+                Width = 190, // Match new dropdown width
+                Height = 42, // Slightly taller
+                Top = 150,
                 Left = 15,
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(220, 53, 69),
+                BackColor = Color.FromArgb(239, 68, 68), // Modern red color
                 ForeColor = Color.White,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Cursor = Cursors.Hand
             };
 
             btnLogout.FlatAppearance.BorderSize = 0;
-            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
-            btnLogout.FlatAppearance.MouseDownBackColor = Color.FromArgb(180, 25, 41);
+            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(220, 55, 55); // Modern hover state
+            btnLogout.FlatAppearance.MouseDownBackColor = Color.FromArgb(200, 45, 45); // Modern pressed state
 
             // Modern rounded corners for logout button with premium styling
             btnLogout.Paint += (s, e) =>
@@ -552,17 +629,17 @@ namespace InventoryPro.WinForms.Forms
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 var rect = new Rectangle(0, 0, btnLogout.Width, btnLogout.Height);
                 
-                // Create modern gradient brush
+                // Create ultra-modern gradient brush
                 using (var brush = new LinearGradientBrush(rect, 
-                    Color.FromArgb(230, 60, 75), Color.FromArgb(210, 45, 60), LinearGradientMode.Vertical))
+                    Color.FromArgb(245, 75, 75), Color.FromArgb(225, 60, 60), LinearGradientMode.Vertical))
                 {
-                    g.FillRoundedRectangle(brush, rect, 10);
+                    g.FillRoundedRectangle(brush, rect, 12); // More rounded corners
                 }
 
-                // Add modern subtle highlight
-                using (var highlightBrush = new SolidBrush(Color.FromArgb(25, 255, 255, 255)))
+                // Add ultra-modern subtle highlight
+                using (var highlightBrush = new SolidBrush(Color.FromArgb(35, 255, 255, 255)))
                 {
-                    g.FillRoundedRectangle(highlightBrush, new Rectangle(1, 1, rect.Width - 2, rect.Height / 2), 9);
+                    g.FillRoundedRectangle(highlightBrush, new Rectangle(1, 1, rect.Width - 2, rect.Height / 2), 11); // Match rounded corners
                 }
 
                 // Draw text with perfect center alignment
@@ -594,14 +671,14 @@ namespace InventoryPro.WinForms.Forms
             this.SizeChanged += (s, e) => {
                 if (pnlUserProfile != null)
                 {
-                    pnlUserProfile.Location = new Point(this.Width - 110, 0);
+                    pnlUserProfile.Location = new Point(this.Width - 120, 0); // Adjusted for new width
                     // Update dropdown position relative to the main form
-                    pnlUserDropdown.Location = new Point(this.Width - 220, 80);
+                    pnlUserDropdown.Location = new Point(this.Width - 245, 90); // Adjusted for new dimensions
                 }
             };
             
             // Set initial dropdown position
-            pnlUserDropdown.Location = new Point(this.Width - 220, 80);
+            pnlUserDropdown.Location = new Point(this.Width - 245, 90);
         }
 
         private Button CreateDropdownMenuItem(string text, int top, Action onClick)
@@ -609,16 +686,16 @@ namespace InventoryPro.WinForms.Forms
             var button = new Button
             {
                 Text = "", // Empty text to prevent duplicate drawing
-                Width = 170,
-                Height = 35,
+                Width = 190, // Match new dropdown width
+                Height = 40, // Increased height for better touch targets
                 Top = top,
                 Left = 15,
                 FlatStyle = FlatStyle.Flat,
                 BackColor = Color.Transparent,
-                ForeColor = Color.FromArgb(33, 37, 41),
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                ForeColor = Color.FromArgb(17, 24, 39), // Modern text color
+                Font = new Font("Segoe UI", 11, FontStyle.Bold), // Modern font
                 TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(15, 0, 10, 0),
+                Padding = new Padding(18, 0, 12, 0), // Increased padding
                 Cursor = Cursors.Hand,
                 Tag = text // Store the text in Tag for custom drawing
             };
@@ -635,25 +712,25 @@ namespace InventoryPro.WinForms.Forms
                 
                 var rect = new Rectangle(0, 0, button.Width, button.Height);
                 
-                // Draw background with rounded corners on hover
+                // Draw modern background with rounded corners on hover
                 if (button.ClientRectangle.Contains(button.PointToClient(Control.MousePosition)))
                 {
-                    using (var hoverBrush = new SolidBrush(Color.FromArgb(240, 248, 255)))
+                    using (var hoverBrush = new SolidBrush(Color.FromArgb(240, 253, 250))) // Modern teal-tinted hover
                     {
-                        g.FillRoundedRectangle(hoverBrush, rect, 6);
+                        g.FillRoundedRectangle(hoverBrush, rect, 8); // More rounded corners
                     }
                     
-                    // Add subtle border on hover
-                    using (var hoverPen = new Pen(Color.FromArgb(200, 220, 240), 1))
+                    // Add subtle modern border on hover
+                    using (var hoverPen = new Pen(Color.FromArgb(187, 247, 221), 1.5f)) // Soft teal border
                     {
-                        g.DrawRoundedRectangle(hoverPen, new Rectangle(0, 0, rect.Width - 1, rect.Height - 1), 6);
+                        g.DrawRoundedRectangle(hoverPen, new Rectangle(0, 0, rect.Width - 1, rect.Height - 1), 8);
                     }
                 }
                 
-                // Draw text manually for better control
+                // Draw text manually with modern styling
                 using (var textBrush = new SolidBrush(button.ForeColor))
                 {
-                    var textRect = new Rectangle(15, 0, button.Width - 25, button.Height);
+                    var textRect = new Rectangle(18, 0, button.Width - 30, button.Height);
                     var sf = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
                     g.DrawString(button.Tag?.ToString() ?? "", button.Font, textBrush, textRect, sf);
                 }
@@ -796,17 +873,39 @@ namespace InventoryPro.WinForms.Forms
 
             var btnNo = new Button
             {
-                Text = "❌ Cancel",
-                Size = new Size(120, 40),
-                Location = new Point(300, 10),
-                BackColor = Color.FromArgb(108, 117, 125),
+                Text = "✖ Cancel", // Modern X mark
+                Size = new Size(140, 45), // Larger to match Yes button
+                Location = new Point(320, 12),
+                BackColor = Color.FromArgb(107, 114, 128), // Modern gray
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold), // Modern font
                 Cursor = Cursors.Hand,
                 DialogResult = DialogResult.No
             };
             btnNo.FlatAppearance.BorderSize = 0;
+            
+            // Add modern rounded corners to Cancel button
+            btnNo.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, btnNo.Width, btnNo.Height);
+                using (var brush = new SolidBrush(btnNo.BackColor))
+                {
+                    g.FillRoundedRectangle(brush, rect, 10);
+                }
+                var textRect = new Rectangle(0, 0, btnNo.Width, btnNo.Height);
+                var sf = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+                using (var textBrush = new SolidBrush(btnNo.ForeColor))
+                {
+                    g.DrawString(btnNo.Text, btnNo.Font, textBrush, textRect, sf);
+                }
+            };
 
             buttonPanel.Controls.AddRange(new Control[] { btnYes, btnNo });
             confirmDialog.Controls.AddRange(new Control[] { iconLabel, titleLabel, messageLabel, buttonPanel });
@@ -829,24 +928,24 @@ namespace InventoryPro.WinForms.Forms
                 // Clear any cached authentication data
                 // Note: Add your authentication cleanup logic here
 
-                // Show logout progress
+                // Show modern logout progress
                 using var logoutDialog = new Form
                 {
                     Text = "Logging out...",
-                    Size = new Size(400, 150),
+                    Size = new Size(450, 180), // Larger for better appearance
                     StartPosition = FormStartPosition.CenterScreen,
                     FormBorderStyle = FormBorderStyle.FixedDialog,
                     MaximizeBox = false,
                     MinimizeBox = false,
                     ControlBox = false,
-                    BackColor = Color.White
+                    BackColor = Color.FromArgb(249, 250, 251) // Modern background
                 };
 
                 var progressLabel = new Label
                 {
                     Text = "🔄 Logging out safely...",
-                    Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(33, 37, 41),
+                    Font = new Font("Segoe UI", 14, FontStyle.Bold), // Modern font and size
+                    ForeColor = Color.FromArgb(17, 24, 39), // Modern text color
                     TextAlign = ContentAlignment.MiddleCenter,
                     Dock = DockStyle.Fill
                 };
@@ -914,8 +1013,8 @@ namespace InventoryPro.WinForms.Forms
             pnlContent = new Panel
             {
                 Dock = DockStyle.Fill,
-                BackColor = Color.FromArgb(245, 247, 250),
-                Padding = new Padding(30, 30, 30, 30),
+                BackColor = Color.FromArgb(248, 250, 252), // Modern lighter background
+                Padding = new Padding(35, 35, 35, 35), // Increased padding for better spacing
                 AutoScroll = true
             };
             
@@ -937,10 +1036,10 @@ namespace InventoryPro.WinForms.Forms
             // Calculate card width for responsive design
             int cardWidth = (cardsPanel.Width - 60) / 4; // 4 cards with spacing
             
-            cardTotalProducts = CreateDashboardCard("📦 Total Products", "0", Color.FromArgb(0, 123, 255), 0);
-            cardTotalCustomers = CreateDashboardCard("👥 Total Customers", "0", Color.FromArgb(40, 167, 69), 1);
-            cardTotalSales = CreateDashboardCard("💰 Total Sales", "$0.00", Color.FromArgb(255, 193, 7), 2);
-            cardLowStock = CreateDashboardCard("⚠️ Low Stock Items", "0", Color.FromArgb(220, 53, 69), 3);
+            cardTotalProducts = CreateDashboardCard("📦 Total Products", "0", Color.FromArgb(16, 185, 129), 0); // Brand teal
+            cardTotalCustomers = CreateDashboardCard("👥 Total Customers", "0", Color.FromArgb(34, 197, 94), 1); // Modern green
+            cardTotalSales = CreateDashboardCard("💰 Total Sales", "$0.00", Color.FromArgb(251, 191, 36), 2); // Modern amber
+            cardLowStock = CreateDashboardCard("⚠️ Low Stock Items", "0", Color.FromArgb(239, 68, 68), 3); // Modern red
             
             cardsPanel.Controls.AddRange(new Control[] {
                 cardTotalProducts, cardTotalCustomers, cardTotalSales, cardLowStock
@@ -953,9 +1052,9 @@ namespace InventoryPro.WinForms.Forms
         {
             var card = new Panel
             {
-                Width = 280,
-                Height = 120,
-                Left = index * 300,
+                Width = 300, // Slightly wider for better content
+                Height = 130, // Taller for better proportions
+                Left = index * 320, // Increased spacing between cards
                 Top = 10,
                 BackColor = Color.White,
                 Cursor = Cursors.Hand
@@ -967,68 +1066,70 @@ namespace InventoryPro.WinForms.Forms
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 
-                // Draw shadow
-                using (var shadowBrush = new SolidBrush(Color.FromArgb(50, 0, 0, 0)))
+                // Draw modern subtle shadow
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
                 {
-                    g.FillRoundedRectangle(shadowBrush, new Rectangle(3, 3, card.Width - 3, card.Height - 3), 10);
+                    g.FillRoundedRectangle(shadowBrush, new Rectangle(4, 4, card.Width - 4, card.Height - 4), 12);
                 }
                 
-                // Draw card background
+                // Draw modern card background
                 using (var cardBrush = new SolidBrush(Color.White))
                 {
-                    g.FillRoundedRectangle(cardBrush, new Rectangle(0, 0, card.Width - 3, card.Height - 3), 10);
+                    g.FillRoundedRectangle(cardBrush, new Rectangle(0, 0, card.Width - 4, card.Height - 4), 12);
                 }
                 
-                // Draw accent border
-                using (var accentPen = new Pen(accentColor, 4))
+                // Draw modern accent border with rounded top
+                using (var accentBrush = new SolidBrush(accentColor))
                 {
-                    g.DrawLine(accentPen, 0, 0, card.Width - 3, 0);
+                    g.FillRoundedRectangle(accentBrush, new Rectangle(0, 0, card.Width - 4, 6), 12);
                 }
             };
             
-            // Card title
+            // Modern card title
             var lblTitle = new Label
             {
                 Text = title,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
-                ForeColor = Color.FromArgb(73, 80, 87),
-                Location = new Point(20, 15),
-                Size = new Size(240, 25),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold), // Modern font
+                ForeColor = Color.FromArgb(75, 85, 99), // Modern muted text
+                Location = new Point(25, 20), // Adjusted for new size
+                Size = new Size(250, 28),
                 BackColor = Color.Transparent
             };
             
-            // Card value
+            // Modern card value
             var lblValue = new Label
             {
                 Text = value,
-                Font = new Font("Segoe UI", 24, FontStyle.Bold),
+                Font = new Font("Segoe UI", 26, FontStyle.Bold), // Larger, modern font
                 ForeColor = accentColor,
-                Location = new Point(20, 45),
-                Size = new Size(240, 50),
+                Location = new Point(25, 50),
+                Size = new Size(250, 55),
                 BackColor = Color.Transparent
             };
             
-            // Card trend indicator
+            // Modern card trend indicator
             var lblTrend = new Label
             {
-                Text = "📈 +12% from last month",
-                Font = new Font("Segoe UI", 8),
-                ForeColor = Color.FromArgb(40, 167, 69),
-                Location = new Point(20, 95),
-                Size = new Size(240, 30),
+                Text = "↗️ +12% from last month", // Modern arrow emoji
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(34, 197, 94), // Modern green for positive trend
+                Location = new Point(25, 105),
+                Size = new Size(250, 20),
                 BackColor = Color.Transparent
             };
             
             card.Controls.AddRange(new Control[] { lblTitle, lblValue, lblTrend });
             
-            // Hover effects
+            // Modern hover effects with smooth transitions
             card.MouseEnter += (s, e) =>
             {
-                card.BackColor = Color.FromArgb(248, 249, 250);
+                card.BackColor = Color.FromArgb(249, 250, 251); // Subtle hover color
+                card.Invalidate(); // Ensure repaint
             };
             card.MouseLeave += (s, e) =>
             {
                 card.BackColor = Color.White;
+                card.Invalidate(); // Ensure repaint
             };
             
             return card;
@@ -1047,24 +1148,26 @@ namespace InventoryPro.WinForms.Forms
             var lblQuickActions = new Label
             {
                 Text = "⚡ Quick Actions",
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 37, 41),
+                Font = new Font("Segoe UI", 16, FontStyle.Bold), // Larger, modern font
+                ForeColor = Color.FromArgb(17, 24, 39), // Modern dark text
                 Location = new Point(0, 0),
-                Size = new Size(200, 30),
+                Size = new Size(250, 35),
                 BackColor = Color.Transparent
             };
             
-            btnQuickSale = CreateQuickActionButton("New Sale", Color.FromArgb(40, 167, 69), 0);
-            btnAddProduct = CreateQuickActionButton("Add Product", Color.FromArgb(0, 123, 255), 1);
-            btnAddCustomer = CreateQuickActionButton("Add Customer", Color.FromArgb(102, 16, 242), 2);
+            btnQuickSale = CreateQuickActionButton("💰 New Sale", Color.FromArgb(16, 185, 129), 0); // Brand teal
+            btnAddProduct = CreateQuickActionButton("📦 Add Product", Color.FromArgb(59, 130, 246), 1); // Modern blue
+            btnAddCustomer = CreateQuickActionButton("👥 Add Customer", Color.FromArgb(139, 92, 246), 2); // Modern purple
+            btnRefreshDashboard = CreateQuickActionButton("🔄 Refresh", Color.FromArgb(234, 88, 12), 3); // Orange refresh button
             
             // Connect quick action buttons
             btnQuickSale.Click += (s, e) => OpenSalesForm();
             btnAddProduct.Click += (s, e) => OpenProductsForm();
             btnAddCustomer.Click += (s, e) => OpenCustomersForm();
+            btnRefreshDashboard.Click += async (s, e) => await RefreshDashboardData();
             
             actionsPanel.Controls.AddRange(new Control[] {
-                lblQuickActions, btnQuickSale, btnAddProduct, btnAddCustomer
+                lblQuickActions, btnQuickSale, btnAddProduct, btnAddCustomer, btnRefreshDashboard
             });
             
             pnlContent.Controls.Add(actionsPanel);
@@ -1075,31 +1178,46 @@ namespace InventoryPro.WinForms.Forms
             var button = new Button
             {
                 Text = text,
-                Width = 180,
-                Height = 50,
-                Left = index * 200,
-                Top = 35,
+                Width = 200, // Wider buttons
+                Height = 55, // Taller for better touch targets
+                Left = index * 220, // Increased spacing
+                Top = 40,
                 BackColor = backColor,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Font = new Font("Segoe UI", 12, FontStyle.Bold), // Modern font
                 Cursor = Cursors.Hand
             };
             
             button.FlatAppearance.BorderSize = 0;
             button.FlatAppearance.MouseOverBackColor = Color.FromArgb(
-                Math.Max(0, backColor.R - 20),
-                Math.Max(0, backColor.G - 20),
-                Math.Max(0, backColor.B - 20));
+                Math.Min(255, backColor.R + 15), // Lighter on hover instead of darker
+                Math.Min(255, backColor.G + 15),
+                Math.Min(255, backColor.B + 15));
             
-            // Rounded button corners
+            // Modern rounded button corners with gradient
             button.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                using (var brush = new SolidBrush(button.BackColor))
+                
+                var rect = new Rectangle(0, 0, button.Width, button.Height);
+                
+                // Draw gradient background
+                using (var brush = new LinearGradientBrush(rect, 
+                    button.BackColor, 
+                    Color.FromArgb(Math.Max(0, button.BackColor.R - 10),
+                                 Math.Max(0, button.BackColor.G - 10),
+                                 Math.Max(0, button.BackColor.B - 10)), 
+                    LinearGradientMode.Vertical))
                 {
-                    g.FillRoundedRectangle(brush, new Rectangle(0, 0, button.Width, button.Height), 8);
+                    g.FillRoundedRectangle(brush, rect, 12); // More rounded corners
+                }
+                
+                // Add subtle highlight
+                using (var highlightBrush = new SolidBrush(Color.FromArgb(20, 255, 255, 255)))
+                {
+                    g.FillRoundedRectangle(highlightBrush, new Rectangle(1, 1, rect.Width - 2, rect.Height / 2), 11);
                 }
                 
                 var textRect = new Rectangle(0, 0, button.Width, button.Height);
@@ -1224,28 +1342,6 @@ namespace InventoryPro.WinForms.Forms
             pnlContent.Controls.Add(recentSalesContainer);
         }
         
-        private void CreateStatusBar()
-        {
-            pnlStatusBar = new Panel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 35,
-                BackColor = Color.FromArgb(248, 249, 250),
-                Padding = new Padding(20, 8, 20, 8)
-            };
-            
-            var lblStatus = new Label
-            {
-                Text = "Ready • Database Connected • Last Updated: " + DateTime.Now.ToString("HH:mm:ss"),
-                Font = new Font("Segoe UI", 9),
-                ForeColor = Color.FromArgb(108, 117, 125),
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                BackColor = Color.Transparent
-            };
-            
-            pnlStatusBar.Controls.Add(lblStatus);
-        }
         
         private void DrawSalesChart(Graphics g, Rectangle bounds)
         {
@@ -1271,7 +1367,7 @@ namespace InventoryPro.WinForms.Forms
             }
             
             // Sales total for the week
-            var weeklyTotal = _weeklySalesData.Sum();
+            var weeklyTotal = _weeklySalesData?.Sum() ?? 0;
             using (var totalBrush = new SolidBrush(Color.FromArgb(40, 167, 69)))
             using (var totalFont = new Font("Segoe UI", 11, FontStyle.Bold))
             {
@@ -1280,6 +1376,16 @@ namespace InventoryPro.WinForms.Forms
             
             // Chart area
             var chartArea = new Rectangle(40, 80, bounds.Width - 80, bounds.Height - 110);
+            
+            // Check if we have any real sales data
+            bool hasRealData = _weeklySalesData != null && _weeklySalesData.Any(d => d > 0);
+            
+            if (!hasRealData)
+            {
+                // Draw empty state
+                DrawEmptySalesChart(g, chartArea);
+                return;
+            }
             
             // Draw grid lines
             using (var gridPen = new Pen(Color.FromArgb(240, 244, 248), 1))
@@ -1296,49 +1402,47 @@ namespace InventoryPro.WinForms.Forms
                     g.DrawLine(gridPen, x, chartArea.Y, x, chartArea.Bottom);
                 }
             }
-            
+
+
             // Draw sales data
-            if (_weeklySalesData.Any(d => d > 0))
+            var maxSale = _weeklySalesData?.Max() ?? 0;
+            if (maxSale > 0 && _weeklySalesData != null)
             {
-                var maxSale = _weeklySalesData.Max();
-                if (maxSale > 0)
+                var points = new List<Point>();
+                
+                for (int i = 0; i < 7; i++)
                 {
-                    var points = new List<Point>();
-                    
-                    for (int i = 0; i < 7; i++)
+                    int x = chartArea.X + (chartArea.Width * i / 6);
+                    int y = chartArea.Bottom - (int)((double)_weeklySalesData[i] / (double)maxSale * chartArea.Height);
+                    points.Add(new Point(x, y));
+                }
+                
+                // Draw line
+                if (points.Count > 1)
+                {
+                    using (var linePen = new Pen(Color.FromArgb(40, 167, 69), 3))
                     {
-                        int x = chartArea.X + (chartArea.Width * i / 6);
-                        int y = chartArea.Bottom - (int)((double)_weeklySalesData[i] / (double)maxSale * chartArea.Height);
-                        points.Add(new Point(x, y));
+                        g.DrawLines(linePen, points.ToArray());
                     }
-                    
-                    // Draw line
-                    if (points.Count > 1)
+                }
+                
+                // Draw data points and values
+                using (var pointBrush = new SolidBrush(Color.FromArgb(40, 167, 69)))
+                using (var valueBrush = new SolidBrush(Color.FromArgb(33, 37, 41)))
+                using (var valueFont = new Font("Segoe UI", 8))
+                {
+                    for (int i = 0; i < points.Count; i++)
                     {
-                        using (var linePen = new Pen(Color.FromArgb(40, 167, 69), 3))
+                        var point = points[i];
+                        g.FillEllipse(pointBrush, point.X - 4, point.Y - 4, 8, 8);
+                        
+                        // Draw value above point
+                        if (_weeklySalesData[i] > 0)
                         {
-                            g.DrawLines(linePen, points.ToArray());
-                        }
-                    }
-                    
-                    // Draw data points and values
-                    using (var pointBrush = new SolidBrush(Color.FromArgb(40, 167, 69)))
-                    using (var valueBrush = new SolidBrush(Color.FromArgb(33, 37, 41)))
-                    using (var valueFont = new Font("Segoe UI", 8))
-                    {
-                        for (int i = 0; i < points.Count; i++)
-                        {
-                            var point = points[i];
-                            g.FillEllipse(pointBrush, point.X - 4, point.Y - 4, 8, 8);
-                            
-                            // Draw value above point
-                            if (_weeklySalesData[i] > 0)
-                            {
-                                var value = _weeklySalesData[i].ToString("C0");
-                                var valueSize = g.MeasureString(value, valueFont);
-                                g.DrawString(value, valueFont, valueBrush, 
-                                    new Point(point.X - (int)valueSize.Width / 2, point.Y - 20));
-                            }
+                            var value = _weeklySalesData[i].ToString("C0");
+                            var valueSize = g.MeasureString(value, valueFont);
+                            g.DrawString(value, valueFont, valueBrush, 
+                                new Point(point.X - (int)valueSize.Width / 2, point.Y - 20));
                         }
                     }
                 }
@@ -1354,6 +1458,37 @@ namespace InventoryPro.WinForms.Forms
                     int x = chartArea.X + (chartArea.Width * i / 6) - 15;
                     g.DrawString(days[i], labelFont, labelBrush, new Point(x, chartArea.Bottom + 10));
                 }
+            }
+        }
+        
+        private void DrawEmptySalesChart(Graphics g, Rectangle chartArea)
+        {
+            // Draw a subtle message indicating no data
+            using (var emptyBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+            using (var emptyFont = new Font("Segoe UI", 12, FontStyle.Italic))
+            using (var iconBrush = new SolidBrush(Color.FromArgb(173, 181, 189)))
+            using (var iconFont = new Font("Segoe UI", 24))
+            {
+                var centerX = chartArea.X + chartArea.Width / 2;
+                var centerY = chartArea.Y + chartArea.Height / 2;
+                
+                // Draw icon
+                var iconText = "📊";
+                var iconSize = g.MeasureString(iconText, iconFont);
+                g.DrawString(iconText, iconFont, iconBrush, 
+                    new Point(centerX - (int)iconSize.Width / 2, centerY - 60));
+                
+                // Draw message
+                var message = "No sales data available";
+                var messageSize = g.MeasureString(message, emptyFont);
+                g.DrawString(message, emptyFont, emptyBrush, 
+                    new Point(centerX - (int)messageSize.Width / 2, centerY - 10));
+                
+                var subMessage = "Sales data will appear here once transactions are recorded";
+                var subMessageFont = new Font("Segoe UI", 9);
+                var subMessageSize = g.MeasureString(subMessage, subMessageFont);
+                g.DrawString(subMessage, subMessageFont, emptyBrush, 
+                    new Point(centerX - (int)subMessageSize.Width / 2, centerY + 15));
             }
         }
         
@@ -1380,20 +1515,31 @@ namespace InventoryPro.WinForms.Forms
                 g.DrawString("⚠️ Stock Alerts", titleFont, titleBrush, new Point(20, 15));
             }
             
-            // Sample stock alerts
-            var alerts = new[]
+            // Check if we have real low stock data
+            if (_lowStockItems == null || !_lowStockItems.Any())
             {
-                new { Product = "Gaming Headset", Stock = 3, Status = "Critical" },
-                new { Product = "Wireless Mouse", Stock = 8, Status = "Low" },
-                new { Product = "USB Cable", Stock = 5, Status = "Low" },
-                new { Product = "Phone Case", Stock = 2, Status = "Critical" }
-            };
+                // Draw empty state
+                DrawEmptyStockAlerts(g, bounds);
+                return;
+            }
             
-            int y = 60;
-            foreach (var alert in alerts)
+            // Display count of low stock items
+            using (var countBrush = new SolidBrush(Color.FromArgb(220, 53, 69)))
+            using (var countFont = new Font("Segoe UI", 10, FontStyle.Bold))
             {
-                var alertColor = alert.Status == "Critical" ? Color.FromArgb(220, 53, 69) : Color.FromArgb(255, 193, 7);
-                var alertIcon = alert.Status == "Critical" ? "🔴" : "🟡";
+                g.DrawString($"{_lowStockItems.Count} items need attention", countFont, countBrush, new Point(20, 40));
+            }
+            
+            int y = 65;
+            int maxDisplayItems = Math.Min(_lowStockItems.Count, 4); // Show max 4 items
+            
+            for (int i = 0; i < maxDisplayItems; i++)
+            {
+                var item = _lowStockItems[i];
+                var isCritical = item.Stock <= (item.MinStock * 0.5); // Critical if stock is half of minimum
+                var alertColor = isCritical ? Color.FromArgb(220, 53, 69) : Color.FromArgb(255, 193, 7);
+                var alertIcon = isCritical ? "🔴" : "🟡";
+                var status = isCritical ? "Critical" : "Low";
                 
                 // Alert item background
                 using (var alertBrush = new SolidBrush(Color.FromArgb(248, 249, 250)))
@@ -1407,11 +1553,55 @@ namespace InventoryPro.WinForms.Forms
                 using (var stockBrush = new SolidBrush(alertColor))
                 using (var stockFont = new Font("Segoe UI", 9, FontStyle.Bold))
                 {
-                    g.DrawString($"{alertIcon} {alert.Product}", textFont, textBrush, new Point(30, y + 8));
-                    g.DrawString($"Stock: {alert.Stock}", stockFont, stockBrush, new Point(bounds.Width - 120, y + 8));
+                    // Truncate product name if too long
+                    var productName = item.Name.Length > 20 ? item.Name.Substring(0, 20) + "..." : item.Name;
+                    g.DrawString($"{alertIcon} {productName}", textFont, textBrush, new Point(30, y + 8));
+                    g.DrawString($"Stock: {item.Stock}", stockFont, stockBrush, new Point(bounds.Width - 120, y + 8));
+                    g.DrawString($"Min: {item.MinStock}", stockFont, stockBrush, new Point(bounds.Width - 120, y + 22));
                 }
                 
                 y += 50;
+            }
+            
+            // If there are more items, show a summary
+            if (_lowStockItems.Count > 4)
+            {
+                using (var moreBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+                using (var moreFont = new Font("Segoe UI", 9, FontStyle.Italic))
+                {
+                    g.DrawString($"...and {_lowStockItems.Count - 4} more items", moreFont, moreBrush, new Point(30, y + 10));
+                }
+            }
+        }
+        
+        private void DrawEmptyStockAlerts(Graphics g, Rectangle bounds)
+        {
+            // Draw empty state message
+            using (var emptyBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+            using (var emptyFont = new Font("Segoe UI", 12, FontStyle.Italic))
+            using (var iconBrush = new SolidBrush(Color.FromArgb(173, 181, 189)))
+            using (var iconFont = new Font("Segoe UI", 24))
+            {
+                var centerX = bounds.X + bounds.Width / 2;
+                var centerY = bounds.Y + bounds.Height / 2;
+                
+                // Draw icon
+                var iconText = "✅";
+                var iconSize = g.MeasureString(iconText, iconFont);
+                g.DrawString(iconText, iconFont, iconBrush, 
+                    new Point(centerX - (int)iconSize.Width / 2, centerY - 60));
+                
+                // Draw message
+                var message = "All stock levels are healthy";
+                var messageSize = g.MeasureString(message, emptyFont);
+                g.DrawString(message, emptyFont, emptyBrush, 
+                    new Point(centerX - (int)messageSize.Width / 2, centerY - 10));
+                
+                var subMessage = "Low stock alerts will appear here when items need restocking";
+                var subMessageFont = new Font("Segoe UI", 9);
+                var subMessageSize = g.MeasureString(subMessage, subMessageFont);
+                g.DrawString(subMessage, subMessageFont, emptyBrush, 
+                    new Point(centerX - (int)subMessageSize.Width / 2, centerY + 15));
             }
         }
         
@@ -1429,6 +1619,14 @@ namespace InventoryPro.WinForms.Forms
             using (var pen = new Pen(Color.FromArgb(220, 224, 229), 1))
             {
                 g.DrawRectangle(pen, bounds);
+            }
+            
+            // Check if we have real sales data
+            if (_recentSales == null || !_recentSales.Any())
+            {
+                // Draw empty state
+                DrawEmptyRecentSales(g, bounds);
+                return;
             }
             
             // Headers
@@ -1449,28 +1647,23 @@ namespace InventoryPro.WinForms.Forms
                 g.DrawString("Status", headerFont, headerTextBrush, new Point(620, 12));
             }
             
-            // Recent sales data (sample data if no real data available)
-            var sampleSales = new[]
-            {
-                new { Date = DateTime.Now.AddHours(-2), Customer = "John Smith", Items = 3, Total = 156.75m, Payment = "Credit Card", Status = "Completed" },
-                new { Date = DateTime.Now.AddHours(-4), Customer = "Sarah Johnson", Items = 1, Total = 89.99m, Payment = "Cash", Status = "Completed" },
-                new { Date = DateTime.Now.AddHours(-6), Customer = "Mike Wilson", Items = 5, Total = 234.50m, Payment = "Debit Card", Status = "Completed" },
-                new { Date = DateTime.Now.AddHours(-8), Customer = "Walk-in Customer", Items = 2, Total = 45.00m, Payment = "Cash", Status = "Completed" },
-                new { Date = DateTime.Now.AddDays(-1), Customer = "Lisa Brown", Items = 4, Total = 189.25m, Payment = "Credit Card", Status = "Completed" }
-            };
-            
+            // Display real recent sales data
             int y = headerHeight + 10;
+            int maxDisplaySales = Math.Min(_recentSales.Count, 5); // Show max 5 sales
+            
             using (var textBrush = new SolidBrush(Color.FromArgb(33, 37, 41)))
             using (var textFont = new Font("Segoe UI", 9))
             using (var statusBrush = new SolidBrush(Color.FromArgb(40, 167, 69)))
             using (var statusFont = new Font("Segoe UI", 9, FontStyle.Bold))
             {
-                foreach (var sale in sampleSales)
+                for (int i = 0; i < maxDisplaySales; i++)
                 {
-                    if (y > bounds.Height - 30) break;
+                    if (y > bounds.Height - 70) break; // Leave space for button
+                    
+                    var sale = _recentSales[i];
                     
                     // Alternate row background
-                    if ((y - headerHeight) / 35 % 2 == 1)
+                    if (i % 2 == 1)
                     {
                         using (var rowBrush = new SolidBrush(Color.FromArgb(248, 249, 250)))
                         {
@@ -1478,14 +1671,42 @@ namespace InventoryPro.WinForms.Forms
                         }
                     }
                     
+                    // Sale date
                     g.DrawString(sale.Date.ToString("MMM dd, HH:mm"), textFont, textBrush, new Point(20, y));
-                    g.DrawString(sale.Customer, textFont, textBrush, new Point(140, y));
-                    g.DrawString(sale.Items.ToString(), textFont, textBrush, new Point(300, y));
-                    g.DrawString(sale.Total.ToString("C"), textFont, textBrush, new Point(400, y));
-                    g.DrawString(sale.Payment, textFont, textBrush, new Point(500, y));
-                    g.DrawString($"✅ {sale.Status}", statusFont, statusBrush, new Point(620, y));
+                    
+                    // Customer name (truncate if too long)
+                    var customerName = !string.IsNullOrEmpty(sale.CustomerName) ? sale.CustomerName : "Walk-in Customer";
+                    if (customerName.Length > 18)
+                        customerName = customerName.Substring(0, 15) + "...";
+                    g.DrawString(customerName, textFont, textBrush, new Point(140, y));
+                    
+                    // Number of items (count sale items if available, otherwise show "-")
+                    var itemCount = sale.Items?.Count ?? 0;
+                    g.DrawString(itemCount > 0 ? itemCount.ToString() : "-", textFont, textBrush, new Point(300, y));
+                    
+                    // Total amount
+                    g.DrawString(sale.TotalAmount.ToString("C"), textFont, textBrush, new Point(400, y));
+                    
+                    // Payment method (if available)
+                    var paymentMethod = !string.IsNullOrEmpty(sale.PaymentMethod) ? sale.PaymentMethod : "N/A";
+                    if (paymentMethod.Length > 12)
+                        paymentMethod = paymentMethod.Substring(0, 10) + "...";
+                    g.DrawString(paymentMethod, textFont, textBrush, new Point(500, y));
+                    
+                    // Status - assume completed for existing sales
+                    g.DrawString("✅ Completed", statusFont, statusBrush, new Point(620, y));
                     
                     y += 35;
+                }
+            }
+            
+            // Show count if there are more sales
+            if (_recentSales.Count > 5)
+            {
+                using (var moreBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+                using (var moreFont = new Font("Segoe UI", 9, FontStyle.Italic))
+                {
+                    g.DrawString($"...and {_recentSales.Count - 5} more sales", moreFont, moreBrush, new Point(20, y + 5));
                 }
             }
             
@@ -1507,6 +1728,37 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
+        private void DrawEmptyRecentSales(Graphics g, Rectangle bounds)
+        {
+            // Draw empty state message
+            using (var emptyBrush = new SolidBrush(Color.FromArgb(108, 117, 125)))
+            using (var emptyFont = new Font("Segoe UI", 12, FontStyle.Italic))
+            using (var iconBrush = new SolidBrush(Color.FromArgb(173, 181, 189)))
+            using (var iconFont = new Font("Segoe UI", 24))
+            {
+                var centerX = bounds.X + bounds.Width / 2;
+                var centerY = bounds.Y + bounds.Height / 2;
+                
+                // Draw icon
+                var iconText = "🛒";
+                var iconSize = g.MeasureString(iconText, iconFont);
+                g.DrawString(iconText, iconFont, iconBrush, 
+                    new Point(centerX - (int)iconSize.Width / 2, centerY - 60));
+                
+                // Draw message
+                var message = "No recent sales activity";
+                var messageSize = g.MeasureString(message, emptyFont);
+                g.DrawString(message, emptyFont, emptyBrush, 
+                    new Point(centerX - (int)messageSize.Width / 2, centerY - 10));
+                
+                var subMessage = "Recent sales transactions will be displayed here";
+                var subMessageFont = new Font("Segoe UI", 9);
+                var subMessageSize = g.MeasureString(subMessage, subMessageFont);
+                g.DrawString(subMessage, subMessageFont, emptyBrush, 
+                    new Point(centerX - (int)subMessageSize.Width / 2, centerY + 15));
+            }
+        }
+        
         private void SetupRealtimeUpdates()
         {
             refreshTimer = new System.Windows.Forms.Timer
@@ -1521,6 +1773,12 @@ namespace InventoryPro.WinForms.Forms
             };
             
             refreshTimer.Start();
+        }
+        
+        private async void MainForm_Shown(object? sender, EventArgs e)
+        {
+            // Force refresh of dashboard data when form is shown
+            await RefreshDashboardData();
         }
         
         private async void LoadDashboardDataAsync()
@@ -1554,9 +1812,10 @@ namespace InventoryPro.WinForms.Forms
                 
                 await Task.WhenAll(tasks);
                 
-                // Refresh charts with latest data
+                // Refresh charts and panels with latest data
                 chartSalesPanel.Invalidate();
                 stockAlertsPanel.Invalidate();
+                recentSalesPanel.Invalidate();
                 
                 // Update status
                 lblSystemStatus.Text = "🟢 System Online";
@@ -1583,19 +1842,26 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
+                _logger.LogInformation("Loading product count...");
                 var response = await _apiService.GetProductsAsync(new PaginationParameters { PageNumber = 1, PageSize = 1 });
+                
+                _logger.LogInformation($"Product API Response - Success: {response.Success}, Data: {response.Data != null}, Count: {response.Data?.TotalCount ?? 0}");
+                
                 if (response.Success && response.Data != null)
                 {
-                    UpdateDashboardCard(cardTotalProducts, response.Data.TotalCount.ToString("N0"));
+                    var count = response.Data.TotalCount;
+                    _logger.LogInformation($"Updating product card with count: {count}");
+                    UpdateDashboardCard(cardTotalProducts, count.ToString("N0"));
                 }
                 else
                 {
+                    _logger.LogWarning($"Product API call failed - Success: {response.Success}, Data is null: {response.Data == null}, Message: {response.Message}");
                     UpdateDashboardCard(cardTotalProducts, "Error");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading product count");
+                _logger.LogError(ex, "Exception occurred while loading product count");
                 UpdateDashboardCard(cardTotalProducts, "Error");
             }
         }
@@ -1604,19 +1870,26 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
+                _logger.LogInformation("Loading customer count...");
                 var response = await _apiService.GetCustomersAsync(new PaginationParameters { PageNumber = 1, PageSize = 1 });
+                
+                _logger.LogInformation($"Customer API Response - Success: {response.Success}, Data: {response.Data != null}, Count: {response.Data?.TotalCount ?? 0}");
+                
                 if (response.Success && response.Data != null)
                 {
-                    UpdateDashboardCard(cardTotalCustomers, response.Data.TotalCount.ToString("N0"));
+                    var count = response.Data.TotalCount;
+                    _logger.LogInformation($"Updating customer card with count: {count}");
+                    UpdateDashboardCard(cardTotalCustomers, count.ToString("N0"));
                 }
                 else
                 {
+                    _logger.LogWarning($"Customer API call failed - Success: {response.Success}, Data is null: {response.Data == null}, Message: {response.Message}");
                     UpdateDashboardCard(cardTotalCustomers, "Error");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading customer count");
+                _logger.LogError(ex, "Exception occurred while loading customer count");
                 UpdateDashboardCard(cardTotalCustomers, "Error");
             }
         }
@@ -1625,14 +1898,19 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
+                _logger.LogInformation("Loading sales data...");
                 // Load recent sales for dashboard
                 var recentSalesResponse = await _apiService.GetSalesAsync(new PaginationParameters { PageNumber = 1, PageSize = 10 });
+                
+                _logger.LogInformation($"Sales API Response - Success: {recentSalesResponse.Success}, Data: {recentSalesResponse.Data != null}, Items: {recentSalesResponse.Data?.Items?.Count ?? 0}");
+                
                 if (recentSalesResponse.Success && recentSalesResponse.Data?.Items != null)
                 {
                     _recentSales = recentSalesResponse.Data.Items;
                     
                     // Calculate total sales amount
                     decimal totalSales = _recentSales.Sum(s => s.TotalAmount);
+                    _logger.LogInformation($"Updating sales card with total: {totalSales:C}");
                     UpdateDashboardCard(cardTotalSales, totalSales.ToString("C"));
                     
                     // Generate weekly sales data
@@ -1640,16 +1918,20 @@ namespace InventoryPro.WinForms.Forms
                 }
                 else
                 {
-                    // If no real data, generate sample data for demo
-                    GenerateSampleSalesData();
+                    _logger.LogWarning($"Sales API call failed or no data - Success: {recentSalesResponse.Success}, Message: {recentSalesResponse.Message}");
+                    // No real data available - clear the collections
+                    _recentSales.Clear();
+                    _weeklySalesData = new decimal[7];
+                    UpdateDashboardCard(cardTotalSales, "$0.00");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading sales data");
+                _logger.LogError(ex, "Exception occurred while loading sales data");
                 UpdateDashboardCard(cardTotalSales, "Error");
-                // Generate sample data for demo purposes
-                GenerateSampleSalesData();
+                // Clear data on error
+                _recentSales.Clear();
+                _weeklySalesData = new decimal[7];
             }
         }
         
@@ -1658,7 +1940,7 @@ namespace InventoryPro.WinForms.Forms
             // Initialize weekly data
             _weeklySalesData = new decimal[7];
             
-            if (_recentSales.Any())
+            if (_recentSales != null && _recentSales.Any())
             {
                 var startOfWeek = DateTime.Now.Date.AddDays(-(int)DateTime.Now.DayOfWeek);
                 
@@ -1672,31 +1954,9 @@ namespace InventoryPro.WinForms.Forms
                         .Sum(s => s.TotalAmount);
                 }
             }
-            else
-            {
-                // Generate sample weekly data
-                var random = new Random();
-                for (int i = 0; i < 7; i++)
-                {
-                    _weeklySalesData[i] = (decimal)(random.NextDouble() * 500 + 100);
-                }
-            }
+            // If no real sales data, leave the array with zeros (empty state will be shown)
         }
         
-        private void GenerateSampleSalesData()
-        {
-            // Generate sample data for demonstration
-            var random = new Random();
-            decimal totalSales = 0;
-            
-            for (int i = 0; i < 7; i++)
-            {
-                _weeklySalesData[i] = (decimal)(random.NextDouble() * 500 + 100);
-                totalSales += _weeklySalesData[i];
-            }
-            
-            UpdateDashboardCard(cardTotalSales, totalSales.ToString("C"));
-        }
         
         private async Task LoadLowStockCountAsync()
         {
@@ -1705,12 +1965,18 @@ namespace InventoryPro.WinForms.Forms
                 var response = await _apiService.GetProductsAsync(new PaginationParameters { PageNumber = 1, PageSize = 100 });
                 if (response.Success && response.Data?.Items != null)
                 {
-                    var lowStockCount = response.Data.Items.Count(p => p.Stock <= p.MinStock);
+                    // Filter products with low stock and populate the low stock items list
+                    _lowStockItems = response.Data.Items
+                        .Where(p => p.Stock <= p.MinStock)
+                        .OrderBy(p => p.Stock) // Order by stock level (most critical first)
+                        .ToList();
+                    
+                    var lowStockCount = _lowStockItems.Count;
                     UpdateDashboardCard(cardLowStock, lowStockCount.ToString());
                     
                     // Update card color based on low stock severity
                     var card = cardLowStock;
-                    var valueLabel = card.Controls.OfType<Label>().FirstOrDefault(l => l.Font.Size == 24);
+                    var valueLabel = card.Controls.OfType<Label>().FirstOrDefault(l => l.Font.Size == 26);
                     if (valueLabel != null)
                     {
                         if (lowStockCount > 10)
@@ -1721,6 +1987,10 @@ namespace InventoryPro.WinForms.Forms
                         {
                             valueLabel.ForeColor = Color.FromArgb(255, 193, 7); // Yellow for warning
                         }
+                        else if (lowStockCount > 0)
+                        {
+                            valueLabel.ForeColor = Color.FromArgb(255, 193, 7); // Yellow for any low stock
+                        }
                         else
                         {
                             valueLabel.ForeColor = Color.FromArgb(40, 167, 69); // Green for good
@@ -1729,22 +1999,44 @@ namespace InventoryPro.WinForms.Forms
                 }
                 else
                 {
-                    UpdateDashboardCard(cardLowStock, "Error");
+                    // No data available - clear the low stock items
+                    _lowStockItems.Clear();
+                    UpdateDashboardCard(cardLowStock, "0");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading low stock count");
                 UpdateDashboardCard(cardLowStock, "Error");
+                // Clear data on error
+                _lowStockItems.Clear();
             }
         }
         
         private void UpdateDashboardCard(Panel card, string value)
         {
-            var valueLabel = card.Controls.OfType<Label>().FirstOrDefault(l => l.Font.Size == 24);
+            if (card.InvokeRequired)
+            {
+                card.Invoke(new Action(() => UpdateDashboardCard(card, value)));
+                return;
+            }
+            
+            var valueLabel = card.Controls.OfType<Label>().FirstOrDefault(l => l.Font.Size == 26);
             if (valueLabel != null)
             {
+                _logger.LogInformation($"Updating dashboard card '{card.Name}' with value '{value}'");
                 valueLabel.Text = value;
+                valueLabel.Invalidate(); // Force the label to repaint
+                card.Invalidate(); // Force the card to repaint
+            }
+            else
+            {
+                _logger.LogWarning($"Could not find value label in card '{card.Name}' - label count: {card.Controls.OfType<Label>().Count()}");
+                // Debug: Log all labels and their font sizes
+                foreach (var label in card.Controls.OfType<Label>())
+                {
+                    _logger.LogInformation($"Label in card '{card.Name}': Text='{label.Text}', FontSize={label.Font.Size}");
+                }
             }
         }
         
@@ -1753,7 +2045,7 @@ namespace InventoryPro.WinForms.Forms
             if (sender is Button clickedButton && clickedButton.Tag is int buttonIndex)
             {
                 // Reset all buttons
-                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports };
+                var allNavButtons = new[] { btnDashboard, btnProducts, btnCustomers, btnSales, btnSalesHistory, btnReports, btnAbout };
                 foreach (var btn in allNavButtons)
                 {
                     UpdateNavButtonStyle(btn, false);
@@ -1784,6 +2076,9 @@ namespace InventoryPro.WinForms.Forms
                         break;
                     case 5: // Reports
                         OpenReportsForm();
+                        break;
+                    case 6: // About
+                        OpenAboutDialog();
                         break;
                 }
             }
@@ -1890,6 +2185,471 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
+        private void OpenAboutDialog()
+        {
+            try
+            {
+                using var aboutDialog = new Form
+                {
+                    Text = "",
+                    Size = new Size(900, 650),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.None,
+                    BackColor = Color.FromArgb(245, 247, 250),
+                    Font = new Font("Segoe UI", 9F)
+                };
+
+                // Main container with rounded border
+                var mainContainer = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Padding = new Padding(20)
+                };
+
+                // Create the card container
+                var cardPanel = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.White
+                };
+
+                cardPanel.Paint += (s, e) =>
+                {
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    
+                    // Draw shadow
+                    using (var shadowBrush = new SolidBrush(Color.FromArgb(80, 0, 0, 0)))
+                    {
+                        g.FillRoundedRectangle(shadowBrush, new Rectangle(8, 8, cardPanel.Width - 8, cardPanel.Height - 8), 20);
+                    }
+                    
+                    // Draw main card background
+                    using (var cardBrush = new SolidBrush(Color.White))
+                    {
+                        g.FillRoundedRectangle(cardBrush, new Rectangle(0, 0, cardPanel.Width - 8, cardPanel.Height - 8), 20);
+                    }
+                    
+                    // Draw subtle border
+                    using (var borderPen = new Pen(Color.FromArgb(220, 224, 229), 2))
+                    {
+                        g.DrawRoundedRectangle(borderPen, new Rectangle(1, 1, cardPanel.Width - 10, cardPanel.Height - 10), 20);
+                    }
+                };
+
+                // Header section with gradient background
+                var headerPanel = new Panel
+                {
+                    Height = 120,
+                    Dock = DockStyle.Top,
+                    BackColor = Color.Transparent,
+                    Padding = new Padding(40, 30, 40, 20)
+                };
+
+                headerPanel.Paint += (s, e) =>
+                {
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    
+                    var headerRect = new Rectangle(0, 0, headerPanel.Width - 8, 120);
+                    using (var brush = new LinearGradientBrush(
+                        headerRect,
+                        Color.FromArgb(74, 144, 226),
+                        Color.FromArgb(143, 148, 251),
+                        LinearGradientMode.Horizontal))
+                    {
+                        g.FillRoundedRectangleTop(brush, headerRect, 20);
+                    }
+                    
+                    // Add subtle overlay
+                    using (var overlayBrush = new SolidBrush(Color.FromArgb(30, 255, 255, 255)))
+                    {
+                        g.FillRoundedRectangleTop(overlayBrush, headerRect, 20);
+                    }
+                };
+
+                // Close button (X)
+                var closeBtn = new Button
+                {
+                    Text = "✕",
+                    Size = new Size(35, 35),
+                    Location = new Point(headerPanel.Width - 75, 15),
+                    BackColor = Color.Transparent,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+
+                closeBtn.FlatAppearance.BorderSize = 0;
+                closeBtn.FlatAppearance.MouseOverBackColor = Color.FromArgb(100, 255, 255, 255);
+
+                closeBtn.Paint += (s, e) =>
+                {
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    
+                    if (closeBtn.ClientRectangle.Contains(closeBtn.PointToClient(Control.MousePosition)))
+                    {
+                        using (var hoverBrush = new SolidBrush(Color.FromArgb(50, 255, 255, 255)))
+                        {
+                            g.FillEllipse(hoverBrush, new Rectangle(0, 0, closeBtn.Width, closeBtn.Height));
+                        }
+                    }
+                    
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    using (var textBrush = new SolidBrush(closeBtn.ForeColor))
+                    {
+                        g.DrawString(closeBtn.Text, closeBtn.Font, textBrush, new Rectangle(0, 0, closeBtn.Width, closeBtn.Height), sf);
+                    }
+                };
+
+                closeBtn.Click += (s, e) => aboutDialog.Close();
+
+                // App icon and title
+                var iconLabel = new Label
+                {
+                    Text = "📦",
+                    Font = new Font("Segoe UI", 32),
+                    ForeColor = Color.White,
+                    Location = new Point(40, 25),
+                    Size = new Size(60, 60),
+                    BackColor = Color.Transparent,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                var titleLabel = new Label
+                {
+                    Text = "InventoryPro",
+                    Font = new Font("Segoe UI", 28, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    Location = new Point(120, 20),
+                    Size = new Size(330, 60),//40
+                    BackColor = Color.Transparent
+                };
+
+                var subtitleLabel = new Label
+                {
+                    Text = "Professional Inventory Management System",
+                    Font = new Font("Segoe UI", 12),
+                    ForeColor = Color.FromArgb(240, 248, 255),
+                    Location = new Point(120, 80),
+                    Size = new Size(400, 30),
+                    BackColor = Color.Transparent
+                };
+
+                var versionBadge = new Panel
+                {
+                    Size = new Size(90, 30),
+                    Location = new Point(headerPanel.Width - 180, 35),
+                    BackColor = Color.Transparent,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+
+                versionBadge.Paint += (s, e) =>
+                {
+                    var g = e.Graphics;
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    
+                    using (var badgeBrush = new SolidBrush(Color.FromArgb(180, 255, 255, 255)))
+                    {
+                        g.FillRoundedRectangle(badgeBrush, new Rectangle(0, 0, versionBadge.Width, versionBadge.Height), 15);
+                    }
+                    
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    using (var textBrush = new SolidBrush(Color.FromArgb(74, 144, 226)))
+                    using (var font = new Font("Segoe UI", 10, FontStyle.Bold))
+                    {
+                        g.DrawString("v2.0", font, textBrush, new Rectangle(0, 0, versionBadge.Width, versionBadge.Height), sf);
+                    }
+                };
+
+                headerPanel.Controls.AddRange(new Control[] { iconLabel, titleLabel, subtitleLabel, versionBadge, closeBtn });
+
+                // Content area with scroll - optimized for smooth scrolling
+                var contentPanel = new OptimizedScrollPanel
+                    {
+                    Dock = DockStyle.Fill,
+                    BackColor = Color.Transparent,
+                    Height = 300,
+                    Padding = new Padding(40, 30, 40, 20),//20
+                    AutoScroll = true,
+                    MinimumSize = new Size(0, 100)//600
+                    };
+                
+                // Apply additional scrolling optimizations
+                OptimizePanelScrolling(contentPanel);
+                
+
+                // Purpose card
+                var purposeCard = CreateInfoCard("🎯", "Project Purpose", 
+                    "InventoryPro is a comprehensive inventory management system designed to streamline business operations through modern technology. Our platform provides efficient product tracking, customer management, sales processing, and comprehensive reporting capabilities specifically tailored for small to medium businesses seeking digital transformation.",
+                    0, Color.FromArgb(52, 152, 219));
+                purposeCard.Top = 120;//0
+                
+
+                // Features card  
+                var featuresCard = CreateInfoCard("⚡", "Key Features\n",
+                    "• Real-time inventory tracking and management\n• Advanced customer relationship management\n• Comprehensive sales and POS system\n• Detailed analytics and reporting dashboard\n• Multi-user support with role-based access & Modern and intuitive user interface",
+                    0, Color.FromArgb(155, 89, 182));
+                featuresCard.Top = 310;//170
+
+                // Team section title
+                var teamTitlePanel = new Panel
+                {
+                    Height = 70,
+                    Width = 800,
+                    Top = 500,//340
+                    BackColor = Color.Transparent
+                };
+
+                var teamIcon = new Label
+                {
+                    Text = "👥",
+                    Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(52, 73, 94),
+                    Location = new Point(0, 10),
+                    Size = new Size(50, 60),
+                    BackColor = Color.Transparent
+                };
+
+                var teamTitle = new Label
+                {
+                    Text = "Development Team",
+                    Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(44, 62, 80),
+                    Location = new Point(95, 15),//50
+                    Size = new Size(360, 90),//30
+                    BackColor = Color.Transparent
+                };
+
+                teamTitlePanel.Controls.AddRange(new Control[] { teamIcon, teamTitle });
+
+                // Team members grid
+                var teamGridPanel = new Panel
+                {
+                    Top = 590,//410
+                    Width = 800,
+                    Height = 390,//250
+                    BackColor = Color.Transparent
+                };
+
+                var teamMembers = new[]
+                {
+                    new { Name = "រស្មី ស៊ុនឆាយ", Role = "Developer", Icon = "👥", Color = Color.FromArgb(52, 152, 219) },
+                    new { Name = "ម៉ុន ម៉េត", Role = "Developer", Icon = "👨‍💻", Color = Color.FromArgb(52, 152, 219) },
+                    new { Name = "ឈន អង្គារឰ", Role = "Front-end Designer", Icon = "🎨", Color = Color.FromArgb(230, 126, 34) },
+                    new { Name = "កញ្ញា ហេល ស្រីអិត", Role = "Team Leader", Icon = "👑", Color = Color.FromArgb(241, 196, 15) },
+                    new { Name = "សាត ច័ន្ទភក្តី", Role = "Supporter", Icon = "🤝", Color = Color.FromArgb(46, 204, 113) },
+                    new { Name = "ប៊ុន ឡេង", Role = "Supporter", Icon = "🤝", Color = Color.FromArgb(46, 204, 113) },
+                    new { Name = "សាំង សិលា", Role = "Tester", Icon = "🧪", Color = Color.FromArgb(155, 89, 182) },
+                    new { Name = "គង់ វិច្ឆិកា", Role = "Supporter", Icon = "🤝", Color = Color.FromArgb(46, 204, 113) },
+                    new { Name = "មូល ចាន់ថន", Role = "Supporter", Icon = "🤝", Color = Color.FromArgb(46, 204, 113) },
+                    new { Name = "នួន ចំណាន", Role = "Supporter", Icon = "🤝", Color = Color.FromArgb(46, 204, 113) }
+                };
+
+                int col = 0, row = 0;
+                foreach (var member in teamMembers)
+                {
+                    var memberCard = CreateTeamMemberCard(member.Name, member.Role, member.Icon, member.Color);
+                    memberCard.Location = new Point(col * 200, row * 50);//200,50
+                    teamGridPanel.Controls.Add(memberCard);
+                    
+                    col++;
+                    if (col >= 4) { col = 0; row++; }
+                }
+
+                // Footer
+                var footerPanel = new Panel
+                {
+                    Height = 80,
+                    Width = 800,
+                    Top = 680,
+                    BackColor = Color.Transparent,
+                    Padding = new Padding(40, 20, 40, 20)
+                };
+
+                footerPanel.Paint += (s, e) =>
+                {
+                    var g = e.Graphics;
+                    using (var brush = new SolidBrush(Color.FromArgb(248, 249, 250)))
+                    {
+                        var footerRect = new Rectangle(0, 0, footerPanel.Width - 8, footerPanel.Height);
+                        g.FillRoundedRectangleBottom(brush, footerRect, 20);
+                    }
+                };
+
+                var copyrightLabel = new Label
+                {
+                    Text = "© 2024 InventoryPro Team • Built with passion for modern business solutions",
+                    Font = new Font("Segoe UI", 10, FontStyle.Italic),
+                    ForeColor = Color.FromArgb(108, 117, 125),
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    BackColor = Color.Transparent
+                };
+
+                footerPanel.Controls.Add(copyrightLabel);
+
+                // Add all controls to content panel (scrollable area)
+                contentPanel.Controls.AddRange(new Control[] { purposeCard, featuresCard, teamTitlePanel, teamGridPanel, footerPanel });
+                cardPanel.Controls.Add(headerPanel);
+                cardPanel.Controls.Add(contentPanel);
+                mainContainer.Controls.Add(cardPanel);
+                aboutDialog.Controls.Add(mainContainer);
+
+                aboutDialog.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening about dialog");
+                MessageBox.Show($"Error opening about dialog: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        //Card
+        private Panel CreateInfoCard(string icon, string title, string content, int topPosition, Color accentColor)
+        {
+            var card = new Panel
+            {
+                Width = 800,
+                Height = 200,//140
+                Top = topPosition,
+                BackColor = Color.Transparent
+            };
+
+            card.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                
+                // Card shadow
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
+                {
+                    g.FillRoundedRectangle(shadowBrush, new Rectangle(5, 5, card.Width - 5, card.Height - 5), 15);
+                }
+                
+                // Card background
+                using (var cardBrush = new SolidBrush(Color.White))
+                {
+                    g.FillRoundedRectangle(cardBrush, new Rectangle(0, 0, card.Width - 5, card.Height - 5), 15);
+                }
+                
+                // Left accent border
+                using (var accentBrush = new SolidBrush(accentColor))
+                {
+                    g.FillRoundedRectangle(accentBrush, new Rectangle(0, 0, 5, card.Height - 5), 15);
+                }
+                
+                // Icon background circle
+                using (var iconBrush = new SolidBrush(Color.FromArgb(30, accentColor.R, accentColor.G, accentColor.B)))
+                {
+                    g.FillEllipse(iconBrush, new Rectangle(25, 20, 50, 50));
+                }
+                
+                // Draw icon
+                using (var iconTextBrush = new SolidBrush(accentColor))
+                using (var iconFont = new Font("Segoe UI", 10))
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(icon, iconFont, iconTextBrush, new Rectangle(25, 20, 50, 50), sf);
+                }
+                
+                // Draw title
+                using (var titleBrush = new SolidBrush(Color.FromArgb(44, 62, 80)))
+                using (var titleFont = new Font("Segoe UI", 14, FontStyle.Bold))
+                {
+                    g.DrawString(title, titleFont, titleBrush, new Point(95, 25));
+                }
+                
+                // Draw content
+                using (var contentBrush = new SolidBrush(Color.FromArgb(74, 84, 102)))
+                using (var contentFont = new Font("Segoe UI", 10))
+                {
+                    var contentRect = new Rectangle(95, 70, card.Width - 120, card.Height - 0);//55,75
+                    g.DrawString(content, contentFont, contentBrush, contentRect);
+                }
+            };
+
+            return card;
+        }
+
+        private Panel CreateTeamMemberCard(string name, string role, string icon, Color roleColor)
+        {
+            var card = new Panel
+            {
+                Width = 190,
+                Height = 45,
+                Padding = new Padding(20),
+                Margin = new Padding(20),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+
+            card.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                
+                var isHovered = card.ClientRectangle.Contains(card.PointToClient(Control.MousePosition));
+                
+                // Card background
+                using (var cardBrush = new SolidBrush(isHovered ? Color.FromArgb(248, 249, 250) : Color.White))
+                {
+                    g.FillRoundedRectangle(cardBrush, new Rectangle(0, 5, card.Width, card.Height), 10);
+                }
+                
+                // Border
+                using (var borderPen = new Pen(isHovered ? roleColor : Color.FromArgb(220, 224, 229), 1))
+                {
+                    g.DrawRoundedRectangle(borderPen, new Rectangle(0, 0, card.Width - 1, card.Height - 1), 10);
+                }
+                
+                // Icon circle
+                using (var iconBrush = new SolidBrush(Color.FromArgb(30, roleColor.R, roleColor.G, roleColor.B)))
+                {
+                    g.FillEllipse(iconBrush, new Rectangle(8, 8, 28, 28));
+                }
+                
+                // Icon
+                using (var iconTextBrush = new SolidBrush(roleColor))
+                using (var iconFont = new Font("Segoe UI", 14, FontStyle.Bold))
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(icon, iconFont, iconTextBrush, new Rectangle(10, 10, 28, 28), sf);
+                }
+                
+                // Name
+                using (var nameBrush = new SolidBrush(Color.FromArgb(44, 62, 80)))
+                using (var nameFont = new Font("Segoe UI", 10, FontStyle.Bold))
+                {
+                    g.DrawString(name, nameFont, nameBrush, new Point(44, 8));
+                }
+                
+                // Role
+                using (var roleBrush = new SolidBrush(roleColor))
+                using (var roleFont = new Font("Segoe UI", 7))
+                {
+                    g.DrawString(role, roleFont, roleBrush, new Point(44, 30));
+                }
+            };
+
+            card.MouseEnter += (s, e) => card.Invalidate();
+            card.MouseLeave += (s, e) => card.Invalidate();
+
+            return card;
+        }
+        
+        private void OptimizePanelScrolling(Panel panel)
+        {
+            // Enable double buffering via reflection for smooth scrolling
+            typeof(Panel).InvokeMember("DoubleBuffered",
+                BindingFlags.SetProperty | BindingFlags.Instance | BindingFlags.NonPublic,
+                null, panel, new object[] { true });
+        }
+        
         private void SetupClickOutsideHandler()
         {
             // Add click handler to main form to hide dropdown when clicking outside
@@ -1906,6 +2666,77 @@ namespace InventoryPro.WinForms.Forms
             refreshTimer?.Dispose();
             base.OnFormClosing(e);
         }
+        
+        private void CreateStatusBar()
+        {
+            pnlStatusBar = new Panel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 35, // Modern minimal height
+                BackColor = Color.FromArgb(249, 250, 251), // Light background
+                Padding = new Padding(20, 8, 20, 8)
+            };
+            
+            // Modern status bar styling
+            pnlStatusBar.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                // Draw subtle top border
+                using (var borderPen = new Pen(Color.FromArgb(229, 231, 235), 1))
+                {
+                    g.DrawLine(borderPen, 0, 0, pnlStatusBar.Width, 0);
+                }
+            };
+            
+            // Status information labels
+            var lblStatus = new Label
+            {
+                Text = "🟢 Ready",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Location = new Point(20, 8),
+                Size = new Size(100, 20),
+                BackColor = Color.Transparent
+            };
+            
+            var lblVersion = new Label
+            {
+                Text = "InventoryPro v2.0",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(107, 114, 128),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                TextAlign = ContentAlignment.MiddleRight,
+                Location = new Point(this.Width - 150, 8),
+                Size = new Size(120, 20),
+                BackColor = Color.Transparent
+            };
+            
+            // Update version label position on resize
+            this.SizeChanged += (s, e) => {
+                if (lblVersion != null)
+                {
+                    lblVersion.Location = new Point(this.Width - 150, 8);
+                }
+            };
+            
+            pnlStatusBar.Controls.AddRange(new Control[] { lblStatus, lblVersion });
+        }
+    }
+    
+    // Custom panel with optimized scrolling behavior
+    public class OptimizedScrollPanel : Panel
+    {
+        public OptimizedScrollPanel()
+        {
+            // Enable double buffering and smooth scrolling
+            SetStyle(ControlStyles.AllPaintingInWmPaint | 
+                     ControlStyles.UserPaint | 
+                     ControlStyles.DoubleBuffer | 
+                     ControlStyles.ResizeRedraw |
+                     ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.SupportsTransparentBackColor, true);
+        }
+        
     }
     
     // Extension method for rounded rectangles
@@ -1934,6 +2765,34 @@ namespace InventoryPro.WinForms.Forms
                 path.AddArc(bounds.X, bounds.Y + bounds.Height - radius, radius, radius, 90, 90);
                 path.CloseFigure();
                 graphics.DrawPath(pen, path);
+            }
+        }
+        
+        public static void FillRoundedRectangleTop(this Graphics graphics, Brush brush, Rectangle bounds, int radius)
+        {
+            using (var path = new GraphicsPath())
+            {
+                path.AddArc(bounds.X, bounds.Y, radius, radius, 180, 90);
+                path.AddArc(bounds.X + bounds.Width - radius, bounds.Y, radius, radius, 270, 90);
+                path.AddLine(bounds.X + bounds.Width, bounds.Y + radius, bounds.X + bounds.Width, bounds.Y + bounds.Height);
+                path.AddLine(bounds.X + bounds.Width, bounds.Y + bounds.Height, bounds.X, bounds.Y + bounds.Height);
+                path.AddLine(bounds.X, bounds.Y + bounds.Height, bounds.X, bounds.Y + radius);
+                path.CloseFigure();
+                graphics.FillPath(brush, path);
+            }
+        }
+        
+        public static void FillRoundedRectangleBottom(this Graphics graphics, Brush brush, Rectangle bounds, int radius)
+        {
+            using (var path = new GraphicsPath())
+            {
+                path.AddLine(bounds.X, bounds.Y, bounds.X + bounds.Width, bounds.Y);
+                path.AddLine(bounds.X + bounds.Width, bounds.Y, bounds.X + bounds.Width, bounds.Y + bounds.Height - radius);
+                path.AddArc(bounds.X + bounds.Width - radius, bounds.Y + bounds.Height - radius, radius, radius, 0, 90);
+                path.AddArc(bounds.X, bounds.Y + bounds.Height - radius, radius, radius, 90, 90);
+                path.AddLine(bounds.X, bounds.Y + bounds.Height - radius, bounds.X, bounds.Y);
+                path.CloseFigure();
+                graphics.FillPath(brush, path);
             }
         }
     }

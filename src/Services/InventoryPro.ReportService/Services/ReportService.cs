@@ -1,4 +1,6 @@
 using InventoryPro.ReportService.Models;
+using InventoryPro.ReportService.Data;
+using System.Text.Json;
 using InventoryPro.Shared.DTOs;
 using System.Text;
 using System.Net.Http.Json;
@@ -15,12 +17,14 @@ namespace InventoryPro.ReportService.Services
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
         private readonly RealDataService _realDataService;
+        private readonly ReportDbContext _reportDbContext;
 
-        public ReportService(ILogger<ReportService> logger, HttpClient httpClient, IConfiguration configuration)
+        public ReportService(ILogger<ReportService> logger, HttpClient httpClient, IConfiguration configuration, ReportDbContext reportDbContext)
             {
             _logger = logger;
             _httpClient = httpClient;
             _configuration = configuration;
+            _reportDbContext = reportDbContext;
             _realDataService = new RealDataService(httpClient,
                 logger);
             }
@@ -360,11 +364,29 @@ namespace InventoryPro.ReportService.Services
 
         private byte[] GenerateFallbackPdf(object report, string reportType)
             {
-            // Fallback for unsupported report types
-            var pdfContent = $"PDF Report - {reportType}\n" +
-                            $"Generated at: {DateTime.Now}\n" +
-                            $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
-            return Encoding.UTF8.GetBytes(pdfContent);
+            try
+            {
+                // Create a simple text-based report
+                var pdfContent = $"InventoryPro Report\n" +
+                                $"====================\n\n" +
+                                $"Report Type: {reportType}\n" +
+                                $"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n" +
+                                $"Data Summary:\n" +
+                                $"{ReportHelpers.GetSimpleReportSummary(report, reportType, _logger)}\n\n" +
+                                $"Note: This is a simplified text-based report generated due to PDF library limitations.\n" +
+                                $"For full featured reports, please ensure all required libraries are properly installed.";
+                
+                return Encoding.UTF8.GetBytes(pdfContent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating fallback PDF");
+                var errorContent = $"Report Generation Error\n" +
+                                  $"Report Type: {reportType}\n" +
+                                  $"Generated: {DateTime.Now}\n" +
+                                  $"Error: {ex.Message}";
+                return Encoding.UTF8.GetBytes(errorContent);
+            }
             }
 
         /// <summary>
@@ -399,11 +421,25 @@ namespace InventoryPro.ReportService.Services
 
         private byte[] GenerateFallbackExcel(object report, string reportType)
             {
-            // Fallback for unsupported report types
-            var excelContent = $"Excel Report - {reportType}\n" +
-                              $"Generated at: {DateTime.Now}\n" +
-                              $"Report Data: {System.Text.Json.JsonSerializer.Serialize(report)}";
-            return Encoding.UTF8.GetBytes(excelContent);
+            try
+            {
+                // Create a simple CSV-style report that can be opened in Excel
+                var csvContent = $"InventoryPro Report - {reportType}\n" +
+                               $"Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n" +
+                               $"{ReportHelpers.GetCsvReportData(report, reportType, _logger)}\n\n" +
+                               $"Note: This is a simplified CSV report due to Excel library limitations.";
+                
+                return Encoding.UTF8.GetBytes(csvContent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating fallback Excel");
+                var errorContent = $"Report Generation Error\n" +
+                                  $"Report Type: {reportType}\n" +
+                                  $"Generated: {DateTime.Now}\n" +
+                                  $"Error: {ex.Message}";
+                return Encoding.UTF8.GetBytes(errorContent);
+            }
             }
 
         /// <summary>
@@ -603,6 +639,213 @@ namespace InventoryPro.ReportService.Services
                 }
 
             return filtered.ToList();
+            }
+
+        #endregion
+
+        #region Report Data for WinForms Client
+
+        /// <summary>
+        /// Gets sales report data for viewing in WinForms client and saves to database
+        /// </summary>
+        public async Task<object> GetSalesReportDataAsync(DateTime startDate, DateTime endDate)
+            {
+            try
+                {
+                _logger.LogInformation("Getting sales report data for period {StartDate} to {EndDate}", startDate, endDate);
+
+                // Generate the full sales report with real data
+                var reportParameters = new ReportParameters
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = "View"
+                    };
+
+                var report = await GenerateSalesReportAsync(reportParameters);
+
+                // Create data for WinForms client
+                var viewData = new
+                    {
+                    TotalSales = report.TotalSales,
+                    TotalOrders = report.TotalOrders,
+                    AverageOrderValue = report.AverageOrderValue,
+                    DailySales = report.DailySales,
+                    TopProducts = report.TopProducts,
+                    TopCustomers = report.TopCustomers,
+                    SalesByCategory = report.SalesByCategory,
+                    SalesByPaymentMethod = report.SalesByPaymentMethod,
+                    ReportDate = DateTime.UtcNow
+                    };
+
+                // Save to database
+                await SaveReportToDatabase("Sales", "View", "Sales Report", startDate, endDate, reportParameters, viewData);
+
+                return viewData;
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting sales report data");
+                throw;
+                }
+            }
+
+        /// <summary>
+        /// Gets inventory report data for viewing in WinForms client and saves to database
+        /// </summary>
+        public async Task<object> GetInventoryReportDataAsync()
+            {
+            try
+                {
+                _logger.LogInformation("Getting inventory report data");
+
+                // Generate the full inventory report with real data
+                var reportParameters = new ReportParameters
+                    {
+                    Format = "View"
+                    };
+
+                var report = await GenerateInventoryReportAsync(reportParameters);
+
+                // Create data for WinForms client
+                var viewData = new
+                    {
+                    TotalProducts = report.TotalProducts,
+                    ActiveProducts = report.ActiveProducts,
+                    InactiveProducts = report.InactiveProducts,
+                    LowStockProducts = report.LowStockProducts,
+                    OutOfStockProducts = report.OutOfStockProducts,
+                    TotalInventoryValue = report.TotalInventoryValue,
+                    InventoryByCategory = report.InventoryByCategory,
+                    ProductInventoryDetails = report.ProductInventoryDetails,
+                    ReportDate = report.ReportDate
+                    };
+
+                // Save to database
+                await SaveReportToDatabase("Inventory", "View", "Inventory Report", null, null, reportParameters, viewData);
+
+                return viewData;
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting inventory report data");
+                throw;
+                }
+            }
+
+        /// <summary>
+        /// Gets financial report data for viewing in WinForms client and saves to database
+        /// </summary>
+        public async Task<object> GetFinancialReportDataAsync(DateTime startDate, DateTime endDate)
+            {
+            try
+                {
+                _logger.LogInformation("Getting financial report data for period {StartDate} to {EndDate}", startDate, endDate);
+
+                // Generate the full financial report with real data
+                var reportParameters = new ReportParameters
+                    {
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Format = "View"
+                    };
+
+                var report = await GenerateFinancialReportAsync(reportParameters);
+
+                // Create data for WinForms client
+                var viewData = new
+                    {
+                    MonthlyRevenue = report.MonthlyRevenue,
+                    GrossRevenue = report.GrossRevenue,
+                    NetRevenue = report.NetRevenue,
+                    TotalDiscounts = report.TotalDiscounts,
+                    TotalTransactions = report.TotalTransactions,
+                    AverageTransactionValue = report.AverageTransactionValue,
+                    RevenueByCategory = report.RevenueByCategory,
+                    StartDate = report.StartDate,
+                    EndDate = report.EndDate
+                    };
+
+                // Save to database
+                await SaveReportToDatabase("Financial", "View", "Financial Report", startDate, endDate, reportParameters, viewData);
+
+                return viewData;
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting financial report data");
+                throw;
+                }
+            }
+
+        /// <summary>
+        /// Saves report metadata and view data to the database
+        /// </summary>
+        private async Task SaveReportToDatabase(string reportType, string format, string title, DateTime? startDate, DateTime? endDate, object parameters, object viewData)
+            {
+            try
+                {
+                var reportRecord = new ReportRecord
+                    {
+                    ReportType = reportType,
+                    Format = format,
+                    Title = title,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "System", // In real app, get from user context
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    Parameters = JsonSerializer.Serialize(parameters),
+                    ViewData = JsonSerializer.Serialize(viewData),
+                    Status = "Generated",
+                    ExpiresAt = DateTime.UtcNow.AddDays(30) // Reports expire after 30 days
+                    };
+
+                // Calculate record count and total amount based on report type
+                if (reportType == "Sales" && viewData is object salesData)
+                    {
+                    var totalSales = GetPropertyValue<decimal>(salesData, "TotalSales", 0m);
+                    var totalOrders = GetPropertyValue<int>(salesData, "TotalOrders", 0);
+                    reportRecord.RecordCount = totalOrders;
+                    reportRecord.TotalAmount = totalSales;
+                    }
+
+                _reportDbContext.ReportRecords.Add(reportRecord);
+                await _reportDbContext.SaveChangesAsync();
+
+                _logger.LogInformation("Report saved to database with ID {ReportId}", reportRecord.Id);
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error saving report to database");
+                // Don't throw - report generation should succeed even if database save fails
+                }
+            }
+
+        /// <summary>
+        /// Helper method to safely extract property values from objects
+        /// </summary>
+        private T GetPropertyValue<T>(object obj, string propertyName, T defaultValue)
+            {
+            try
+                {
+                if (obj == null) return defaultValue;
+
+                var property = obj.GetType().GetProperty(propertyName);
+                if (property != null)
+                    {
+                    var value = property.GetValue(obj);
+                    if (value != null && value is T tValue)
+                        return tValue;
+                    if (value != null)
+                        return (T)Convert.ChangeType(value, typeof(T));
+                    }
+
+                return defaultValue;
+                }
+            catch
+                {
+                return defaultValue;
+                }
             }
 
         #endregion
