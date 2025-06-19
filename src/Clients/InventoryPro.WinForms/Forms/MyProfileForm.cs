@@ -28,7 +28,7 @@ namespace InventoryPro.WinForms.Forms
         private Label lblSubtitle;
         private Panel pnlAvatar;
         private Button btnChangeAvatar;
-        private Image _avatarImage;
+        private Image? _avatarImage;
         
         // Profile sections
         private Panel pnlPersonalInfo;
@@ -78,7 +78,44 @@ namespace InventoryPro.WinForms.Forms
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
-            
+            _avatarImage = null;
+            btnCancel = new Button();
+            btnReset = new Button();
+            btnSave = new Button();
+            btnChangeAvatar = new Button();
+            btnChangePassword = new Button();
+            btnTwoFactorAuth = new Button();
+            pnlAvatar = new Panel();
+            lblTitle = new Label();
+            lblSubtitle = new Label();
+            pnlMain = new Panel();
+            pnlHeader = new Panel();
+            pnlContent = new Panel();
+            pnlFooter = new Panel();
+            pnlPersonalInfo = new Panel();
+            pnlAccountInfo = new Panel();
+            pnlSecurityInfo = new Panel();
+            txtFirstName = new TextBox();
+            txtLastName = new TextBox();
+            txtEmail = new TextBox();
+            txtPhone = new TextBox();
+            dtpBirthDate = new DateTimePicker();
+            cboGender = new ComboBox();
+            txtAddress = new TextBox();
+            txtCity = new TextBox();
+            txtPostalCode = new TextBox();
+            cboCountry = new ComboBox();
+            txtUsername = new TextBox();
+            lblUsernameReadonly = new Label();
+            cboRole = new ComboBox();
+            lblCreatedDate = new Label();
+            lblLastLogin = new Label();
+            chkIsActive = new CheckBox();
+            chkEmailNotifications = new CheckBox();
+            chkSmsNotifications = new CheckBox();
+
+
+
             InitializeComponent();
             LoadUserProfile();
         }
@@ -793,7 +830,7 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
-        private void BtnSave_Click(object sender, EventArgs e)
+        private void BtnSave_Click(object? sender, EventArgs e)
         {
             try
             {
@@ -817,7 +854,7 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
-        private void BtnReset_Click(object sender, EventArgs e)
+        private void BtnReset_Click(object? sender, EventArgs e)
         {
             var result = MessageBox.Show("Are you sure you want to reset all changes?", "Confirm Reset", 
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -828,19 +865,19 @@ namespace InventoryPro.WinForms.Forms
             }
         }
         
-        private void BtnCancel_Click(object sender, EventArgs e)
+        private void BtnCancel_Click(object? sender, EventArgs? e)
         {
             this.DialogResult = DialogResult.Cancel;
             this.Close();
         }
         
-        private void BtnChangePassword_Click(object sender, EventArgs e)
+        private void BtnChangePassword_Click(object? sender, EventArgs e)
         {
             MessageBox.Show("Change password functionality will be implemented in a future update.", 
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         
-        private void BtnTwoFactorAuth_Click(object sender, EventArgs e)
+        private void BtnTwoFactorAuth_Click(object? sender, EventArgs e)
         {
             MessageBox.Show("Two-factor authentication setup will be implemented in a future update.", 
                 "Coming Soon", MessageBoxButtons.OK, MessageBoxIcon.Information);

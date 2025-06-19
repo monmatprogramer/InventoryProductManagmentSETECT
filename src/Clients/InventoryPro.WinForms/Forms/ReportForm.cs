@@ -1023,8 +1023,8 @@ namespace InventoryPro.WinForms.Forms
                                 var totalProducts = GetPropertyValue<int>(responseData, "TotalProducts", 0);
                                 var lowStockProducts = GetPropertyValue<int>(responseData, "LowStockProducts", 0);
                                 var totalValue = GetPropertyValue<decimal>(responseData, "TotalInventoryValue", 0.0m);
-                                var inventoryByCategory = GetPropertyValue<object>(responseData, "InventoryByCategory", null);
-                                var productDetails = GetPropertyValue<object>(responseData, "ProductInventoryDetails", null);
+                                var inventoryByCategory = GetPropertyValue<object?>(responseData, "InventoryByCategory", null);
+                                var productDetails = GetPropertyValue<object?>(responseData, "ProductInventoryDetails", null);
                                 
                                 // Update summary labels with real data
                                 lblTotalProducts.Text = $"Total Products: {totalProducts}";
@@ -1555,9 +1555,14 @@ namespace InventoryPro.WinForms.Forms
                         if (typeof(T) == typeof(decimal) && property.TryGetDecimal(out decimal decValue))
                             return (T)(object)decValue;
                         if (typeof(T) == typeof(string))
-                            return (T)(object)property.GetString();
-                        return property.Deserialize<T>();
-                    }
+                            {
+                            var stringValue = property.GetString();
+                            return stringValue != null ? (T)(object)stringValue : defaultValue;
+                            }
+
+                        var deserializedValue = property.Deserialize<T>();
+                        return deserializedValue != null ? deserializedValue : defaultValue;
+                        }
                 }
                 
                 // Handle regular objects using reflection

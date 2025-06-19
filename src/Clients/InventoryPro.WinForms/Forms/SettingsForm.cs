@@ -77,6 +77,57 @@ namespace InventoryPro.WinForms.Forms
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
+            btnAbout = new Button();
+            btnAppearance = new Button();
+            btnBackup = new Button();
+            btnDatabase = new Button();
+            btnGeneral = new Button();
+            btnSecurity = new Button();
+            btnToggleSidebar = new Button();
+            lblCurrentSection = new Label();
+            txtSearch = new TextBox();
+            pnlHeader = new Panel();
+            pnlSidebar = new Panel();
+            pnlContent = new Panel();
+            pnlMain = new Panel();
+            pnlBreadcrumb = new Panel();
+            pnlGeneral = new Panel();
+            pnlAppearance = new Panel();
+            pnlDatabase = new Panel();
+            pnlBackup = new Panel();
+            pnlSecurity = new Panel();
+            pnlAbout = new Panel();
+            btnBrowseBackup = new Button();
+            btnChangePassword = new Button();
+            btnCreateBackup = new Button();
+            btnTestConnection = new Button();
+            nudBackupInterval = new NumericUpDown();
+            nudSessionTimeout = new NumericUpDown();
+            cboCurrency = new ComboBox();
+            cboTheme = new ComboBox();
+            nudTaxRate = new NumericUpDown();
+            txtCompanyAddress = new TextBox();
+            txtCompanyEmail = new TextBox();
+            txtCompanyName = new TextBox();
+            txtCompanyPhone = new TextBox();
+            txtConnectionString = new TextBox();
+            chkAnimations = new CheckBox();
+            chkAutoBackup = new CheckBox();
+            chkRequireLogin = new CheckBox();
+            chkRememberLogin = new CheckBox();
+            lblConnectionStatus = new Label();
+            lblFontSizeValue = new Label();
+            tbFontSize = new TrackBar();   
+            chkSounds = new CheckBox();
+            txtBackupLocation = new TextBox();
+            // Set form icon
+            this.Icon = new Icon(SystemIcons.Application, 32, 32); // Use application icon
+            // Set form properties
+            this.FormBorderStyle = FormBorderStyle.None; // Modern borderless style
+
+
+
+            // Initialize form components
             InitializeComponent();
             
             // Load settings after form is shown to ensure all controls are initialized
@@ -1569,9 +1620,9 @@ Your InventoryPro application is up to date with the latest features and securit
         }
 
         // Modern event handlers for responsive design
-        private void BtnToggleSidebar_Click(object sender, EventArgs e)
+        private void BtnToggleSidebar_Click(object? sender, EventArgs? e)
         {
-            bool isExpanded = pnlSidebar.Tag.ToString() == "expanded";
+            bool isExpanded = pnlSidebar.Tag?.ToString() == "expanded";
             
             if (isExpanded)
             {
@@ -1615,7 +1666,7 @@ Your InventoryPro application is up to date with the latest features and securit
             }
         }
 
-        private void TxtSearch_TextChanged(object sender, EventArgs e)
+        private void TxtSearch_TextChanged(object? sender, EventArgs e)
         {
             var searchText = txtSearch.Text.ToLower();
             var buttons = new[] { btnGeneral, btnAppearance, btnDatabase, btnBackup, btnSecurity, btnAbout };
@@ -1636,18 +1687,18 @@ Your InventoryPro application is up to date with the latest features and securit
             }
         }
 
-        private void SettingsForm_Resize(object sender, EventArgs e)
+        private void SettingsForm_Resize(object? sender, EventArgs e)
         {
             // Responsive behavior for different screen sizes
             if (this.WindowState != FormWindowState.Minimized)
             {
                 // Auto-collapse sidebar on small screens
-                if (this.Width < 1200 && pnlSidebar.Tag.ToString() == "expanded")
+                if (this.Width < 1200 && pnlSidebar?.Tag?.ToString() == "expanded")
                 {
                     BtnToggleSidebar_Click(null, null);
                 }
                 // Auto-expand sidebar on large screens
-                else if (this.Width >= 1400 && pnlSidebar.Tag.ToString() == "collapsed")
+                else if (this.Width >= 1400 && pnlSidebar?.Tag?.ToString() == "collapsed")
                 {
                     BtnToggleSidebar_Click(null, null);
                 }

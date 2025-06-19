@@ -19,7 +19,7 @@
 
 		<PackageReference Include="iText7.bouncy-castle-adapter" Version="8.0.5" />
 
-		<PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.5" />
+		<!-- PackageReference Include="itext7.bouncy-castle-adapter" Version="8.0.5" /-->
 
 		<!-- For Chart generation -->
 		<PackageReference Include="ScottPlot" Version="4.1.71" />

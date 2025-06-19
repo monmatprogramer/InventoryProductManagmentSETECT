@@ -4,6 +4,16 @@ using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
+using CsvHelper;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Layout.Element;
+using iText.Layout.Properties;
+using iText.Kernel.Colors;
+using Color = System.Drawing.Color;
+using LicenseContext = OfficeOpenXml.LicenseContext;
 
 namespace InventoryPro.WinForms.Forms
 {
@@ -77,6 +87,9 @@ namespace InventoryPro.WinForms.Forms
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
+
+            // Set EPPlus license context
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             InitializeComponent();
             InitializePrintComponents();
@@ -1142,10 +1155,720 @@ namespace InventoryPro.WinForms.Forms
             ApplyFilters();
         }
 
+        private async void BtnExport_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                if (_filteredData == null || !_filteredData.Any())
+                {
+                    MessageBox.Show("No sales data to export.", "No Data", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                using var exportDialog = new SalesHistoryExportDialog();
+                if (exportDialog.ShowDialog() == DialogResult.OK)
+                {
+                    lblStatus.Text = "⏳ Exporting sales data...";
+                    lblStatus.ForeColor = _warningOrange;
+                    
+                    bool success = false;
+                    switch (exportDialog.SelectedFormat)
+                    {
+                        case SalesExportFormat.CSV:
+                            success = await ExportSalesToCsvAsync(exportDialog.ExportOptions);
+                            break;
+                        case SalesExportFormat.Excel:
+                            success = await ExportSalesToExcelAsync(exportDialog.ExportOptions);
+                            break;
+                        case SalesExportFormat.PDF:
+                            success = await ExportSalesToPdfAsync(exportDialog.ExportOptions);
+                            break;
+                    }
+
+                    if (success)
+                    {
+                        lblStatus.Text = "✅ Export completed successfully";
+                        lblStatus.ForeColor = _successGreen;
+                        var result = MessageBox.Show(
+                            $"Sales data exported successfully!\n\nRecords exported: {_filteredData.Count}\nTotal amount: {_filteredData.Sum(s => s.TotalPrice):C}\n\nWould you like to open the file location?",
+                            "Export Successful", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+                        
+                        if (result == DialogResult.Yes)
+                        {
+                            System.Diagnostics.Process.Start("explorer.exe", 
+                                $"/select,\"{exportDialog.ExportOptions.FilePath}\"");
+                        }
+                    }
+                    else
+                    {
+                        lblStatus.Text = "❌ Export failed";
+                        lblStatus.ForeColor = _errorRed;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during sales export");
+                MessageBox.Show("An error occurred during export. Please try again.",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblStatus.Text = "❌ Export failed";
+                lblStatus.ForeColor = _errorRed;
+            }
+        }
+
+        #region Export Methods
+
+        private async Task<bool> ExportSalesToCsvAsync(SalesExportOptions options)
+        {
+            try
+            {
+                using var writer = new StreamWriter(options.FilePath);
+                using var csv = new CsvWriter(writer, System.Globalization.CultureInfo.InvariantCulture);
+
+                if (options.IncludeHeaders)
+                {
+                    csv.WriteField("Date");
+                    csv.WriteField("Invoice Number");
+                    csv.WriteField("Product Name");
+                    csv.WriteField("Customer Name");
+                    csv.WriteField("Quantity");
+                    csv.WriteField("Unit Price");
+                    csv.WriteField("Total Price");
+                    csv.WriteField("Payment Method");
+                    csv.WriteField("Status");
+                    await csv.NextRecordAsync();
+                }
+
+                foreach (var sale in _filteredData)
+                {
+                    csv.WriteField(sale.Date.ToString("yyyy-MM-dd"));
+                    csv.WriteField(sale.InvoiceNumber.ToString());
+                    csv.WriteField(sale.ProductName ?? "");
+                    csv.WriteField(sale.CustomerName ?? "");
+                    csv.WriteField(sale.Quantity.ToString());
+                    csv.WriteField(sale.UnitPrice.ToString("C2"));
+                    csv.WriteField(sale.TotalPrice.ToString("C2"));
+                    csv.WriteField(sale.PaymentMethod ?? "");
+                    csv.WriteField(sale.Status ?? "");
+                    await csv.NextRecordAsync();
+                }
+
+                if (options.IncludeSummary)
+                {
+                    await csv.NextRecordAsync();
+                    csv.WriteField("SUMMARY");
+                    await csv.NextRecordAsync();
+                    csv.WriteField($"Total Transactions: {_filteredData.Count}");
+                    await csv.NextRecordAsync();
+                    csv.WriteField($"Total Revenue: {_filteredData.Sum(s => s.TotalPrice):C2}");
+                    await csv.NextRecordAsync();
+                    csv.WriteField($"Average Transaction: {(_filteredData.Any() ? _filteredData.Average(s => s.TotalPrice) : 0):C2}");
+                    await csv.NextRecordAsync();
+                    csv.WriteField($"Date Range: {dtpStartDate.Value:yyyy-MM-dd} to {dtpEndDate.Value:yyyy-MM-dd}");
+                    await csv.NextRecordAsync();
+                }
+
+                if (options.IncludeTimestamp)
+                {
+                    await csv.NextRecordAsync();
+                    csv.WriteField($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    await csv.NextRecordAsync();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sales to CSV");
+                MessageBox.Show($"Error exporting sales to CSV: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private async Task<bool> ExportSalesToExcelAsync(SalesExportOptions options)
+        {
+            try
+            {
+                var fileInfo = new FileInfo(options.FilePath);
+                using var package = new ExcelPackage(fileInfo);
+                
+                var worksheet = package.Workbook.Worksheets.Add("Sales History");
+
+                int row = 1;
+
+                if (options.IncludeHeaders)
+                {
+                    var headers = new[] { "Date", "Invoice #", "Product Name", "Customer Name", 
+                        "Quantity", "Unit Price", "Total Price", "Payment Method", "Status" };
+                    
+                    for (int col = 1; col <= headers.Length; col++)
+                    {
+                        worksheet.Cells[row, col].Value = headers[col - 1];
+                        worksheet.Cells[row, col].Style.Font.Bold = true;
+                        worksheet.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                        worksheet.Cells[row, col].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(59, 130, 246));
+                        worksheet.Cells[row, col].Style.Font.Color.SetColor(Color.White);
+                    }
+                    row++;
+                }
+
+                foreach (var sale in _filteredData)
+                {
+                    worksheet.Cells[row, 1].Value = sale.Date.ToString("yyyy-MM-dd");
+                    worksheet.Cells[row, 2].Value = sale.InvoiceNumber;
+                    worksheet.Cells[row, 3].Value = sale.ProductName ?? "";
+                    worksheet.Cells[row, 4].Value = sale.CustomerName ?? "";
+                    worksheet.Cells[row, 5].Value = sale.Quantity;
+                    worksheet.Cells[row, 6].Value = sale.UnitPrice;
+                    worksheet.Cells[row, 6].Style.Numberformat.Format = "$#,##0.00";
+                    worksheet.Cells[row, 7].Value = sale.TotalPrice;
+                    worksheet.Cells[row, 7].Style.Numberformat.Format = "$#,##0.00";
+                    worksheet.Cells[row, 8].Value = sale.PaymentMethod ?? "";
+                    worksheet.Cells[row, 9].Value = sale.Status ?? "";
+
+                    // Color coding for status
+                    switch (sale.Status?.ToLower())
+                    {
+                        case "completed":
+                            worksheet.Cells[row, 9].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(220, 252, 231));
+                            break;
+                        case "pending":
+                            worksheet.Cells[row, 9].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(254, 249, 195));
+                            break;
+                        case "cancelled":
+                            worksheet.Cells[row, 9].Style.Fill.PatternType = ExcelFillStyle.Solid;
+                            worksheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(254, 226, 226));
+                            break;
+                    }
+
+                    row++;
+                }
+
+                if (options.IncludeSummary)
+                {
+                    row += 2;
+                    worksheet.Cells[row, 1].Value = "SUMMARY";
+                    worksheet.Cells[row, 1].Style.Font.Bold = true;
+                    worksheet.Cells[row, 1].Style.Font.Size = 14;
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Total Transactions:";
+                    worksheet.Cells[row, 2].Value = _filteredData.Count;
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Total Revenue:";
+                    worksheet.Cells[row, 2].Value = _filteredData.Sum(s => s.TotalPrice);
+                    worksheet.Cells[row, 2].Style.Numberformat.Format = "$#,##0.00";
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Average Transaction:";
+                    worksheet.Cells[row, 2].Value = _filteredData.Any() ? _filteredData.Average(s => s.TotalPrice) : 0;
+                    worksheet.Cells[row, 2].Style.Numberformat.Format = "$#,##0.00";
+                    row++;
+
+                    worksheet.Cells[row, 1].Value = "Date Range:";
+                    worksheet.Cells[row, 2].Value = $"{dtpStartDate.Value:yyyy-MM-dd} to {dtpEndDate.Value:yyyy-MM-dd}";
+                    row++;
+                }
+
+                if (options.IncludeTimestamp)
+                {
+                    row += 2;
+                    worksheet.Cells[row, 1].Value = $"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                    worksheet.Cells[row, 1].Style.Font.Italic = true;
+                }
+
+                worksheet.Cells.AutoFitColumns();
+                
+                for (int col = 1; col <= 9; col++)
+                {
+                    worksheet.Column(col).Width = Math.Max(worksheet.Column(col).Width, 12);
+                }
+
+                await package.SaveAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sales to Excel");
+                MessageBox.Show($"Error exporting sales to Excel: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private async Task<bool> ExportSalesToPdfAsync(SalesExportOptions options)
+        {
+            try
+            {
+                // PDF export with fallback to Excel if PDF fails
+                try
+                {
+                    using var writer = new PdfWriter(options.FilePath);
+                    using var pdf = new PdfDocument(writer);
+                    using var document = new Document(pdf, iText.Kernel.Geom.PageSize.A4.Rotate());
+                    document.SetMargins(30, 20, 30, 20);
+
+                    var title = new Paragraph("Sales History Report")
+                        .SetTextAlignment(TextAlignment.CENTER)
+                        .SetFontSize(16)
+                        .SetBold()
+                        .SetMarginBottom(20);
+                    document.Add(title);
+
+                    var table = new Table(9)
+                        .SetWidth(UnitValue.CreatePercentValue(100))
+                        .SetMarginTop(10)
+                        .SetMarginBottom(10);
+
+                    if (options.IncludeHeaders)
+                    {
+                        var headers = new[] { "Date", "Invoice #", "Product", "Customer", 
+                            "Qty", "Unit Price", "Total", "Payment", "Status" };
+                        
+                        foreach (var header in headers)
+                        {
+                            var cell = new Cell()
+                                .Add(new Paragraph(header))
+                                .SetBackgroundColor(DeviceRgb.BLACK)
+                                .SetFontColor(DeviceRgb.WHITE)
+                                .SetTextAlignment(TextAlignment.CENTER)
+                                .SetBold()
+                                .SetFontSize(8)
+                                .SetPadding(4);
+                            table.AddCell(cell);
+                        }
+                    }
+
+                    foreach (var sale in _filteredData)
+                    {
+                        table.AddCell(new Cell().Add(new Paragraph(sale.Date.ToString("MM/dd/yyyy"))).SetPadding(3).SetFontSize(7));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.InvoiceNumber.ToString())).SetPadding(3).SetFontSize(7));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.ProductName ?? "")).SetPadding(3).SetFontSize(7));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.CustomerName ?? "")).SetPadding(3).SetFontSize(7));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.Quantity.ToString()))
+                            .SetPadding(3).SetFontSize(7).SetTextAlignment(TextAlignment.CENTER));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.UnitPrice.ToString("C")))
+                            .SetPadding(3).SetFontSize(7).SetTextAlignment(TextAlignment.RIGHT));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.TotalPrice.ToString("C")))
+                            .SetPadding(3).SetFontSize(7).SetTextAlignment(TextAlignment.RIGHT));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.PaymentMethod ?? "")).SetPadding(3).SetFontSize(7));
+                        table.AddCell(new Cell().Add(new Paragraph(sale.Status ?? "")).SetPadding(3).SetFontSize(7));
+                    }
+
+                    document.Add(table);
+
+                    if (options.IncludeSummary)
+                    {
+                        var summaryTitle = new Paragraph("Summary")
+                            .SetBold()
+                            .SetFontSize(12)
+                            .SetMarginTop(20)
+                            .SetMarginBottom(10);
+                        document.Add(summaryTitle);
+
+                        var summaryTable = new Table(2)
+                            .SetWidth(UnitValue.CreatePercentValue(50));
+
+                        summaryTable.AddCell(new Cell().Add(new Paragraph("Total Transactions:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                        summaryTable.AddCell(new Cell().Add(new Paragraph(_filteredData.Count.ToString())).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+
+                        summaryTable.AddCell(new Cell().Add(new Paragraph("Total Revenue:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                        summaryTable.AddCell(new Cell().Add(new Paragraph(_filteredData.Sum(s => s.TotalPrice).ToString("C2"))).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+
+                        summaryTable.AddCell(new Cell().Add(new Paragraph("Average Transaction:")).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+                        summaryTable.AddCell(new Cell().Add(new Paragraph((_filteredData.Any() ? _filteredData.Average(s => s.TotalPrice) : 0).ToString("C2"))).SetBorder(iText.Layout.Borders.Border.NO_BORDER).SetPadding(3).SetFontSize(9));
+
+                        document.Add(summaryTable);
+                    }
+
+                    if (options.IncludeTimestamp)
+                    {
+                        var timestamp = new Paragraph($"Exported on: {DateTime.Now:yyyy-MM-dd HH:mm:ss}")
+                            .SetTextAlignment(TextAlignment.RIGHT)
+                            .SetFontSize(8)
+                            .SetItalic()
+                            .SetMarginTop(20);
+                        document.Add(timestamp);
+                    }
+
+                    return true;
+                }
+                catch (Exception pdfEx)
+                {
+                    _logger.LogWarning(pdfEx, "PDF export failed, falling back to Excel");
+                    
+                    // Change file extension to .xlsx for fallback
+                    var excelPath = Path.ChangeExtension(options.FilePath, ".xlsx");
+                    var excelOptions = new SalesExportOptions
+                    {
+                        FilePath = excelPath,
+                        IncludeHeaders = options.IncludeHeaders,
+                        IncludeSummary = options.IncludeSummary,
+                        IncludeTimestamp = options.IncludeTimestamp
+                    };
+                    
+                    var excelSuccess = await ExportSalesToExcelAsync(excelOptions);
+                    if (excelSuccess)
+                    {
+                        MessageBox.Show($"PDF export encountered an issue. Data has been exported to Excel format instead:\n{excelPath}",
+                            "Export Format Changed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    return excelSuccess;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error exporting sales to PDF");
+                MessageBox.Show($"Error exporting sales to PDF: {ex.Message}",
+                    "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        #endregion
+    }
+
+    /// <summary>
+    /// Export format options for sales history
+    /// </summary>
+    public enum SalesExportFormat
+    {
+        CSV,
+        Excel,
+        PDF
+    }
+
+    /// <summary>
+    /// Export options configuration for sales history
+    /// </summary>
+    public class SalesExportOptions
+    {
+        public string FilePath { get; set; } = string.Empty;
+        public bool IncludeHeaders { get; set; } = true;
+        public bool IncludeSummary { get; set; } = true;
+        public bool IncludeTimestamp { get; set; } = true;
+    }
+
+    /// <summary>
+    /// Modern Sales History Export Dialog with professional styling
+    /// </summary>
+    public class SalesHistoryExportDialog : Form
+    {
+        public SalesExportFormat SelectedFormat { get; private set; } = SalesExportFormat.CSV;
+        public SalesExportOptions ExportOptions { get; private set; } = new();
+
+        private RadioButton rbCSV = null!;
+        private RadioButton rbExcel = null!;
+        private RadioButton rbPDF = null!;
+        private CheckBox chkIncludeHeaders = null!;
+        private CheckBox chkIncludeSummary = null!;
+        private CheckBox chkIncludeTimestamp = null!;
+        private TextBox txtFilePath = null!;
+        private Button btnBrowse = null!;
+        private Button btnExport = null!;
+        private Button btnCancel = null!;
+        private Label lblPreview = null!;
+
+        public SalesHistoryExportDialog()
+        {
+            InitializeComponent();
+            SetupEventHandlers();
+            UpdatePreview();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "Export Sales History Data";
+            this.Size = new Size(680, 580);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+            this.BackColor = Color.FromArgb(245, 247, 250);
+            this.Font = new Font("Segoe UI", 9F);
+
+            var titleLabel = new Label
+            {
+                Text = "EXPORT SALES HISTORY DATA",
+                Location = new Point(30, 20),
+                Size = new Size(590, 35),
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.FromArgb(59, 130, 246),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+
+            var formatGroupBox = new GroupBox
+            {
+                Text = "📄 Export Format",
+                Location = new Point(30, 70),
+                Size = new Size(280, 120),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
+            };
+
+            rbCSV = new RadioButton
+            {
+                Text = "CSV (Comma Separated Values)",
+                Location = new Point(15, 25),
+                Size = new Size(250, 25),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
+            };
+
+            rbExcel = new RadioButton
+            {
+                Text = "Excel Workbook (.xlsx)",
+                Location = new Point(15, 50),
+                Size = new Size(250, 25),
+                Font = new Font("Segoe UI", 9)
+            };
+
+            rbPDF = new RadioButton
+            {
+                Text = "PDF Document",
+                Location = new Point(15, 75),
+                Size = new Size(250, 25),
+                Font = new Font("Segoe UI", 9)
+            };
+
+            formatGroupBox.Controls.AddRange(new Control[] { rbCSV, rbExcel, rbPDF });
+
+            var optionsGroupBox = new GroupBox
+            {
+                Text = "⚙️ Export Options",
+                Location = new Point(340, 70),
+                Size = new Size(280, 120),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
+            };
+
+            chkIncludeHeaders = new CheckBox
+            {
+                Text = "Include column headers",
+                Location = new Point(15, 25),
+                Size = new Size(250, 25),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
+            };
+
+            chkIncludeSummary = new CheckBox
+            {
+                Text = "Include summary statistics",
+                Location = new Point(15, 50),
+                Size = new Size(250, 25),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
+            };
+
+            chkIncludeTimestamp = new CheckBox
+            {
+                Text = "Include export timestamp",
+                Location = new Point(15, 75),
+                Size = new Size(250, 25),
+                Checked = true,
+                Font = new Font("Segoe UI", 9)
+            };
+
+            optionsGroupBox.Controls.AddRange(new Control[] { chkIncludeHeaders, chkIncludeSummary, chkIncludeTimestamp });
+
+            var fileGroupBox = new GroupBox
+            {
+                Text = "💾 Save Location",
+                Location = new Point(30, 210),
+                Size = new Size(590, 80),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
+            };
+
+            txtFilePath = new TextBox
+            {
+                Location = new Point(15, 30),
+                Size = new Size(460, 25),
+                Font = new Font("Segoe UI", 9),
+                PlaceholderText = "Select file location..."
+            };
+
+            btnBrowse = new Button
+            {
+                Text = "Browse...",
+                Location = new Point(490, 28),
+                Size = new Size(80, 30),
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            btnBrowse.FlatAppearance.BorderSize = 0;
+
+            fileGroupBox.Controls.AddRange(new Control[] { txtFilePath, btnBrowse });
+
+            var previewGroupBox = new GroupBox
+            {
+                Text = "👁️ Export Preview",
+                Location = new Point(30, 310),
+                Size = new Size(590, 130),
+                Font = new Font("Segoe UI", 8, FontStyle.Bold),
+                ForeColor = Color.FromArgb(52, 58, 64)
+            };
+
+            lblPreview = new Label
+            {
+                Location = new Point(15, 25),
+                Size = new Size(500, 95),
+                Font = new Font("Consolas", 8),
+                ForeColor = Color.FromArgb(73, 80, 87),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Padding = new Padding(10),
+                Text = "Preview will appear here..."
+            };
+
+            previewGroupBox.Controls.Add(lblPreview);
+
+            btnExport = new Button
+            {
+                Text = "📤 EXPORT DATA",
+                Location = new Point(350, 460),
+                Size = new Size(165, 40),
+                DialogResult = DialogResult.OK,
+                BackColor = Color.FromArgb(16, 185, 129),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Margin = new Padding(50)
+            };
+            btnExport.FlatAppearance.BorderSize = 0;
+
+            btnCancel = new Button
+            {
+                Text = "CANCEL",
+                Location = new Point(530, 460),
+                Size = new Size(110, 40),
+                DialogResult = DialogResult.Cancel,
+                BackColor = Color.FromArgb(108, 117, 125),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Margin = new Padding(50)
+            };
+            btnCancel.FlatAppearance.BorderSize = 0;
+
+            Controls.AddRange(new Control[] {
+                titleLabel, formatGroupBox, optionsGroupBox, fileGroupBox, previewGroupBox, btnExport, btnCancel
+            });
+
+            this.AcceptButton = btnExport;
+            this.CancelButton = btnCancel;
+
+            var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            txtFilePath.Text = Path.Combine(desktopPath, $"SalesHistory_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+        }
+
+        private void SetupEventHandlers()
+        {
+            rbCSV.CheckedChanged += (s, e) => { if (rbCSV.Checked) UpdateFileExtension(); UpdatePreview(); };
+            rbExcel.CheckedChanged += (s, e) => { if (rbExcel.Checked) UpdateFileExtension(); UpdatePreview(); };
+            rbPDF.CheckedChanged += (s, e) => { if (rbPDF.Checked) UpdateFileExtension(); UpdatePreview(); };
+            
+            chkIncludeHeaders.CheckedChanged += (s, e) => UpdatePreview();
+            chkIncludeSummary.CheckedChanged += (s, e) => UpdatePreview();
+            chkIncludeTimestamp.CheckedChanged += (s, e) => UpdatePreview();
+
+            btnBrowse.Click += BtnBrowse_Click;
+            btnExport.Click += BtnExport_Click;
+        }
+
+        private void UpdateFileExtension()
+        {
+            if (string.IsNullOrEmpty(txtFilePath.Text)) return;
+
+            var currentPath = txtFilePath.Text;
+            var directory = Path.GetDirectoryName(currentPath) ?? "";
+            var fileNameWithoutExt = Path.GetFileNameWithoutExtension(currentPath);
+
+            string newExtension = "";
+            if (rbCSV.Checked) newExtension = ".csv";
+            else if (rbExcel.Checked) newExtension = ".xlsx";
+            else if (rbPDF.Checked) newExtension = ".pdf";
+
+            txtFilePath.Text = Path.Combine(directory, fileNameWithoutExt + newExtension);
+        }
+
+        private void UpdatePreview()
+        {
+            var format = rbCSV.Checked ? "CSV" : rbExcel.Checked ? "Excel" : "PDF";
+            var preview = $"Format: {format}\n";
+            preview += $"Headers: {(chkIncludeHeaders.Checked ? "Yes" : "No")}\n";
+            preview += $"Summary: {(chkIncludeSummary.Checked ? "Yes" : "No")}\n";
+            preview += $"Timestamp: {(chkIncludeTimestamp.Checked ? "Yes" : "No")}\n\n";
+            preview += "Columns to export:\n";
+            preview += "• Date\n• Invoice Number\n• Product Name\n• Customer Name\n";
+            preview += "• Quantity\n• Unit Price\n• Total Price\n• Payment Method\n• Status";
+
+            lblPreview.Text = preview;
+        }
+
+        private void BtnBrowse_Click(object? sender, EventArgs e)
+        {
+            var filter = rbCSV.Checked ? "CSV files (*.csv)|*.csv" :
+                        rbExcel.Checked ? "Excel files (*.xlsx)|*.xlsx" :
+                        "PDF files (*.pdf)|*.pdf";
+
+            using var dialog = new SaveFileDialog
+            {
+                Filter = filter,
+                DefaultExt = rbCSV.Checked ? "csv" : rbExcel.Checked ? "xlsx" : "pdf",
+                FileName = Path.GetFileName(txtFilePath.Text)
+            };
+
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                txtFilePath.Text = dialog.FileName;
+            }
+        }
+
         private void BtnExport_Click(object? sender, EventArgs e)
         {
-            MessageBox.Show($"📊 Export Feature\n\nRecords to export: {_filteredData.Count}\nTotal amount: {_filteredData.Sum(s => s.TotalPrice):C}\n\nThis feature will be implemented soon!", 
-                "Export Sales Data", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (string.IsNullOrWhiteSpace(txtFilePath.Text))
+            {
+                MessageBox.Show("Please select a file location.", "Missing File Path",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                this.DialogResult = DialogResult.None;
+                return;
+            }
+
+            try
+            {
+                var directory = Path.GetDirectoryName(txtFilePath.Text);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error creating directory: {ex.Message}", "Directory Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                this.DialogResult = DialogResult.None;
+                return;
+            }
+
+            SelectedFormat = rbCSV.Checked ? SalesExportFormat.CSV :
+                           rbExcel.Checked ? SalesExportFormat.Excel :
+                           SalesExportFormat.PDF;
+
+            ExportOptions = new SalesExportOptions
+            {
+                FilePath = txtFilePath.Text,
+                IncludeHeaders = chkIncludeHeaders.Checked,
+                IncludeSummary = chkIncludeSummary.Checked,
+                IncludeTimestamp = chkIncludeTimestamp.Checked
+            };
         }
     }
 
