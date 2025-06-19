@@ -13,6 +13,20 @@ namespace InventoryPro.WinForms.Forms
         private readonly ILogger<ReportForm> _logger;
         private readonly IApiService _apiService;
 
+        // Constants for UI dimensions and styling
+        private const int DefaultFormWidth = 1000;
+        private const int DefaultFormHeight = 700;
+        private const int ControlsPanelHeight = 120;
+        private const int InventoryControlsPanelHeight = 80;
+        private const int FinancialControlsPanelHeight = 80;
+        private const int CustomControlsPanelHeight = 220;
+        private const int SplitterDistance = 300;
+        private const int ControlSpacing = 10;
+        private const int ButtonHeight = 30;
+        private const int LabelHeight = 25;
+        private const int ComboBoxHeight = 25;
+        private const int DatePickerHeight = 25;
+
         // Controls
         private TabControl tabControl;
         private TabPage tabSales;
@@ -52,42 +66,15 @@ namespace InventoryPro.WinForms.Forms
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _apiService = apiService ?? throw new ArgumentNullException(nameof(apiService));
 
-            // Initialize non-nullable fields to avoid CS8618 warnings
-            tabControl = new TabControl();
-            tabSales = new TabPage();
-            tabInventory = new TabPage();
-            tabFinancial = new TabPage();
-            tabCustom = new TabPage();
-            dtpSalesStart = new DateTimePicker();
-            dtpSalesEnd = new DateTimePicker();
-            btnGenerateSales = new Button();
-            cboSalesFormat = new ComboBox();
-            chartSales = new Chart();
-            dgvSalesData = new DataGridView();
-            lblSalesTotalValue = new Label();
-            lblSalesOrderCount = new Label();
-            lblSalesAvgOrder = new Label();
-            btnGenerateInventory = new Button();
-            cboInventoryFormat = new ComboBox();
-            chartInventory = new Chart();
-            dgvInventoryData = new DataGridView(); // Fixed initialization
-            lblTotalProducts = new Label();
-            lblLowStockCount = new Label();
-            lblInventoryValue = new Label();
-            dtpFinancialYear = new DateTimePicker();
-            btnGenerateFinancial = new Button();
-            cboFinancialFormat = new ComboBox(); // Fixed initialization
-            chartFinancial = new Chart();
-            dgvFinancialData = new DataGridView();
-
             InitializeComponent();
         }
 
         private void InitializeComponent()
         {
             this.Text = "Reports";
-            this.Size = new Size(1000, 700);
+            this.Size = new Size(DefaultFormWidth, DefaultFormHeight);
             this.StartPosition = FormStartPosition.CenterScreen;
+            this.MinimumSize = new Size(800, 600);
 
             // Create tab control
             tabControl = new TabControl
@@ -119,17 +106,17 @@ namespace InventoryPro.WinForms.Forms
             var pnlControls = new Panel
             {
                 Dock = DockStyle.Top,
-                Height = 120,
+                Height = ControlsPanelHeight,
                 BackColor = Color.FromArgb(248, 248, 248),
-                Padding = new Padding(10)
+                Padding = new Padding(ControlSpacing)
             };
 
             // Date range selection
             var lblDateRange = new Label
             {
                 Text = "Date Range:",
-                Location = new Point(10, 15),
-                Size = new Size(80, 25),
+                Location = new Point(ControlSpacing, 15),
+                Size = new Size(80, LabelHeight),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold)
             };
 
@@ -842,34 +829,69 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                // Simulate an asynchronous operation for generating the report
-                await Task.Run(() =>
+                // Validate date range
+                if (dtpSalesStart.Value > dtpSalesEnd.Value)
                 {
-                    // Mock data generation logic
-                    var random = new Random();
-                    var salesData = new List<(DateTime Date, decimal Sales)>();
-                    for (var date = dtpSalesStart.Value; date <= dtpSalesEnd.Value; date = date.AddDays(1))
-                    {
-                        var value = random.Next(2000, 8000);
-                        salesData.Add((date, value));
-                    }
+                    MessageBox.Show("Start date cannot be later than end date.", 
+                        "Invalid Date Range", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
 
-                    // Update UI controls (must be done on the UI thread)
-                    Invoke(new Action(() =>
+                if (dtpSalesStart.Value > DateTime.Now)
+                {
+                    MessageBox.Show("Start date cannot be in the future.", 
+                        "Invalid Date Range", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Show loading indicator
+                btnGenerateSales.Enabled = false;
+                btnGenerateSales.Text = "Generating...";
+
+                // Get sales report data from API
+                var response = await _apiService.GetSalesReportDataAsync(dtpSalesStart.Value, dtpSalesEnd.Value);
+                
+                if (response.Success && response.Data != null)
+                {
+                    try
                     {
-                        lblSalesTotalValue.Text = "Total Sales: $125,450.75";
-                        lblSalesOrderCount.Text = "Orders: 342";
-                        lblSalesAvgOrder.Text = "Avg Order: $366.52";
+                        // Try to cast the response data to dynamic for flexible property access
+                        dynamic reportData = response.Data;
+                        
+                        // Update UI with real data
+                        lblSalesTotalValue.Text = $"Total Sales: {reportData.TotalSales:C}";
+                        lblSalesOrderCount.Text = $"Orders: {reportData.OrderCount}";
+                        lblSalesAvgOrder.Text = $"Avg Order: {reportData.AverageOrderValue:C}";
 
                         chartSales.Series[0].Points.Clear();
-                        foreach (var data in salesData)
+                        if (reportData.DailySales != null)
                         {
-                            chartSales.Series[0].Points.AddXY(data.Date, data.Sales);
+                            foreach (var data in reportData.DailySales)
+                            {
+                                chartSales.Series[0].Points.AddXY(data.Date, data.Sales);
+                            }
+                            dgvSalesData.DataSource = reportData.DailySales;
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse sales report data, falling back to simulated data");
+                        await GenerateSimulatedSalesData();
+                        MessageBox.Show("Data format issue. Showing sample data instead.", 
+                            "Data Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    // Fallback to mock data if API call fails
+                    await GenerateSimulatedSalesData();
+                    MessageBox.Show("Unable to retrieve live data. Showing sample data instead.", 
+                        "Data Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
 
-                        dgvSalesData.DataSource = salesData.Select(d => new { d.Date, d.Sales }).ToList();
-                    }));
-                });
+                // Reset button state
+                btnGenerateSales.Enabled = true;
+                btnGenerateSales.Text = "Generate Report";
 
                 if (cboSalesFormat.Text != "View")
                 {
@@ -889,35 +911,55 @@ namespace InventoryPro.WinForms.Forms
         {
             try
             {
-                await Task.Run(() =>
+                // Show loading indicator
+                btnGenerateInventory.Enabled = false;
+                btnGenerateInventory.Text = "Generating...";
+
+                // Get inventory report data from API
+                var response = await _apiService.GetInventoryReportDataAsync();
+                
+                if (response.Success && response.Data != null)
                 {
-                    // Simulate data generation logic
-                    var inventoryData = new[]
+                    try
                     {
-                        new { Category = "Electronics", Products = 45, TotalStock = 1234, Value = 123450.00m, LowStock = 3 },
-                        new { Category = "Clothing", Products = 30, TotalStock = 2345, Value = 45670.00m, LowStock = 2 },
-                        new { Category = "Food & Beverages", Products = 40, TotalStock = 3456, Value = 34567.89m, LowStock = 5 },
-                        new { Category = "Home & Garden", Products = 35, TotalStock = 890, Value = 30880.00m, LowStock = 2 }
-                    };
+                        // Try to cast the response data to dynamic for flexible property access
+                        dynamic reportData = response.Data;
+                        
+                        // Update UI with real data
+                        lblTotalProducts.Text = $"Total Products: {reportData.TotalProducts}";
+                        lblLowStockCount.Text = $"Low Stock: {reportData.LowStockCount}";
+                        lblInventoryValue.Text = $"Total Value: {reportData.TotalValue:C}";
 
-                    Invoke(new Action(() =>
-                    {
-                        // Update summary labels
-                        lblTotalProducts.Text = "Total Products: 150";
-                        lblLowStockCount.Text = "Low Stock: 12";
-                        lblInventoryValue.Text = "Total Value: $234,567.89";
-
-                        // Update chart with mock data
+                        // Update chart with real data
                         chartInventory.Series[0].Points.Clear();
-                        chartInventory.Series[0].Points.AddXY("Electronics", 45);
-                        chartInventory.Series[0].Points.AddXY("Clothing", 30);
-                        chartInventory.Series[0].Points.AddXY("Food & Beverages", 40);
-                        chartInventory.Series[0].Points.AddXY("Home & Garden", 35);
+                        if (reportData.CategoryData != null)
+                        {
+                            foreach (var category in reportData.CategoryData)
+                            {
+                                chartInventory.Series[0].Points.AddXY(category.Category, category.Products);
+                            }
+                            dgvInventoryData.DataSource = reportData.CategoryData;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse inventory report data, falling back to simulated data");
+                        await GenerateSimulatedInventoryData();
+                        MessageBox.Show("Data format issue. Showing sample data instead.", 
+                            "Data Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+                else
+                {
+                    // Fallback to mock data if API call fails
+                    await GenerateSimulatedInventoryData();
+                    MessageBox.Show("Unable to retrieve live data. Showing sample data instead.", 
+                        "Data Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
 
-                        // Update grid with mock data
-                        dgvInventoryData.DataSource = inventoryData;
-                    }));
-                });
+                // Reset button state
+                btnGenerateInventory.Enabled = true;
+                btnGenerateInventory.Text = "Generate Report";
 
                 if (cboInventoryFormat.Text != "View")
                 {
@@ -1001,6 +1043,70 @@ namespace InventoryPro.WinForms.Forms
             }
         }
 
+        private async Task GenerateSimulatedSalesData()
+        {
+            await Task.Run(() =>
+            {
+                // Mock data generation logic
+                var random = new Random();
+                var salesData = new List<(DateTime Date, decimal Sales)>();
+                for (var date = dtpSalesStart.Value; date <= dtpSalesEnd.Value; date = date.AddDays(1))
+                {
+                    var value = random.Next(2000, 8000);
+                    salesData.Add((date, value));
+                }
+
+                // Update UI controls (must be done on the UI thread)
+                Invoke(new Action(() =>
+                {
+                    lblSalesTotalValue.Text = "Total Sales: $125,450.75";
+                    lblSalesOrderCount.Text = "Orders: 342";
+                    lblSalesAvgOrder.Text = "Avg Order: $366.52";
+
+                    chartSales.Series[0].Points.Clear();
+                    foreach (var data in salesData)
+                    {
+                        chartSales.Series[0].Points.AddXY(data.Date, data.Sales);
+                    }
+
+                    dgvSalesData.DataSource = salesData.Select(d => new { d.Date, d.Sales }).ToList();
+                }));
+            });
+        }
+
+        private async Task GenerateSimulatedInventoryData()
+        {
+            await Task.Run(() =>
+            {
+                // Simulate data generation logic
+                var inventoryData = new[]
+                {
+                    new { Category = "Electronics", Products = 45, TotalStock = 1234, Value = 123450.00m, LowStock = 3 },
+                    new { Category = "Clothing", Products = 30, TotalStock = 2345, Value = 45670.00m, LowStock = 2 },
+                    new { Category = "Food & Beverages", Products = 40, TotalStock = 3456, Value = 34567.89m, LowStock = 5 },
+                    new { Category = "Home & Garden", Products = 35, TotalStock = 890, Value = 30880.00m, LowStock = 2 }
+                };
+
+                Invoke(new Action(() =>
+                {
+                    // Update summary labels
+                    lblTotalProducts.Text = "Total Products: 150";
+                    lblLowStockCount.Text = "Low Stock: 12";
+                    lblInventoryValue.Text = "Total Value: $234,567.89";
+
+                    // Update chart with mock data
+                    chartInventory.Series[0].Points.Clear();
+                    chartInventory.Series[0].Points.AddXY("Electronics", 45);
+                    chartInventory.Series[0].Points.AddXY("Clothing", 30);
+                    chartInventory.Series[0].Points.AddXY("Food & Beverages", 40);
+                    chartInventory.Series[0].Points.AddXY("Home & Garden", 35);
+
+                    // Update grid with mock data
+                    dgvInventoryData.DataSource = inventoryData;
+                }));
+            });
+        }
+
         private async Task GenerateSimulatedFinancialData()
         {
             await Task.Run(() =>
@@ -1043,9 +1149,28 @@ namespace InventoryPro.WinForms.Forms
 
         private void UpdateFinancialUIWithData(object reportData)
         {
-            // This method would parse the real report data and update the UI
-            // For now, fall back to simulated data
-            Task.Run(async () => await GenerateSimulatedFinancialData());
+            try
+            {
+                // Try to cast the response data to dynamic for flexible property access
+                dynamic data = reportData;
+                
+                // Update chart
+                chartFinancial.Series[0].Points.Clear();
+                if (data.MonthlyData != null)
+                {
+                    foreach (var monthData in data.MonthlyData)
+                    {
+                        chartFinancial.Series[0].Points.AddXY(monthData.Month, monthData.Revenue);
+                    }
+                    dgvFinancialData.DataSource = data.MonthlyData;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse financial report data, falling back to simulated data");
+                // Fall back to simulated data
+                Task.Run(async () => await GenerateSimulatedFinancialData());
+            }
         }
 
         private async void BtnGenerateInvoices_Click(object? sender, EventArgs e)
@@ -1121,6 +1246,21 @@ namespace InventoryPro.WinForms.Forms
                 {
                     MessageBox.Show("Error: Unable to find required controls for custom report generation.", 
                         "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                // Validate date range
+                if (dtpCustomStart.Value > dtpCustomEnd.Value)
+                {
+                    MessageBox.Show("Start date cannot be later than end date.", 
+                        "Invalid Date Range", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(txtReportTitle.Text))
+                {
+                    MessageBox.Show("Please enter a report title.", 
+                        "Report Title Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
@@ -1239,5 +1379,24 @@ namespace InventoryPro.WinForms.Forms
         }
 
         #endregion
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Dispose of charts
+                chartSales?.Dispose();
+                chartInventory?.Dispose();
+                chartFinancial?.Dispose();
+                
+                // Dispose of data grid views
+                dgvSalesData?.Dispose();
+                dgvInventoryData?.Dispose();
+                dgvFinancialData?.Dispose();
+
+                // The tab control and other controls will be disposed by the base class
+            }
+            base.Dispose(disposing);
+        }
     }
 }
