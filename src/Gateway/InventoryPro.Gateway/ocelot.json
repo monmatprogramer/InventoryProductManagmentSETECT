@@ -6,7 +6,7 @@
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 5041
+          "Port": 5141
         }
       ],
       "UpstreamPathTemplate": "/auth/{everything}",
@@ -96,6 +96,19 @@
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
+      },
+      "LoadBalancerOptions": {
+        "Type": "RoundRobin"
+      },
+      "CircuitBreakerOptions": {
+        "ExceptionsAllowedBeforeBreaking": 3,
+        "DurationOfBreak": 5000,
+        "Timeout": 10000
+      },
+      "RetryOptions": {
+        "RetryCount": 3,
+        "RetryDelay": 1000,
+        "RetryBackoff": "linear"
       }
     },
     {

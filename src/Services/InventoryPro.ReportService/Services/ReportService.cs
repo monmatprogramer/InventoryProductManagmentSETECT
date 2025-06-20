@@ -78,60 +78,72 @@ namespace InventoryPro.ReportService.Services
             }
 
         /// <summary>
-        /// Gets daily sales data
+        /// Gets daily sales data using real data from sales service
         /// </summary>
         public async Task<List<DailySales>> GetDailySalesAsync(DateTime startDate, DateTime endDate)
             {
-            var dailySales = new List<DailySales>();
-            var random = new Random();
-
-            for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            try
                 {
-                dailySales.Add(new DailySales
-                    {
-                    Date = date,
-                    TotalAmount = (decimal)(random.Next(2000, 8000) + random.NextDouble()),
-                    OrderCount = random.Next(5, 25)
-                    });
+                // Fetch real sales data from the sales service
+                var sales = await _realDataService.GetRealSalesDataAsync(startDate, endDate);
+                
+                // Process real data into daily aggregates
+                return _realDataService.ProcessDailySalesData(sales, startDate, endDate);
                 }
-
-            return await Task.FromResult(dailySales);
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting daily sales data");
+                
+                // Fallback to empty list instead of mock data to indicate no data available
+                return new List<DailySales>();
+                }
             }
 
         /// <summary>
-        /// Gets top selling products
+        /// Gets top selling products using real data from sales service
         /// </summary>
         public async Task<List<ProductSales>> GetTopSellingProductsAsync(DateTime startDate, DateTime endDate, int topCount = 10)
             {
-            // Mock data - in real implementation, this would aggregate from Sales Service
-            var products = new List<ProductSales>
-            {
-                new() { ProductId = 1, ProductName = "Laptop Pro 15", SKU = "LAP-001", QuantitySold = 45, TotalRevenue = 58499.55m },
-                new() { ProductId = 2, ProductName = "Wireless Mouse", SKU = "MOU-001", QuantitySold = 234, TotalRevenue = 7019.66m },
-                new() { ProductId = 3, ProductName = "USB-C Cable", SKU = "CAB-001", QuantitySold = 456, TotalRevenue = 4560.00m },
-                new() { ProductId = 4, ProductName = "Bluetooth Headphones", SKU = "HEA-001", QuantitySold = 89, TotalRevenue = 8900.00m },
-                new() { ProductId = 5, ProductName = "Webcam HD", SKU = "WEB-001", QuantitySold = 67, TotalRevenue = 6700.00m }
-            };
-
-            return await Task.FromResult(products.OrderByDescending(p => p.TotalRevenue).Take(topCount).ToList());
+            try
+                {
+                // Fetch real sales data from the sales service
+                var sales = await _realDataService.GetRealSalesDataAsync(startDate, endDate);
+                
+                // Process real data to get top products
+                var allProducts = await _realDataService.ProcessTopProductsDataAsync(sales);
+                return allProducts.Take(topCount).ToList();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting top selling products data");
+                
+                // Return empty list instead of mock data to indicate no data available
+                return new List<ProductSales>();
+                }
             }
 
         /// <summary>
-        /// Gets top customers by purchase amount
+        /// Gets top customers by purchase amount using real data from sales service
         /// </summary>
         public async Task<List<CustomerSales>> GetTopCustomersAsync(DateTime startDate, DateTime endDate, int topCount = 10)
             {
-            // Mock data - in real implementation, this would aggregate from Sales Service
-            var customers = new List<CustomerSales>
-            {
-                new() { CustomerId = 2, CustomerName = "John Doe", OrderCount = 15, TotalAmount = 12340.50m },
-                new() { CustomerId = 3, CustomerName = "Jane Smith", OrderCount = 8, TotalAmount = 8950.25m },
-                new() { CustomerId = 4, CustomerName = "Bob Johnson", OrderCount = 12, TotalAmount = 7230.00m },
-                new() { CustomerId = 5, CustomerName = "Alice Brown", OrderCount = 6, TotalAmount = 5670.75m },
-                new() { CustomerId = 6, CustomerName = "Charlie Wilson", OrderCount = 9, TotalAmount = 4560.00m }
-            };
-
-            return await Task.FromResult(customers.OrderByDescending(c => c.TotalAmount).Take(topCount).ToList());
+            try
+                {
+                // Fetch real sales and customer data from the sales service
+                var sales = await _realDataService.GetRealSalesDataAsync(startDate, endDate);
+                var customers = await _realDataService.GetRealCustomersDataAsync();
+                
+                // Process real data to get top customers
+                var allCustomers = _realDataService.ProcessTopCustomersData(sales, customers);
+                return allCustomers.Take(topCount).ToList();
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error getting top customers data");
+                
+                // Return empty list instead of mock data to indicate no data available
+                return new List<CustomerSales>();
+                }
             }
 
         #endregion
@@ -365,7 +377,7 @@ namespace InventoryPro.ReportService.Services
         private byte[] GenerateFallbackPdf(object report, string reportType)
             {
             try
-            {
+                {
                 // Create a simple text-based report
                 var pdfContent = $"InventoryPro Report\n" +
                                 $"====================\n\n" +
@@ -375,18 +387,18 @@ namespace InventoryPro.ReportService.Services
                                 $"{ReportHelpers.GetSimpleReportSummary(report, reportType, _logger)}\n\n" +
                                 $"Note: This is a simplified text-based report generated due to PDF library limitations.\n" +
                                 $"For full featured reports, please ensure all required libraries are properly installed.";
-                
+
                 return Encoding.UTF8.GetBytes(pdfContent);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error generating fallback PDF");
                 var errorContent = $"Report Generation Error\n" +
                                   $"Report Type: {reportType}\n" +
                                   $"Generated: {DateTime.Now}\n" +
                                   $"Error: {ex.Message}";
                 return Encoding.UTF8.GetBytes(errorContent);
-            }
+                }
             }
 
         /// <summary>
@@ -422,24 +434,24 @@ namespace InventoryPro.ReportService.Services
         private byte[] GenerateFallbackExcel(object report, string reportType)
             {
             try
-            {
+                {
                 // Create a simple CSV-style report that can be opened in Excel
                 var csvContent = $"InventoryPro Report - {reportType}\n" +
                                $"Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n\n" +
                                $"{ReportHelpers.GetCsvReportData(report, reportType, _logger)}\n\n" +
                                $"Note: This is a simplified CSV report due to Excel library limitations.";
-                
+
                 return Encoding.UTF8.GetBytes(csvContent);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error generating fallback Excel");
                 var errorContent = $"Report Generation Error\n" +
                                   $"Report Type: {reportType}\n" +
                                   $"Generated: {DateTime.Now}\n" +
                                   $"Error: {ex.Message}";
                 return Encoding.UTF8.GetBytes(errorContent);
-            }
+                }
             }
 
         /// <summary>

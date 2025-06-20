@@ -23,9 +23,17 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 
-// Configure Database
-builder.Services.AddDbContext<ReportDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configure Database - Use InMemory for development if SQL Server is not available
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<ReportDbContext>(options =>
+        options.UseInMemoryDatabase("ReportDB"));
+}
+else
+{
+    builder.Services.AddDbContext<ReportDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 // Configure JWT Authentication
 ConfigureJwtAuthentication(builder.Services, builder.Configuration);
@@ -42,6 +50,19 @@ builder.Services.AddHttpClient<IReportService, ReportService>(client =>
 // Configure Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options => ConfigureSwagger(options));
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// Use launch settings configuration for port assignment
 
 var app = builder.Build();
 
@@ -69,13 +90,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseHttpsRedirection();
+app.UseCors("AllowAll");
 app.MapControllers();
 
 // Add a test endpoint
 app.MapGet("/", () => "Report Service is running!");
 
-Log.Information("Report Service started on port 5179");
+Log.Information("Report Service started on port {Port}", "5179");
 
 app.Run();
 

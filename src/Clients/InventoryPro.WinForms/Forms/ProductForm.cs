@@ -2445,6 +2445,7 @@ namespace InventoryPro.WinForms.Forms
     public class ProductExportDialog : Form
     {
         //public ExportOptionsForProduct ExportOptions { get; private set; } = new ExportOptionsForProduct();
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public ExportOptionsForProduct ExportOptionsForProduct { get; private set; } = new ExportOptionsForProduct();
 
         private RadioButton rbCSV = null!;

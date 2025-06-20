@@ -784,134 +784,292 @@ namespace InventoryPro.WinForms.Forms
         {
             using var confirmDialog = new Form
             {
-                Text = "Confirm Logout",
-                Size = new Size(490, 250),
+                Text = "Sign Out",
+                Size = new Size(420, 280),
                 StartPosition = FormStartPosition.CenterParent,
-                FormBorderStyle = FormBorderStyle.FixedDialog,
+                FormBorderStyle = FormBorderStyle.None,
                 MaximizeBox = false,
                 MinimizeBox = false,
                 BackColor = Color.White,
-                Font = new Font("Segoe UI", 9F)
+                Font = new Font("Segoe UI", 9F),
+                ShowInTaskbar = false
             };
 
-            // Icon
-            var iconLabel = new Label
+            // Add rounded corners to the dialog
+            confirmDialog.Paint += (s, e) =>
             {
-                Text = "🚪",
-                Font = new Font("Segoe UI", 20),
-                Location = new Point(40, 30),
-                Size = new Size(60, 60),
-                TextAlign = ContentAlignment.MiddleCenter,
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, confirmDialog.Width, confirmDialog.Height);
+                
+                // Draw shadow
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(30, 0, 0, 0)))
+                {
+                    var shadowRect = new Rectangle(3, 3, confirmDialog.Width - 3, confirmDialog.Height - 3);
+                    g.FillRoundedRectangle(shadowBrush, shadowRect, 15);
+                }
+                
+                // Draw main background
+                using (var bgBrush = new SolidBrush(Color.White))
+                {
+                    var mainRect = new Rectangle(0, 0, confirmDialog.Width - 3, confirmDialog.Height - 3);
+                    g.FillRoundedRectangle(bgBrush, mainRect, 15);
+                }
+                
+                // Draw border
+                using (var borderPen = new Pen(Color.FromArgb(230, 230, 235), 1))
+                {
+                    var borderRect = new Rectangle(0, 0, confirmDialog.Width - 4, confirmDialog.Height - 4);
+                    g.DrawRoundedRectangle(borderPen, borderRect, 15);
+                }
+            };
+
+            // Header panel with gradient
+            var headerPanel = new Panel
+            {
+                Height = 70,
+                Dock = DockStyle.Top,
                 BackColor = Color.Transparent
             };
+            
+            headerPanel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, headerPanel.Width, headerPanel.Height);
+                
+                using (var gradientBrush = new LinearGradientBrush(rect, 
+                    Color.FromArgb(59, 130, 246), Color.FromArgb(37, 99, 235), 
+                    LinearGradientMode.Horizontal))
+                {
+                    var path = new GraphicsPath();
+                    path.AddArc(0, 0, 30, 30, 180, 90);
+                    path.AddArc(headerPanel.Width - 31, 0, 30, 30, 270, 90);
+                    path.AddLine(headerPanel.Width, 15, headerPanel.Width, headerPanel.Height);
+                    path.AddLine(0, headerPanel.Height, 0, 15);
+                    path.CloseFigure();
+                    
+                    g.FillPath(gradientBrush, path);
+                }
+            };
 
-            // Title
+            // Icon with modern design
+            var iconPanel = new Panel
+            {
+                Size = new Size(50, 50),
+                Location = new Point(30, 10),
+                BackColor = Color.Transparent
+            };
+            
+            iconPanel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                
+                // Draw modern logout icon circle
+                using (var bgBrush = new SolidBrush(Color.FromArgb(255, 255, 255, 40)))
+                {
+                    g.FillEllipse(bgBrush, 0, 0, 50, 50);
+                }
+                
+                // Draw logout arrow icon
+                using (var iconPen = new Pen(Color.White, 3))
+                {
+                    iconPen.StartCap = LineCap.Round;
+                    iconPen.EndCap = LineCap.Round;
+                    
+                    // Draw arrow pointing right (logout)
+                    g.DrawLine(iconPen, 15, 25, 30, 25); // horizontal line
+                    g.DrawLine(iconPen, 26, 21, 30, 25); // arrow top
+                    g.DrawLine(iconPen, 26, 29, 30, 25); // arrow bottom
+                    
+                    // Draw door frame
+                    g.DrawLine(iconPen, 33, 15, 33, 35);
+                    g.DrawLine(iconPen, 33, 15, 38, 15);
+                    g.DrawLine(iconPen, 33, 35, 38, 35);
+                }
+            };
+
+            // Modern title
             var titleLabel = new Label
             {
-                Text = "Logout Confirmation",
-                Font = new Font("Segoe UI", 12, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 37, 41),
-                Location = new Point(120, 30),
-                Size = new Size(290, 40),
+                Text = "Sign Out",
+                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                ForeColor = Color.White,
+                Location = new Point(95, 20),
+                Size = new Size(200, 30),
                 BackColor = Color.Transparent
             };
 
-            // Message
+            // Subtitle
+            var subtitleLabel = new Label
+            {
+                Text = "End your current session",
+                Font = new Font("Segoe UI", 10),
+                ForeColor = Color.FromArgb(255, 255, 255, 180),
+                Location = new Point(95, 42),
+                Size = new Size(200, 20),
+                BackColor = Color.Transparent
+            };
+
+            headerPanel.Controls.AddRange(new Control[] { iconPanel, titleLabel, subtitleLabel });
+
+            // Main content area
+            var contentPanel = new Panel
+            {
+                Location = new Point(0, 70),
+                Size = new Size(420, 130),
+                BackColor = Color.Transparent,
+                Padding = new Padding(30, 20, 30, 0)
+            };
+
+            // Main message with better typography
             var messageLabel = new Label
             {
-                Text = "Are you sure you want to logout from InventoryPro?\nYour current session will be ended.",
+                Text = "Are you sure you want to sign out?\n\nYour current session will end and any unsaved changes may be lost.",
                 Font = new Font("Segoe UI", 11),
-                ForeColor = Color.FromArgb(73, 80, 87),
-                Location = new Point(120, 65),
-                Size = new Size(250, 50),
-                BackColor = Color.Transparent
+                ForeColor = Color.FromArgb(55, 65, 81),
+                Location = new Point(30, 20),
+                Size = new Size(360, 80),
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.TopLeft
             };
 
-            // Buttons panel
+            contentPanel.Controls.Add(messageLabel);
+
+            // Modern buttons panel
             var buttonPanel = new Panel
             {
-                Height = 60,
+                Height = 80,
                 Dock = DockStyle.Bottom,
-                BackColor = Color.FromArgb(248, 249, 250),
-                Padding = new Padding(15)
+                BackColor = Color.Transparent,
+                Padding = new Padding(30, 20, 30, 20)
             };
 
-            var btnYes = new Button
-                {
-                Text = "✅ Yes, Logout",
-                Size = new Size(155, 40),
-                Location = new Point(120, 10),
-                BackColor = Color.FromArgb(220, 53, 69),
+            // Sign Out button with modern styling
+            var btnSignOut = new Button
+            {
+                Text = "Sign Out",
+                Size = new Size(120, 42),
+                Location = new Point(240, 20),
+                BackColor = Color.FromArgb(239, 68, 68),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 DialogResult = DialogResult.Yes,
-                TextAlign = ContentAlignment.MiddleCenter
-                };
-            btnYes.FlatAppearance.BorderSize = 0;
-            btnYes.Paint += (s, e) =>
-            {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                var rect = new Rectangle(0,0, btnYes.Width, btnYes.Height);
-                using (var brush = new SolidBrush(btnYes.BackColor)) {
-                    g.FillRoundedRectangle(brush, rect, 8);
-                    }
-                //Draw center
-                var textRect = new Rectangle(0,0,btnYes.Width,btnYes.Height);
-                var sf = new StringFormat
-                    {
-                    Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center
-                    };
-                using (var textBrush = new SolidBrush(btnYes.ForeColor))
-                    {
-                    g.DrawString(btnYes.Text, btnYes.Font, textBrush, textRect,sf);
-                    }
+                UseVisualStyleBackColor = false
             };
-
-            var btnNo = new Button
-            {
-                Text = "✖ Cancel", // Modern X mark
-                Size = new Size(140, 45), // Larger to match Yes button
-                Location = new Point(320, 12),
-                BackColor = Color.FromArgb(107, 114, 128), // Modern gray
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 11, FontStyle.Bold), // Modern font
-                Cursor = Cursors.Hand,
-                DialogResult = DialogResult.No
-            };
-            btnNo.FlatAppearance.BorderSize = 0;
+            btnSignOut.FlatAppearance.BorderSize = 0;
             
-            // Add modern rounded corners to Cancel button
-            btnNo.Paint += (s, e) =>
+            // Hover effects for Sign Out button
+            btnSignOut.MouseEnter += (s, e) => btnSignOut.BackColor = Color.FromArgb(220, 38, 38);
+            btnSignOut.MouseLeave += (s, e) => btnSignOut.BackColor = Color.FromArgb(239, 68, 68);
+            
+            btnSignOut.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                var rect = new Rectangle(0, 0, btnNo.Width, btnNo.Height);
-                using (var brush = new SolidBrush(btnNo.BackColor))
+                var rect = new Rectangle(0, 0, btnSignOut.Width, btnSignOut.Height);
+                
+                using (var brush = new SolidBrush(btnSignOut.BackColor))
                 {
-                    g.FillRoundedRectangle(brush, rect, 10);
+                    g.FillRoundedRectangle(brush, rect, 8);
                 }
-                var textRect = new Rectangle(0, 0, btnNo.Width, btnNo.Height);
+                
+                var textRect = new Rectangle(0, 0, btnSignOut.Width, btnSignOut.Height);
                 var sf = new StringFormat
                 {
                     Alignment = StringAlignment.Center,
                     LineAlignment = StringAlignment.Center
                 };
-                using (var textBrush = new SolidBrush(btnNo.ForeColor))
+                
+                using (var textBrush = new SolidBrush(btnSignOut.ForeColor))
                 {
-                    g.DrawString(btnNo.Text, btnNo.Font, textBrush, textRect, sf);
+                    g.DrawString(btnSignOut.Text, btnSignOut.Font, textBrush, textRect, sf);
                 }
             };
 
-            buttonPanel.Controls.AddRange(new Control[] { btnYes, btnNo });
-            confirmDialog.Controls.AddRange(new Control[] { iconLabel, titleLabel, messageLabel, buttonPanel });
+            // Cancel button with modern styling
+            var btnCancel = new Button
+            {
+                Text = "Cancel",
+                Size = new Size(120, 42),
+                Location = new Point(110, 20),
+                BackColor = Color.FromArgb(248, 250, 252),
+                ForeColor = Color.FromArgb(71, 85, 105),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                DialogResult = DialogResult.No,
+                UseVisualStyleBackColor = false
+            };
+            btnCancel.FlatAppearance.BorderSize = 1;
+            btnCancel.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
+            
+            // Hover effects for Cancel button
+            btnCancel.MouseEnter += (s, e) => {
+                btnCancel.BackColor = Color.FromArgb(241, 245, 249);
+                btnCancel.FlatAppearance.BorderColor = Color.FromArgb(203, 213, 225);
+            };
+            btnCancel.MouseLeave += (s, e) => {
+                btnCancel.BackColor = Color.FromArgb(248, 250, 252);
+                btnCancel.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
+            };
+            
+            btnCancel.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, btnCancel.Width, btnCancel.Height);
+                
+                using (var brush = new SolidBrush(btnCancel.BackColor))
+                {
+                    g.FillRoundedRectangle(brush, rect, 8);
+                }
+                
+                using (var borderPen = new Pen(btnCancel.FlatAppearance.BorderColor, 1))
+                {
+                    var borderRect = new Rectangle(0, 0, btnCancel.Width - 1, btnCancel.Height - 1);
+                    g.DrawRoundedRectangle(borderPen, borderRect, 8);
+                }
+                
+                var textRect = new Rectangle(0, 0, btnCancel.Width, btnCancel.Height);
+                var sf = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+                
+                using (var textBrush = new SolidBrush(btnCancel.ForeColor))
+                {
+                    g.DrawString(btnCancel.Text, btnCancel.Font, textBrush, textRect, sf);
+                }
+            };
 
-            confirmDialog.AcceptButton = btnNo; // Default to cancel for safety
-            confirmDialog.CancelButton = btnNo;
+            buttonPanel.Controls.AddRange(new Control[] { btnCancel, btnSignOut });
+            confirmDialog.Controls.AddRange(new Control[] { headerPanel, contentPanel, buttonPanel });
+
+            // Default to cancel for safety
+            confirmDialog.AcceptButton = btnCancel;
+            confirmDialog.CancelButton = btnCancel;
+
+            // Add subtle animation on show
+            confirmDialog.Shown += (s, e) =>
+            {
+                confirmDialog.Opacity = 0;
+                var timer = new System.Windows.Forms.Timer { Interval = 10 };
+                timer.Tick += (ts, te) =>
+                {
+                    confirmDialog.Opacity += 0.1;
+                    if (confirmDialog.Opacity >= 1.0)
+                    {
+                        timer.Stop();
+                        timer.Dispose();
+                    }
+                };
+                timer.Start();
+            };
 
             return confirmDialog.ShowDialog(this);
         }

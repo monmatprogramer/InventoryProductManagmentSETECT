@@ -848,7 +848,7 @@ namespace InventoryPro.WinForms.Forms
                             success = await ExportToExcelAsync(exportDialog.ExportOptions);
                             break;
                         case ExportFormat.PDF:
-                            success = await ExportToPdfAsync(exportDialog.ExportOptions);
+                            success = ExportToPdf(exportDialog.ExportOptions);
                             break;
                         }
 
@@ -1249,7 +1249,7 @@ namespace InventoryPro.WinForms.Forms
                 }
             }
 
-        private async Task<bool> ExportToPdfAsync(ExportOptions options)
+        private bool ExportToPdf(ExportOptions options)
             {
             try
                 {
@@ -2000,7 +2000,9 @@ namespace InventoryPro.WinForms.Forms
     /// </summary>
     public class CustomerExportDialog : Form
         {
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public ExportFormat SelectedFormat { get; private set; } = ExportFormat.CSV;
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public ExportOptions ExportOptions { get; private set; } = new();
 
         private RadioButton rbCSV = null!;

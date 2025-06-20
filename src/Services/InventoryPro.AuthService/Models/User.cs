@@ -35,5 +35,7 @@ namespace InventoryPro.AuthService.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
+
+        public DateTime? LastLoginAt { get; set; }
         }
     }

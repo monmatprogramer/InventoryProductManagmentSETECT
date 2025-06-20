@@ -26,9 +26,19 @@ builder.Services.AddControllers();
 // Add HTTP context accessor for accessing request headers in services
 builder.Services.AddHttpContextAccessor();
 
-// Configure Entity Framework with SQL Server
-builder.Services.AddDbContext<SalesDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configure Entity Framework - Use InMemory for development if SQL Server is not available
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<SalesDbContext>(options =>
+        options.UseInMemoryDatabase("SalesDB")
+               .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+}
+else
+{
+    builder.Services.AddDbContext<SalesDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+               .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+}
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -107,11 +117,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     }
 
-// Ensure database is created and migrations are applied
+// Ensure database is created and migrations are applied (only for relational databases)
 using (var scope = app.Services.CreateScope())
     {
     var context = scope.ServiceProvider.GetRequiredService<SalesDbContext>();
-    context.Database.Migrate();
+    // Only migrate if using a relational database (not in-memory)
+    if (!context.Database.IsInMemory())
+        {
+        context.Database.Migrate();
+        }
+    else
+        {
+        // Ensure in-memory database is created
+        context.Database.EnsureCreated();
+        }
     }
 
 app.UseAuthentication();

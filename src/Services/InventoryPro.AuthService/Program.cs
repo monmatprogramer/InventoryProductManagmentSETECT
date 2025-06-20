@@ -10,6 +10,10 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure URLs - use localhost with specific port for gateway communication
+// Comment out UseUrls to use launch settings configuration instead
+// builder.WebHost.UseUrls("http://127.0.0.1:0");
+
 // Configure Serilog for logging
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
@@ -23,9 +27,19 @@ builder.Host.UseSerilog();
 // Add services to the container
 builder.Services.AddControllers();
 
-// Configure Entity Framework with SQL Server
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configure Entity Framework - Use InMemory for development if SQL Server is not available
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseInMemoryDatabase("AuthDB")
+               .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+}
+else
+{
+    builder.Services.AddDbContext<AuthDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+               .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+}
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -106,8 +120,16 @@ using (var scope = app.Services.CreateScope())
     {
     var context = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
 
-    // Apply migrations
-    context.Database.Migrate();
+    // Apply migrations (only for SQL Server)
+    if (!context.Database.IsInMemory())
+    {
+        context.Database.Migrate();
+    }
+    else
+    {
+        // For in-memory database, ensure it's created
+        context.Database.EnsureCreated();
+    }
 
     // Check if admin user exists and create/update if necessary
     var existingAdmin = context.Users.FirstOrDefault(u => u.Username == "admin");
@@ -174,6 +196,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-Log.Information("Auth Service started on port 5041");
+var addresses = app.Urls;
+Log.Information("Auth Service started on: {Addresses}", string.Join(", ", addresses));
 
 app.Run();

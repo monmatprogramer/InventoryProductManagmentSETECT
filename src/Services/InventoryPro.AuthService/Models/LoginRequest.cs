@@ -11,6 +11,8 @@ namespace InventoryPro.AuthService.Models
 
         [Required]
         public string Password { get; set; } = string.Empty;
+
+        public bool RememberMe { get; set; } = false;
         }
 
     /// <summary>
@@ -19,8 +21,22 @@ namespace InventoryPro.AuthService.Models
     public class LoginResponse
         {
         public string Token { get; set; } = string.Empty;
+        public string RefreshToken { get; set; } = string.Empty;
+        public DateTime Expires { get; set; }
+        public UserInfo User { get; set; } = new();
+        }
+
+    /// <summary>
+    /// User information model for login response
+    /// </summary>
+    public class UserInfo
+        {
+        public int Id { get; set; }
         public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public bool IsActive { get; set; } = true;
         }
     }

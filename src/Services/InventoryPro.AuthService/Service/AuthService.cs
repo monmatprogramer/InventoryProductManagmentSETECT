@@ -51,16 +51,30 @@ namespace InventoryPro.AuthService.Services
 
                 // Generate JWT token
                 var token = GenerateJwtToken(user);
+                var expirationHours = Convert.ToDouble(_configuration["JwtSettings:ExpirationInHours"]);
+                var expiresAt = DateTime.UtcNow.AddHours(expirationHours);
+
+                // Update last login time
+                user.LastLoginAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("User {Username} logged in successfully", user.Username);
 
                 return new LoginResponse
                 {
                     Token = token,
-                    Username = user.Username,
-                    Role = user.Role,
-                    ExpiresAt = DateTime.UtcNow.AddHours(
-                        Convert.ToDouble(_configuration["JwtSettings:ExpirationInHours"]))
+                    RefreshToken = string.Empty, // TODO: Implement refresh token logic if needed
+                    Expires = expiresAt,
+                    User = new UserInfo
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email,
+                        Role = user.Role,
+                        CreatedAt = user.CreatedAt,
+                        LastLoginAt = user.LastLoginAt,
+                        IsActive = user.IsActive
+                    }
                 };
             }
             catch (Exception ex)

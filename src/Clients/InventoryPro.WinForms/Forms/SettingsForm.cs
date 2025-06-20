@@ -970,7 +970,7 @@ namespace InventoryPro.WinForms.Forms
                 }
                 
                 // Update breadcrumb and show selected panel
-                int buttonIndex = (int)clickedButton.Tag;
+                int buttonIndex = clickedButton.Tag is int index ? index : 0;
                 var sectionNames = new[] { "General", "Appearance", "Database", "Backup", "Security", "About" };
                 
                 if (buttonIndex >= 0 && buttonIndex < sectionNames.Length)

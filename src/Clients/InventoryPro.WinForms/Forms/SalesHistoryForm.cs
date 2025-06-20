@@ -1624,7 +1624,9 @@ namespace InventoryPro.WinForms.Forms
     /// </summary>
     public class SalesHistoryExportDialog : Form
     {
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public SalesExportFormat SelectedFormat { get; private set; } = SalesExportFormat.CSV;
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
         public SalesExportOptions ExportOptions { get; private set; } = new();
 
         private RadioButton rbCSV = null!;

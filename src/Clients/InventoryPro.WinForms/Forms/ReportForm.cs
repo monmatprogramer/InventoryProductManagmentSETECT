@@ -13,7 +13,7 @@ namespace InventoryPro.WinForms.Forms
         {
         private readonly ILogger<ReportForm> _logger;
         private readonly IApiService _apiService;
-        
+
         // Performance and cancellation management
         private CancellationTokenSource? _salesReportCancellationTokenSource;
         private readonly object _loadingLock = new object();
@@ -279,16 +279,16 @@ namespace InventoryPro.WinForms.Forms
             var chartArea = new ChartArea("SalesArea")
                 {
                 BackColor = Color.White,
-                AxisX = { 
-                    Title = "Date", 
+                AxisX = {
+                    Title = "Date",
                     TitleFont = new Font("Segoe UI", 10, FontStyle.Bold),
                     TitleForeColor = Color.FromArgb(52, 73, 94),
                     LabelStyle = { Format = "MM/dd", Font = new Font("Segoe UI", 9) },
                     MajorGrid = { LineColor = Color.FromArgb(230, 230, 230), LineWidth = 1 },
                     LineColor = Color.FromArgb(149, 165, 166)
                 },
-                AxisY = { 
-                    Title = "Sales ($)", 
+                AxisY = {
+                    Title = "Sales ($)",
                     TitleFont = new Font("Segoe UI", 10, FontStyle.Bold),
                     TitleForeColor = Color.FromArgb(52, 73, 94),
                     LabelStyle = { Format = "C0", Font = new Font("Segoe UI", 9) },
@@ -598,16 +598,16 @@ namespace InventoryPro.WinForms.Forms
             var chartArea = new ChartArea("FinancialArea")
                 {
                 BackColor = Color.White,
-                AxisX = { 
-                    Title = "Month", 
+                AxisX = {
+                    Title = "Month",
                     TitleFont = new Font("Segoe UI", 10, FontStyle.Bold),
                     TitleForeColor = Color.FromArgb(52, 73, 94),
                     LabelStyle = { Font = new Font("Segoe UI", 9) },
                     MajorGrid = { LineColor = Color.FromArgb(230, 230, 230), LineWidth = 1 },
                     LineColor = Color.FromArgb(149, 165, 166)
                 },
-                AxisY = { 
-                    Title = "Revenue ($)", 
+                AxisY = {
+                    Title = "Revenue ($)",
                     TitleFont = new Font("Segoe UI", 10, FontStyle.Bold),
                     TitleForeColor = Color.FromArgb(52, 73, 94),
                     LabelStyle = { Format = "C0", Font = new Font("Segoe UI", 9) },
@@ -1036,6 +1036,10 @@ namespace InventoryPro.WinForms.Forms
 
                         if (dataResponse.Success && dataResponse.Data != null)
                             {
+                            // SUCCESS: Real sales data loaded successfully
+                            _logger.LogInformation("✓ REAL SALES DATA LOADED: TotalSales from {StartDate} to {EndDate}", 
+                                dtpSalesStart.Value.ToShortDateString(), dtpSalesEnd.Value.ToShortDateString());
+                            
                             // Process and display the data safely
                             var responseData = dataResponse.Data;
 
@@ -1044,6 +1048,10 @@ namespace InventoryPro.WinForms.Forms
                             var totalOrders = GetPropertyValue<int>(responseData, "TotalOrders", 0);
                             var averageOrderValue = GetPropertyValue<decimal>(responseData, "AverageOrderValue", 0.0m);
                             var dailySales = GetPropertyValue<object?>(responseData, "DailySales", null);
+                            
+                            // Log the actual data retrieved to confirm it's real
+                            _logger.LogInformation("✓ REAL DATA METRICS: ${TotalSales:N2} total sales, {TotalOrders} orders, ${AverageOrderValue:N2} avg order", 
+                                totalSales, totalOrders, averageOrderValue);
 
                             // Update summary labels with real data
                             lblSalesTotalValue.Text = $"Total Sales: ${totalSales:N2}";
@@ -1117,38 +1125,89 @@ namespace InventoryPro.WinForms.Forms
                                     {
                                     // Show empty state message
                                     chartSales.Titles.Clear();
-                                    chartSales.Titles.Add(new Title("No sales data available for selected period", 
+                                    chartSales.Titles.Add(new Title("No sales data available for selected period",
                                         Docking.Top, new Font("Segoe UI", 12), Color.FromArgb(127, 140, 141)));
                                     }
                                 }
                             }
                         else
                             {
-                            _logger.LogWarning("Failed to load sales data from API: {Message}", dataResponse.Message);
-                            ShowEmptySalesState("Unable to load live sales data", dataResponse.Message);
+                            _logger.LogWarning("Failed to load sales data from API: {Message} (Status: {StatusCode})", 
+                                dataResponse.Message, dataResponse.StatusCode);
+                            
+                            // Always show empty state first to indicate real data couldn't be loaded
+                            ShowEmptySalesState("Real-time Data Unavailable", "Unable to connect to live sales data source");
 
                             // Provide more specific error messaging based on the type of error
-                            var errorTitle = "Data Loading Error";
+                            var errorTitle = "Sales Data Connection Error";
                             var errorMessage = GetUserFriendlyErrorMessage(dataResponse.Message, dataResponse.StatusCode);
-                            
-                            var result = MessageBox.Show($"{errorMessage}\n\nWould you like to try refreshing the data?",
+
+                            var result = MessageBox.Show($"REAL DATA LOADING FAILED:\n\n{errorMessage}\n\nThis system prioritizes real data from your database.\n\nWould you like to retry loading real sales data?",
                                 errorTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                            
+
                             if (result == DialogResult.Yes)
                                 {
+                                // Retry the same operation to get real data
                                 BtnGenerateSales_Click(sender, e);
                                 return;
                                 }
+                            else
+                                {
+                                // Show clear message that no data will be displayed
+                                MessageBox.Show("No sales data will be displayed. Please check your connection and try again when ready.",
+                                    "No Data Available", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                }
+                            }
+                        }
+                    catch (HttpRequestException httpEx)
+                        {
+                        _logger.LogError(httpEx, "HTTP connection error during sales data loading");
+                        ShowEmptySalesState("Network Connection Error", "Unable to reach sales data server");
+
+                        var result = MessageBox.Show("NETWORK ERROR - Real data unavailable:\n\n" +
+                            "Cannot connect to the sales data server. This may be due to:\n" +
+                            "• Network connectivity issues\n" +
+                            "• Server maintenance\n" +
+                            "• Firewall restrictions\n\n" +
+                            "Would you like to retry connecting to get real sales data?",
+                            "Real Data Connection Failed", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+
+                        if (result == DialogResult.Yes)
+                            {
+                            BtnGenerateSales_Click(sender, e);
+                            return;
+                            }
+                        }
+                    catch (TaskCanceledException tcEx) when (tcEx.InnerException is TimeoutException)
+                        {
+                        _logger.LogError(tcEx, "Timeout error during sales data loading");
+                        ShowEmptySalesState("Request Timeout", "Server response took too long");
+
+                        var result = MessageBox.Show("TIMEOUT ERROR - Real data loading failed:\n\n" +
+                            "The server took too long to respond. This may be due to:\n" +
+                            "• Large amount of data being processed\n" +
+                            "• Server overload\n" +
+                            "• Slow network connection\n\n" +
+                            "Try selecting a smaller date range or retry the connection.",
+                            "Real Data Timeout", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                        if (result == DialogResult.Yes)
+                            {
+                            BtnGenerateSales_Click(sender, e);
+                            return;
                             }
                         }
                     catch (Exception ex)
                         {
-                        _logger.LogError(ex, "Error in sales view mode");
-                        ShowEmptySalesState("Connection error", "Unable to connect to data source");
+                        _logger.LogError(ex, "Unexpected error during sales data loading: {ErrorType}", ex.GetType().Name);
+                        ShowEmptySalesState("System Error", "Unexpected error occurred while loading real data");
 
-                        var result = MessageBox.Show("Unable to load sales data from the server.\n\nWould you like to try again?",
-                            "Connection Issue", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                        
+                        var result = MessageBox.Show($"SYSTEM ERROR - Real data loading failed:\n\n" +
+                            $"An unexpected error occurred: {ex.Message}\n\n" +
+                            "This system is designed to work with real data from your database.\n\n" +
+                            "Would you like to retry loading real sales data?",
+                            "Real Data System Error", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+
                         if (result == DialogResult.Yes)
                             {
                             BtnGenerateSales_Click(sender, e);
@@ -1272,15 +1331,27 @@ namespace InventoryPro.WinForms.Forms
                 }
             catch (OperationCanceledException)
                 {
-                _logger.LogInformation("Sales report generation was cancelled");
-                ShowEmptySalesState("Operation Cancelled", "Sales report generation was cancelled by user");
+                _logger.LogInformation("Sales report generation was cancelled by user");
+                ShowEmptySalesState("Operation Cancelled", "Real data loading was cancelled by user");
+                MessageBox.Show("Sales report generation was cancelled.\n\nNo data will be displayed until you retry.",
+                    "Operation Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             catch (Exception ex)
                 {
-                _logger.LogError(ex, "Unexpected error during sales report generation");
-                ShowEmptySalesState("System Error", "An unexpected error occurred during report generation");
-                MessageBox.Show("An unexpected error occurred while generating the sales report. Please try again.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _logger.LogError(ex, "Critical error during sales report generation: {ErrorType}", ex.GetType().Name);
+                ShowEmptySalesState("Critical System Error", "A critical error prevented real data loading");
+                
+                var result = MessageBox.Show($"CRITICAL ERROR - Real data unavailable:\n\n" +
+                    $"A critical system error occurred: {ex.Message}\n\n" +
+                    "This system requires real data from your database to function properly.\n\n" +
+                    "Would you like to retry loading real sales data?",
+                    "Critical System Error", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                    
+                if (result == DialogResult.Yes)
+                    {
+                    BtnGenerateSales_Click(sender, e);
+                    return;
+                    }
                 }
             finally
                 {
@@ -1296,36 +1367,36 @@ namespace InventoryPro.WinForms.Forms
             var startTime = DateTime.UtcNow;
             try
                 {
-                UpdateSalesLoadingStatus("Connecting to server...");
-                
+                UpdateSalesLoadingStatus("Connecting to real data server...");
+
                 // Add timeout to the API call
                 using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-                
-                _logger.LogInformation("Starting sales data retrieval for period {StartDate} to {EndDate}", 
+
+                _logger.LogInformation("Starting sales data retrieval for period {StartDate} to {EndDate}",
                     dtpSalesStart.Value, dtpSalesEnd.Value);
 
-                UpdateSalesLoadingStatus("Retrieving sales data...");
-                
+                UpdateSalesLoadingStatus("Retrieving real sales data from database...");
+
                 // Get sales data for viewing with timeout
                 var dataResponse = await _apiService.GetSalesReportDataAsync(dtpSalesStart.Value, dtpSalesEnd.Value);
-                
+
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var elapsedMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
-                _logger.LogInformation("Sales data retrieval completed in {ElapsedMs}ms. Success: {Success}", 
+                _logger.LogInformation("Sales data retrieval completed in {ElapsedMs}ms. Success: {Success}",
                     elapsedMs, dataResponse.Success);
 
                 if (dataResponse.Success && dataResponse.Data != null)
                     {
-                    UpdateSalesLoadingStatus("Processing sales data...");
+                    UpdateSalesLoadingStatus("Processing real sales data...");
                     await ProcessSalesDataAsync(dataResponse.Data, cancellationToken);
                     }
                 else
                     {
                     var errorMessage = dataResponse.Message ?? "Unknown error occurred";
                     _logger.LogWarning("Failed to load sales data from API: {Message}", errorMessage);
-                    
+
                     // Provide detailed diagnostics
                     await DiagnoseSalesDataIssueAsync(errorMessage, cancellationToken);
                     }
@@ -1339,10 +1410,10 @@ namespace InventoryPro.WinForms.Forms
                 {
                 _logger.LogWarning("Sales data retrieval timed out after 30 seconds");
                 await Task.Run(() =>
-                    {
+                {
                     ShowEmptySalesState("Request Timeout", "The server took too long to respond. Please try again.");
-                    }, CancellationToken.None);
-                    
+                }, CancellationToken.None);
+
                 MessageBox.Show(
                     "The request timed out. This could be due to:\\n• Large amount of data being processed\\n• Server performance issues\\n• Network latency\\n\\nTry selecting a smaller date range or try again later.",
                     "Request Timeout",
@@ -1353,16 +1424,16 @@ namespace InventoryPro.WinForms.Forms
                 {
                 var elapsedMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
                 _logger.LogError(ex, "Error in sales view processing after {ElapsedMs}ms", elapsedMs);
-                
+
                 await Task.Run(() =>
-                    {
+                {
                     ShowEmptySalesState("Connection Error", "Unable to connect to data source");
-                    }, CancellationToken.None);
+                }, CancellationToken.None);
 
                 MessageBox.Show(
                     "Unable to load sales data from the server.\\n\\nThis could be due to:\\n• Network connection issues\\n• Server maintenance\\n• Database connectivity problems\\n\\nPlease check your connection and try again.",
-                    "Connection Issue", 
-                    MessageBoxButtons.OK, 
+                    "Connection Issue",
+                    MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 }
             }
@@ -1373,16 +1444,16 @@ namespace InventoryPro.WinForms.Forms
         private async Task ProcessSalesDataAsync(object responseData, CancellationToken cancellationToken)
             {
             await Task.Run(() =>
-                {
+            {
                 try
                     {
                     cancellationToken.ThrowIfCancellationRequested();
-                    
+
                     // Log raw response data for debugging
-                    _logger.LogInformation("Raw API Response Type: {Type}, Data: {Data}", 
-                        responseData.GetType().Name, 
+                    _logger.LogInformation("Raw API Response Type: {Type}, Data: {Data}",
+                        responseData.GetType().Name,
                         responseData.ToString()?.Substring(0, Math.Min(500, responseData.ToString()?.Length ?? 0)));
-                    
+
                     // Try to convert to JSON for better parsing
                     var jsonData = responseData;
                     if (responseData is string jsonString)
@@ -1396,18 +1467,18 @@ namespace InventoryPro.WinForms.Forms
                             _logger.LogWarning(ex, "Failed to parse JSON string, using as-is");
                             }
                         }
-                    
+
                     // Safely extract data using improved property extraction
-                    var salesData = ExtractSalesDataRobustly(jsonData);
-                    
-                    _logger.LogInformation("Processed sales data: TotalSales={TotalSales}, TotalOrders={TotalOrders}, AvgOrder={AvgOrder}, DailyPointsCount={DailyCount}", 
+                    var salesData = ExtractSalesDataRobustly(jsonData ?? new object());
+
+                    _logger.LogInformation("Processed sales data: TotalSales={TotalSales}, TotalOrders={TotalOrders}, AvgOrder={AvgOrder}, DailyPointsCount={DailyCount}",
                         salesData.TotalSales, salesData.TotalOrders, salesData.AverageOrderValue, salesData.DailySalesCount);
 
                     cancellationToken.ThrowIfCancellationRequested();
 
                     // Update UI on main thread
                     Invoke(new Action(() =>
-                        {
+                    {
                         try
                             {
                             UpdateSalesUI(salesData);
@@ -1418,7 +1489,7 @@ namespace InventoryPro.WinForms.Forms
                             _logger.LogError(ex, "Error updating sales UI");
                             throw;
                             }
-                        }));
+                    }));
                     }
                 catch (OperationCanceledException)
                     {
@@ -1429,7 +1500,7 @@ namespace InventoryPro.WinForms.Forms
                     _logger.LogError(ex, "Error processing sales data");
                     throw;
                     }
-                }, cancellationToken);
+            }, cancellationToken);
             }
 
         /// <summary>
@@ -1438,7 +1509,7 @@ namespace InventoryPro.WinForms.Forms
         private void ProcessDailySalesChart(object? dailySales, decimal totalSales, int totalOrders)
             {
             var pointsAdded = 0;
-            
+
             if (dailySales != null)
                 {
                 if (dailySales is System.Text.Json.JsonElement jsonElement && jsonElement.ValueKind == System.Text.Json.JsonValueKind.Array)
@@ -1486,7 +1557,7 @@ namespace InventoryPro.WinForms.Forms
                 else
                     {
                     // Show empty state message
-                    chartSales.Titles.Add(new Title("No sales data available for selected period", 
+                    chartSales.Titles.Add(new Title("No sales data available for selected period",
                         Docking.Top, new Font("Segoe UI", 12), Color.FromArgb(127, 140, 141)));
                     _logger.LogInformation("No sales data found for selected period");
                     }
@@ -1601,7 +1672,7 @@ namespace InventoryPro.WinForms.Forms
                                         {
                                         // Show empty state
                                         chartInventory.Titles.Clear();
-                                        chartInventory.Titles.Add(new Title("No inventory data available", 
+                                        chartInventory.Titles.Add(new Title("No inventory data available",
                                             Docking.Top, new Font("Segoe UI", 12), Color.FromArgb(127, 140, 141)));
                                         }
                                     }
@@ -1642,7 +1713,7 @@ namespace InventoryPro.WinForms.Forms
 
                             var result = MessageBox.Show($"Unable to load live inventory data.\n\nReason: {dataResponse.Message ?? "Unknown error"}\n\nWould you like to try refreshing the data?",
                                 "Data Loading Error", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                            
+
                             if (result == DialogResult.Yes)
                                 {
                                 BtnGenerateInventory_Click(sender, e);
@@ -1657,7 +1728,7 @@ namespace InventoryPro.WinForms.Forms
 
                         var result = MessageBox.Show("Unable to load inventory data from the server.\n\nWould you like to try again?",
                             "Connection Issue", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                        
+
                         if (result == DialogResult.Yes)
                             {
                             BtnGenerateInventory_Click(sender, e);
@@ -1900,15 +1971,15 @@ namespace InventoryPro.WinForms.Forms
                 {
                 // Clear existing data
                 chartFinancial.Series[0].Points.Clear();
-                
+
                 // Try to extract financial data from the API response
                 var monthlyRevenue = GetPropertyValue<object?>(reportData, "MonthlyRevenue", null);
                 var totalRevenue = GetPropertyValue<decimal>(reportData, "TotalRevenue", 0.0m);
                 var totalExpenses = GetPropertyValue<decimal>(reportData, "TotalExpenses", 0.0m);
                 var netProfit = GetPropertyValue<decimal>(reportData, "NetProfit", 0.0m);
-                
+
                 bool hasRealData = false;
-                
+
                 // Process monthly revenue data if available
                 if (monthlyRevenue != null)
                     {
@@ -1942,47 +2013,47 @@ namespace InventoryPro.WinForms.Forms
                             }
                         }
                     }
-                
+
                 // Create summary data for the grid
                 var financialSummary = new List<object>();
-                
+
                 if (hasRealData)
                     {
                     // Use real data for grid
-                    financialSummary.Add(new 
-                        { 
-                        Metric = "Total Revenue", 
-                        Value = totalRevenue.ToString("C"), 
-                        Status = "Actual Data" 
+                    financialSummary.Add(new
+                        {
+                        Metric = "Total Revenue",
+                        Value = totalRevenue.ToString("C"),
+                        Status = "Actual Data"
                         });
-                    financialSummary.Add(new 
-                        { 
-                        Metric = "Total Expenses", 
-                        Value = totalExpenses.ToString("C"), 
-                        Status = "Actual Data" 
+                    financialSummary.Add(new
+                        {
+                        Metric = "Total Expenses",
+                        Value = totalExpenses.ToString("C"),
+                        Status = "Actual Data"
                         });
-                    financialSummary.Add(new 
-                        { 
-                        Metric = "Net Profit", 
-                        Value = netProfit.ToString("C"), 
-                        Status = "Actual Data" 
+                    financialSummary.Add(new
+                        {
+                        Metric = "Net Profit",
+                        Value = netProfit.ToString("C"),
+                        Status = "Actual Data"
                         });
                     }
                 else
                     {
                     // Show empty state if no real data
                     chartFinancial.Titles.Clear();
-                    chartFinancial.Titles.Add(new Title("No financial data available for selected year\\nPlease select a different year or check data availability", 
+                    chartFinancial.Titles.Add(new Title("No financial data available for selected year\\nPlease select a different year or check data availability",
                         Docking.Top, new Font("Segoe UI", 11), Color.FromArgb(127, 140, 141)));
-                    
-                    financialSummary.Add(new 
-                        { 
-                        Metric = "No data available", 
-                        Value = "$0.00", 
-                        Status = "Empty" 
+
+                    financialSummary.Add(new
+                        {
+                        Metric = "No data available",
+                        Value = "$0.00",
+                        Status = "Empty"
                         });
                     }
-                
+
                 // Update grid
                 dgvFinancialData.DataSource = financialSummary;
                 }
@@ -2275,25 +2346,27 @@ namespace InventoryPro.WinForms.Forms
             }
 
         /// <summary>\n        /// Loads fallback sales data when API fails\n        /// </summary>\n       
+        /// <summary>
+        /// DEPRECATED: This method is no longer used. The system now prioritizes real data only.
+        /// Fallback to sample data has been removed to ensure data integrity and user awareness.
+        /// Use ShowEmptySalesState() instead to clearly indicate when real data is unavailable.
+        /// </summary>
+        [Obsolete("This method is deprecated. Use ShowEmptySalesState() instead to maintain data integrity.")]
         private void LoadFallbackSalesData()
             {
-            lblSalesTotalValue.Text = "Total Sales: $125,432.67 (Sample)";
-            lblSalesOrderCount.Text = "Orders: 342 (Sample)";
-            lblSalesAvgOrder.Text = "Avg Order: $366.86 (Sample)";
-            chartSales.Series[0].Points.Clear();
-            var random = new Random();
-            var startDate = dtpSalesStart.Value;
-            var endDate = dtpSalesEnd.Value;
-            for (var date = startDate.Date; date <= endDate.Date && date <= DateTime.Now.Date; date = date.AddDays(1))
-                {
-                var amount = random.Next(2000, 8000) + (decimal)random.NextDouble() * 1000;
-                chartSales.Series[0].Points.AddXY(date.ToShortDateString(), amount);
-                }
-            ;
-            dgvSalesData.DataSource = new List<object>
-                {
-                new { Date = "No data available", TotalAmount = 0.0m, OrderCount = 0, Status = "Empty" }
-                };
+            // THIS METHOD IS INTENTIONALLY DISABLED
+            // The system now prioritizes real data integrity over displaying sample data
+            // Users should be clearly informed when real data is unavailable
+            
+            _logger.LogWarning("LoadFallbackSalesData was called but is deprecated. Using ShowEmptySalesState instead.");
+            ShowEmptySalesState("Real Data Required", 
+                "This system only displays real sales data from your database. Sample data is not shown to maintain data integrity.");
+            
+            MessageBox.Show("SAMPLE DATA DISABLED:\n\n" +
+                "This system has been configured to only show real sales data from your database.\n\n" +
+                "Displaying sample or fallback data could lead to incorrect business decisions.\n\n" +
+                "Please ensure your connection is working and try again to load real data.",
+                "Real Data Only Policy", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
         /// <summary>
@@ -2304,16 +2377,16 @@ namespace InventoryPro.WinForms.Forms
             // Clear existing data
             chartSales.Series[0].Points.Clear();
             chartSales.Titles.Clear();
-            
+
             // Set labels to show empty state
             lblSalesTotalValue.Text = "Total Sales: No data available";
             lblSalesOrderCount.Text = "Orders: No data available";
             lblSalesAvgOrder.Text = "Avg Order: No data available";
-            
+
             // Add title to chart
-            chartSales.Titles.Add(new Title(title + "\\n" + (message ?? "Please check your connection and try again"), 
+            chartSales.Titles.Add(new Title(title + "\\n" + (message ?? "Please check your connection and try again"),
                 Docking.Top, new Font("Segoe UI", 11), Color.FromArgb(127, 140, 141)));
-            
+
             // Clear grid
             dgvSalesData.DataSource = new List<object>
                 {
@@ -2329,16 +2402,16 @@ namespace InventoryPro.WinForms.Forms
             // Clear existing data
             chartInventory.Series[0].Points.Clear();
             chartInventory.Titles.Clear();
-            
+
             // Set labels to show empty state
             lblTotalProducts.Text = "Total Products: No data available";
             lblLowStockCount.Text = "Low Stock: No data available";
             lblInventoryValue.Text = "Total Value: No data available";
-            
+
             // Add title to chart
-            chartInventory.Titles.Add(new Title(title + "\\n" + (message ?? "Please check your connection and try again"), 
+            chartInventory.Titles.Add(new Title(title + "\\n" + (message ?? "Please check your connection and try again"),
                 Docking.Top, new Font("Segoe UI", 11), Color.FromArgb(127, 140, 141)));
-            
+
             // Clear grid
             dgvInventoryData.DataSource = new List<object>
                 {
@@ -2435,46 +2508,46 @@ namespace InventoryPro.WinForms.Forms
         /// Robustly extracts sales data from various JSON response formats
         /// </summary>
         private SalesDataExtracted ExtractSalesDataRobustly(object jsonData)
-        {
-            try
             {
-                if (jsonData == null)
+            try
                 {
+                if (jsonData == null)
+                    {
                     _logger.LogWarning("Received null data, returning empty sales data");
                     return new SalesDataExtracted(0m, 0, 0m, new List<DailySalesPoint>(), 0);
-                }
+                    }
 
                 // Handle JsonElement from System.Text.Json
                 if (jsonData is JsonElement jsonElement)
-                {
+                    {
                     return ExtractFromJsonElement(jsonElement);
-                }
+                    }
 
                 // Handle Dictionary or dynamic object
                 if (jsonData is IDictionary<string, object> dict)
-                {
+                    {
                     return ExtractFromDictionary(dict);
-                }
+                    }
 
                 // Try to parse as JSON string if it's a string
                 if (jsonData is string jsonString && !string.IsNullOrWhiteSpace(jsonString))
-                {
+                    {
                     var parsed = JsonSerializer.Deserialize<JsonElement>(jsonString);
                     return ExtractFromJsonElement(parsed);
-                }
+                    }
 
                 _logger.LogWarning("Unknown data format: {Type}", jsonData.GetType().Name);
                 return new SalesDataExtracted(0m, 0, 0m, new List<DailySalesPoint>(), 0);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error extracting sales data");
                 return new SalesDataExtracted(0m, 0, 0m, new List<DailySalesPoint>(), 0);
+                }
             }
-        }
 
         private SalesDataExtracted ExtractFromJsonElement(JsonElement jsonElement)
-        {
+            {
             var totalSales = GetDecimalProperty(jsonElement, "TotalSales", "totalSales");
             var totalOrders = GetIntProperty(jsonElement, "TotalOrders", "totalOrders");
             var avgOrder = totalOrders > 0 ? totalSales / totalOrders : 0m;
@@ -2484,35 +2557,35 @@ namespace InventoryPro.WinForms.Forms
             // Try to extract daily sales data
             if (jsonElement.TryGetProperty("DailySales", out var dailySalesElement) ||
                 jsonElement.TryGetProperty("dailySales", out dailySalesElement))
-            {
-                if (dailySalesElement.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var item in dailySalesElement.EnumerateArray())
+                if (dailySalesElement.ValueKind == JsonValueKind.Array)
                     {
-                        try
+                    foreach (var item in dailySalesElement.EnumerateArray())
                         {
+                        try
+                            {
                             var date = GetDateProperty(item, "Date", "date");
                             var amount = GetDecimalProperty(item, "Amount", "amount", "Sales", "sales");
                             var orders = GetIntProperty(item, "OrderCount", "orderCount", "Orders", "orders");
 
                             if (date != default && amount > 0)
-                            {
+                                {
                                 dailySales.Add(new DailySalesPoint(date, amount, orders));
+                                }
                             }
-                        }
                         catch (Exception ex)
-                        {
+                            {
                             _logger.LogWarning(ex, "Error parsing daily sales item");
+                            }
                         }
                     }
                 }
-            }
 
             return new SalesDataExtracted(totalSales, totalOrders, avgOrder, dailySales, dailySales.Count);
-        }
+            }
 
         private SalesDataExtracted ExtractFromDictionary(IDictionary<string, object> dict)
-        {
+            {
             var totalSales = GetDictionaryDecimal(dict, "TotalSales", "totalSales");
             var totalOrders = GetDictionaryInt(dict, "TotalOrders", "totalOrders");
             var avgOrder = totalOrders > 0 ? totalSales / totalOrders : 0m;
@@ -2521,131 +2594,131 @@ namespace InventoryPro.WinForms.Forms
 
             if (dict.TryGetValue("DailySales", out var dailySalesObj) ||
                 dict.TryGetValue("dailySales", out dailySalesObj))
-            {
-                if (dailySalesObj is IEnumerable<object> dailyArray)
                 {
-                    foreach (var item in dailyArray)
+                if (dailySalesObj is IEnumerable<object> dailyArray)
                     {
-                        if (item is IDictionary<string, object> dailyDict)
+                    foreach (var item in dailyArray)
                         {
-                            try
+                        if (item is IDictionary<string, object> dailyDict)
                             {
+                            try
+                                {
                                 var date = GetDictionaryDate(dailyDict, "Date", "date");
                                 var amount = GetDictionaryDecimal(dailyDict, "Amount", "amount", "Sales", "sales");
                                 var orders = GetDictionaryInt(dailyDict, "OrderCount", "orderCount", "Orders", "orders");
 
                                 if (date != default && amount > 0)
-                                {
+                                    {
                                     dailySales.Add(new DailySalesPoint(date, amount, orders));
+                                    }
                                 }
-                            }
                             catch (Exception ex)
-                            {
+                                {
                                 _logger.LogWarning(ex, "Error parsing daily sales dictionary item");
+                                }
                             }
                         }
                     }
                 }
-            }
 
             return new SalesDataExtracted(totalSales, totalOrders, avgOrder, dailySales, dailySales.Count);
-        }
+            }
 
         private decimal GetDecimalProperty(JsonElement element, params string[] propertyNames)
-        {
-            foreach (var name in propertyNames)
             {
-                if (element.TryGetProperty(name, out var prop))
+            foreach (var name in propertyNames)
                 {
+                if (element.TryGetProperty(name, out var prop))
+                    {
                     if (prop.ValueKind == JsonValueKind.Number && prop.TryGetDecimal(out var value))
                         return value;
                     if (prop.ValueKind == JsonValueKind.String && decimal.TryParse(prop.GetString(), out var stringValue))
                         return stringValue;
+                    }
                 }
-            }
             return 0m;
-        }
+            }
 
         private int GetIntProperty(JsonElement element, params string[] propertyNames)
-        {
-            foreach (var name in propertyNames)
             {
-                if (element.TryGetProperty(name, out var prop))
+            foreach (var name in propertyNames)
                 {
+                if (element.TryGetProperty(name, out var prop))
+                    {
                     if (prop.ValueKind == JsonValueKind.Number && prop.TryGetInt32(out var value))
                         return value;
                     if (prop.ValueKind == JsonValueKind.String && int.TryParse(prop.GetString(), out var stringValue))
                         return stringValue;
+                    }
                 }
-            }
             return 0;
-        }
+            }
 
         private DateTime GetDateProperty(JsonElement element, params string[] propertyNames)
-        {
-            foreach (var name in propertyNames)
             {
-                if (element.TryGetProperty(name, out var prop))
+            foreach (var name in propertyNames)
                 {
+                if (element.TryGetProperty(name, out var prop))
+                    {
                     if (prop.ValueKind == JsonValueKind.String && DateTime.TryParse(prop.GetString(), out var value))
                         return value;
+                    }
                 }
-            }
             return default;
-        }
+            }
 
         private decimal GetDictionaryDecimal(IDictionary<string, object> dict, params string[] keys)
-        {
-            foreach (var key in keys)
             {
-                if (dict.TryGetValue(key, out var value))
+            foreach (var key in keys)
                 {
+                if (dict.TryGetValue(key, out var value))
+                    {
                     if (value is decimal decValue) return decValue;
                     if (value is double doubleValue) return (decimal)doubleValue;
                     if (value is float floatValue) return (decimal)floatValue;
                     if (value is int intValue) return intValue;
                     if (decimal.TryParse(value?.ToString(), out var parsedValue))
                         return parsedValue;
+                    }
                 }
-            }
             return 0m;
-        }
+            }
 
         private int GetDictionaryInt(IDictionary<string, object> dict, params string[] keys)
-        {
-            foreach (var key in keys)
             {
-                if (dict.TryGetValue(key, out var value))
+            foreach (var key in keys)
                 {
+                if (dict.TryGetValue(key, out var value))
+                    {
                     if (value is int intValue) return intValue;
                     if (int.TryParse(value?.ToString(), out var parsedValue))
                         return parsedValue;
+                    }
                 }
-            }
             return 0;
-        }
+            }
 
         private DateTime GetDictionaryDate(IDictionary<string, object> dict, params string[] keys)
-        {
-            foreach (var key in keys)
             {
-                if (dict.TryGetValue(key, out var value))
+            foreach (var key in keys)
                 {
+                if (dict.TryGetValue(key, out var value))
+                    {
                     if (value is DateTime dateValue) return dateValue;
                     if (DateTime.TryParse(value?.ToString(), out var parsedValue))
                         return parsedValue;
+                    }
                 }
-            }
             return default;
-        }
+            }
 
         /// <summary>
         /// Updates all sales UI elements with the extracted data
         /// </summary>
         private void UpdateSalesUI(SalesDataExtracted salesData)
-        {
-            try
             {
+            try
+                {
                 // Update summary labels
                 lblSalesTotalValue.Text = $"Total Sales: {salesData.TotalSales:C}";
                 lblSalesOrderCount.Text = $"Total Orders: {salesData.TotalOrders:N0}";
@@ -2658,29 +2731,29 @@ namespace InventoryPro.WinForms.Forms
                 UpdateSalesDataGrid(salesData.DailySales);
 
                 _logger.LogInformation("Sales UI updated with {DailyCount} daily points", salesData.DailySalesCount);
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error updating sales UI");
                 throw;
+                }
             }
-        }
 
         private void UpdateSalesChart(List<DailySalesPoint> dailySales)
-        {
-            try
             {
+            try
+                {
                 chartSales.Series.Clear();
                 chartSales.ChartAreas.Clear();
 
                 // Create chart area with enhanced styling
                 var chartArea = new ChartArea("SalesArea")
-                {
+                    {
                     BackColor = Color.White,
                     BorderColor = Color.FromArgb(189, 195, 199),
                     BorderWidth = 1,
                     BorderDashStyle = ChartDashStyle.Solid
-                };
+                    };
 
                 // Configure axes
                 chartArea.AxisX.LineColor = Color.FromArgb(189, 195, 199);
@@ -2698,7 +2771,7 @@ namespace InventoryPro.WinForms.Forms
 
                 // Create series with enhanced styling
                 var series = new Series("Daily Sales")
-                {
+                    {
                     ChartType = SeriesChartType.Column,
                     Color = Color.FromArgb(41, 128, 185),
                     IsValueShownAsLabel = true,
@@ -2709,52 +2782,52 @@ namespace InventoryPro.WinForms.Forms
                     BackGradientStyle = GradientStyle.TopBottom,
                     BackSecondaryColor = Color.FromArgb(52, 152, 219),
                     LabelForeColor = Color.FromArgb(44, 62, 80)
-                };
+                    };
 
                 // Add data points
                 if (dailySales.Any())
-                {
-                    foreach (var point in dailySales.OrderBy(ds => ds.Date))
                     {
+                    foreach (var point in dailySales.OrderBy(ds => ds.Date))
+                        {
                         series.Points.AddXY(point.Date.ToString("MM/dd"), point.Amount);
+                        }
                     }
-                }
                 else
-                {
+                    {
                     // Add sample point to show chart structure
                     series.Points.AddXY("No Data", 0);
-                }
+                    }
 
                 chartSales.Series.Add(series);
 
                 // Add title
                 chartSales.Titles.Clear();
                 chartSales.Titles.Add(new Title("Daily Sales Performance")
-                {
+                    {
                     Font = new Font("Segoe UI", 12, FontStyle.Bold),
                     ForeColor = Color.FromArgb(52, 73, 94)
-                });
-            }
+                    });
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error updating sales chart");
+                }
             }
-        }
 
         private void UpdateSalesDataGrid(List<DailySalesPoint> dailySales)
-        {
-            try
             {
+            try
+                {
                 dgvSalesData.DataSource = null;
                 dgvSalesData.Columns.Clear();
 
                 if (!dailySales.Any())
-                {
+                    {
                     // Show empty state
                     dgvSalesData.Columns.Add("Message", "Status");
                     dgvSalesData.Rows.Add("No sales data available for the selected date range");
                     return;
-                }
+                    }
 
                 // Create data table
                 var dataTable = new System.Data.DataTable();
@@ -2764,7 +2837,7 @@ namespace InventoryPro.WinForms.Forms
                 dataTable.Columns.Add("Avg per Order", typeof(string));
 
                 foreach (var point in dailySales.OrderBy(ds => ds.Date))
-                {
+                    {
                     var avgPerOrder = point.OrderCount > 0 ? point.Amount / point.OrderCount : 0m;
                     dataTable.Rows.Add(
                         point.Date.ToString("yyyy-MM-dd"),
@@ -2772,32 +2845,32 @@ namespace InventoryPro.WinForms.Forms
                         point.OrderCount,
                         avgPerOrder.ToString("C")
                     );
-                }
+                    }
 
                 dgvSalesData.DataSource = dataTable;
 
                 // Style columns
                 if (dgvSalesData.Columns.Count > 0)
-                {
+                    {
                     dgvSalesData.Columns[0].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     dgvSalesData.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                     dgvSalesData.Columns[2].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     dgvSalesData.Columns[3].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+                    }
+                }
+            catch (Exception ex)
+                {
+                _logger.LogError(ex, "Error updating sales data grid");
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating sales data grid");
-            }
-        }
 
         /// <summary>
         /// Diagnoses sales data issues and provides detailed feedback
         /// </summary>
         private async Task DiagnoseSalesDataIssueAsync(string errorMessage, CancellationToken cancellationToken)
-        {
-            try
             {
+            try
+                {
                 _logger.LogInformation("Starting sales data diagnosis");
 
                 var diagnosisResults = new List<string>();
@@ -2805,83 +2878,83 @@ namespace InventoryPro.WinForms.Forms
 
                 // Test API connectivity by trying to get dashboard stats
                 try
-                {
+                    {
                     var testResponse = await _apiService.GetDashboardStatsAsync();
                     if (testResponse.Success)
-                    {
+                        {
                         diagnosisResults.Add("✓ API Gateway is accessible");
-                    }
+                        }
                     else
-                    {
+                        {
                         var errorMsg = testResponse.Message ?? (testResponse.Errors.Any() ? string.Join(", ", testResponse.Errors) : "Unknown error");
                         diagnosisResults.Add($"✗ API Gateway issue: {errorMsg}");
+                        }
                     }
-                }
                 catch (Exception ex)
-                {
+                    {
                     diagnosisResults.Add($"✗ API connectivity test failed: {ex.Message}");
-                }
+                    }
 
                 // Test date range validity
                 var dateRange = dtpSalesEnd.Value - dtpSalesStart.Value;
                 if (dateRange.TotalDays <= 0)
-                {
+                    {
                     diagnosisResults.Add("✗ Invalid date range: End date must be after start date");
-                }
+                    }
                 else if (dateRange.TotalDays > 365)
-                {
+                    {
                     diagnosisResults.Add("⚠ Large date range (>365 days) may cause performance issues");
-                }
+                    }
                 else
-                {
+                    {
                     diagnosisResults.Add($"✓ Date range is valid ({dateRange.TotalDays:N0} days)");
-                }
+                    }
 
                 // Update UI with diagnosis
                 Invoke(new Action(() =>
                 {
                     try
-                    {
+                        {
                         lblSalesLoadingStatus.Text = "Diagnosis complete - Check logs for details";
-                        
+
                         // Show detailed diagnosis in a message box for debugging
                         var diagnosis = string.Join(Environment.NewLine, diagnosisResults);
                         _logger.LogWarning("Sales Data Diagnosis Results:\n{Diagnosis}", diagnosis);
-                        
+
                         // Update summary with helpful message
                         lblSalesTotalValue.Text = "Total Sales: Unable to load data";
                         lblSalesOrderCount.Text = "Total Orders: Check connection";
                         lblSalesAvgOrder.Text = "Avg Order: Service unavailable";
-                        
+
                         // Clear chart and show message
                         chartSales.Series.Clear();
                         chartSales.Titles.Clear();
                         chartSales.Titles.Add(new Title("Sales Data Unavailable")
-                        {
+                            {
                             Font = new Font("Segoe UI", 14, FontStyle.Bold),
                             ForeColor = Color.FromArgb(231, 76, 60)
-                        });
-                        
+                            });
+
                         // Show error in data grid
                         dgvSalesData.DataSource = null;
                         dgvSalesData.Columns.Clear();
                         dgvSalesData.Columns.Add("Issue", "Diagnosis");
                         foreach (var result in diagnosisResults)
-                        {
+                            {
                             dgvSalesData.Rows.Add(result);
+                            }
                         }
-                    }
                     catch (Exception ex)
-                    {
+                        {
                         _logger.LogError(ex, "Error updating UI during diagnosis");
-                    }
+                        }
                 }));
-            }
+                }
             catch (Exception ex)
-            {
+                {
                 _logger.LogError(ex, "Error during sales data diagnosis");
+                }
             }
-        }
 
         /// <summary>
         /// Provides user-friendly error messages based on HTTP status codes and error details
@@ -2889,16 +2962,51 @@ namespace InventoryPro.WinForms.Forms
         private string GetUserFriendlyErrorMessage(string? originalMessage, int statusCode)
             {
             return statusCode switch
-            {
-                502 => "The reporting service is currently unavailable.\n\nThis typically means:\n• The report server is temporarily down\n• Network connectivity issues\n• Service is being updated\n\nPlease try again in a few moments.",
-                503 => "The reporting service is temporarily overloaded.\n\nPlease wait a moment and try again.",
-                504 => "The request timed out while loading sales data.\n\nThis may be due to:\n• Large amount of data being processed\n• Slow network connection\n• Server overload\n\nTry selecting a smaller date range or try again later.",
-                404 => "The requested sales data endpoint was not found.\n\nPlease contact support if this issue persists.",
-                401 => "Authentication failed. Please log in again.",
-                403 => "You don't have permission to access sales reports.\n\nPlease contact your administrator.",
-                500 => "An internal server error occurred while processing your request.\n\nPlease try again or contact support if the issue persists.",
-                _ => $"Unable to load sales data.\n\nError: {originalMessage ?? "Unknown error"}\n\nPlease check your connection and try again."
-            };
+                {
+                    502 => "REAL DATA SERVER UNAVAILABLE (Error 502):\n\n" +
+                           "The sales data server is currently unavailable. This typically means:\n" +
+                           "• The report server is temporarily down\n" +
+                           "• Network connectivity issues\n" +
+                           "• Service is being updated or restarted\n\n" +
+                           "Your real sales data cannot be retrieved at this time.\n" +
+                           "Please try again in a few moments.",
+                           
+                    503 => "REAL DATA SERVER OVERLOADED (Error 503):\n\n" +
+                           "The sales data server is temporarily overloaded and cannot process your request.\n\n" +
+                           "Your real sales data is temporarily unavailable.\n" +
+                           "Please wait a moment and try again.",
+                           
+                    504 => "REAL DATA REQUEST TIMEOUT (Error 504):\n\n" +
+                           "The request timed out while loading your real sales data. This may be due to:\n" +
+                           "• Large amount of data being processed\n" +
+                           "• Slow network connection\n" +
+                           "• Server overload\n\n" +
+                           "Try selecting a smaller date range or try again later.",
+                           
+                    404 => "REAL DATA ENDPOINT NOT FOUND (Error 404):\n\n" +
+                           "The sales data API endpoint was not found on the server.\n\n" +
+                           "This may indicate a configuration issue preventing access to your real data.\n" +
+                           "Please contact support if this issue persists.",
+                           
+                    401 => "REAL DATA ACCESS DENIED (Error 401):\n\n" +
+                           "Authentication failed while trying to access your real sales data.\n\n" +
+                           "Please log in again to access your real sales information.",
+                           
+                    403 => "REAL DATA PERMISSION DENIED (Error 403):\n\n" +
+                           "You don't have permission to access real sales data.\n\n" +
+                           "Please contact your administrator to gain access to sales reports.",
+                           
+                    500 => "REAL DATA SERVER ERROR (Error 500):\n\n" +
+                           "An internal server error occurred while processing your real sales data request.\n\n" +
+                           "The server encountered an issue retrieving your actual sales information.\n" +
+                           "Please try again or contact support if the issue persists.",
+                           
+                    _ => $"REAL DATA LOADING FAILED (Error {statusCode}):\n\n" +
+                         $"Unable to load your real sales data from the server.\n\n" +
+                         $"Server Response: {originalMessage ?? "Unknown error"}\n\n" +
+                         "This system is designed to work with real data only.\n" +
+                         "Please check your connection and try again."
+                    };
             }
 
         /// <summary>
