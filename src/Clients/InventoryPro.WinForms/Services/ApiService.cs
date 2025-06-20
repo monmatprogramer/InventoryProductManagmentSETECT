@@ -762,23 +762,67 @@ namespace InventoryPro.WinForms.Services
             }
 
         /// <summary>
-        /// Get sales report data for viewing
+        /// Get sales report data for viewing with retry logic
         /// </summary>
         public async Task<ApiResponse<object>> GetSalesReportDataAsync(DateTime startDate, DateTime endDate)
             {
-            try
-                {
-                await AddAuthorizationHeader();
+            const int maxRetries = 3;
+            const int baseDelayMs = 1000;
 
-                var queryParams = $"?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
-                var response = await _httpClient.GetAsync($"reports/sales/data{queryParams}");
-                return await HandleResponse<object>(response);
-                }
-            catch (Exception ex)
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
                 {
-                _logger.LogError(ex, "Error getting sales report data");
-                return CreateErrorResponse<object>(ex);
+                try
+                    {
+                    await AddAuthorizationHeader();
+
+                    var queryParams = $"?startDate={startDate:yyyy-MM-dd}&endDate={endDate:yyyy-MM-dd}";
+                    var response = await _httpClient.GetAsync($"reports/sales/data{queryParams}");
+                    var result = await HandleResponse<object>(response);
+                    
+                    // If successful or non-retryable error, return immediately
+                    if (result.Success || !IsRetryableError(result.StatusCode))
+                        {
+                        return result;
+                        }
+
+                    // Log retry attempt
+                    if (attempt < maxRetries)
+                        {
+                        var delay = (int)(baseDelayMs * Math.Pow(2, attempt));
+                        _logger.LogWarning("Sales report data request failed (attempt {Attempt}/{MaxRetries}). Status: {StatusCode}. Retrying in {DelayMs}ms", 
+                            attempt + 1, maxRetries + 1, result.StatusCode, delay);
+                        await Task.Delay(delay);
+                        }
+                    else
+                        {
+                        _logger.LogError("Sales report data request failed after {MaxRetries} attempts. Final status: {StatusCode}", 
+                            maxRetries + 1, result.StatusCode);
+                        return result;
+                        }
+                    }
+                catch (HttpRequestException ex) when (attempt < maxRetries)
+                    {
+                    var delay = (int)(baseDelayMs * Math.Pow(2, attempt));
+                    _logger.LogWarning(ex, "Network error getting sales report data (attempt {Attempt}/{MaxRetries}). Retrying in {DelayMs}ms", 
+                        attempt + 1, maxRetries + 1, delay);
+                    await Task.Delay(delay);
+                    }
+                catch (TaskCanceledException ex) when (attempt < maxRetries && !ex.CancellationToken.IsCancellationRequested)
+                    {
+                    var delay = (int)(baseDelayMs * Math.Pow(2, attempt));
+                    _logger.LogWarning(ex, "Timeout getting sales report data (attempt {Attempt}/{MaxRetries}). Retrying in {DelayMs}ms", 
+                        attempt + 1, maxRetries + 1, delay);
+                    await Task.Delay(delay);
+                    }
+                catch (Exception ex)
+                    {
+                    _logger.LogError(ex, "Error getting sales report data");
+                    return CreateErrorResponse<object>(ex);
+                    }
                 }
+
+            // This should never be reached, but included for completeness
+            return CreateErrorResponse<object>(new Exception("Max retries exceeded"));
             }
 
         /// <summary>
@@ -821,6 +865,41 @@ namespace InventoryPro.WinForms.Services
             }
 
         #endregion
+
+        /// <summary>
+        /// Checks if the API service is available and responsive
+        /// </summary>
+        public async Task<bool> IsServiceHealthyAsync()
+            {
+            try
+                {
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await AddAuthorizationHeader();
+                var response = await _httpClient.GetAsync("health", timeoutCts.Token);
+                return response.IsSuccessStatusCode;
+                }
+            catch (Exception ex)
+                {
+                _logger.LogDebug(ex, "Service health check failed");
+                return false;
+                }
+            }
+
+        /// <summary>
+        /// Determines if an HTTP status code represents a retryable error
+        /// </summary>
+        private bool IsRetryableError(int statusCode)
+            {
+            return statusCode switch
+            {
+                502 => true,  // Bad Gateway - server temporarily unavailable
+                503 => true,  // Service Unavailable - server overloaded
+                504 => true,  // Gateway Timeout - request timed out
+                429 => true,  // Too Many Requests - rate limited
+                408 => true,  // Request Timeout
+                _ => false    // Other errors are generally not retryable
+            };
+            }
 
         private ApiResponse<T> CreateErrorResponse<T>(Exception ex)
             {
